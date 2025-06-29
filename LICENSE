@@ -1,0 +1,308 @@
+GNU LESSER GENERAL PUBLIC LICENSE
+   Version 3, 29 June 2007
+
+ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+
+  This version of the GNU Lesser General Public License incorporates
+the terms and conditions of version 3 of the GNU General Public License,
+supplemented by the additional permissions listed below.
+
+  0. Additional Definitions.
+
+  As used herein, “this License” refers to version 3 of the GNU Lesser
+General Public License, and the “GNU GPL” refers to version 3 of the GNU
+General Public License.
+
+  “The Library” refers to a covered work governed by this License,
+other than an Application or a Combined Work as defined below.
+
+  An “Application” is any work that makes use of an interface provided
+by the Library, but which is not otherwise based on the Library.
+Defining a subclass of a class defined by the Library is deemed a mode
+of using an interface provided by the Library.
+
+  A “Combined Work” is a work produced by combining or linking an
+Application with the Library. The particular version of the Library
+with which the Combined Work was made is also called the “Linked
+Version”.
+
+  The “Minimal Corresponding Source” for a Combined Work means the
+Corresponding Source for the Combined Work, excluding any source code
+for portions of the Combined Work that, considered in isolation, are
+based on the Application, and not on the Linked Version.
+
+  The “Corresponding Application Code” for a Combined Work means the
+object code and/or source code for the Application, including any data
+and utility programs needed for reproducing the Combined Work from the
+Application, but excluding the System Libraries of the Combined Work.
+
+  1. Exception to Section 3 of the GNU GPL.
+
+  You may convey a covered work under sections 3 and 4 of this License
+without being bound by section 3 of the GNU GPL.
+
+  2. Conveying Modified Versions.
+
+  If you modify a copy of the Library, and, in your modifications, a
+facility refers to a function or data to be supplied by an Application
+that uses the facility (other than as an argument passed when the
+facility is invoked), then you may convey a copy of the modified
+version:
+
+   a) under this License, provided that you make a good faith effort to
+   ensure that, in the event an Application does not supply the
+   function or data, the facility still operates, and performs
+   whatever part of its purpose remains meaningful, or
+
+   b) under the GNU GPL, with none of the additional permissions of
+   this License applicable to that copy.
+
+  3. Object Code Incorporating Material from Library Header Files.
+
+  The object code form of an Application may incorporate material from
+a header file that is part of the Library. You may convey such object
+code under terms of your choice, provided that, if the incorporated
+material is not limited to numerical parameters, data structure
+layouts and accessors, or small macros, inline functions and templates
+(ten or fewer lines in length), you do both of the following:
+
+   a) Give prominent notice with each copy of the object code that the
+   Library is used in it and that the Library and its use are
+   covered by this License.
+
+   b) Accompany the object code with a copy of the GNU GPL and this license
+   document.
+
+  4. Combined Works.
+
+  You may convey a Combined Work under terms of your choice that,
+taken together, effectively do not restrict modification of the
+portions of the Library contained in the Combined Work and reverse
+engineering for debugging such modifications, if you also do each of
+the following:
+
+   a) Give prominent notice with each copy of the Combined Work that
+   the Library is used in it and that the Library and its use are
+   covered by this License.
+
+   b) Accompany the Combined Work with a copy of the GNU GPL and this license
+   document.
+
+   c) For a Combined Work that displays copyright notices during
+   execution, include the copyright notice for the Library among
+   these notices, as well as a reference directing the user to the
+   copies of the GNU GPL and this license document.
+
+   d) Do one of the following:
+
+   0) Convey the Minimal Corresponding Source under the terms of this
+   License, and the Corresponding Application Code in a form
+   suitable for, and under terms that permit, the user to
+   recombine or relink the Application with a modified version of
+   the Linked Version to produce a modified Combined Work, in the
+   manner specified by section 6 of the GNU GPL for conveying
+   Corresponding Source.
+
+   1) Use a suitable shared library mechanism for linking with the
+   Library. A suitable mechanism is one that (a) uses at run time
+   a copy of the Library already present on the user's computer
+   system, and (b) will operate properly with a modified version
+   of the Library that is interface-compatible with the Linked
+   Version.
+
+   e) Provide Installation Information, but only if you would otherwise
+   be required to provide such information under section 6 of the
+   GNU GPL, and only to the extent that such information is necessary
+   to install and execute a modified version of the Combined Work
+   produced by recombining or relinking the Application with a
+   modified version of the Linked Version. (If you use option 4d0,
+   the Installation Information must accompany the Minimal
+   Corresponding Source and Corresponding Application Code. If you
+   use option 4d1, you must provide the Installation Information in
+   the manner specified by section 6 of the GNU GPL for conveying
+   Corresponding Source.)
+
+  5. Additional Terms.
+
+  Additional permissions may be stated to apply to the whole of the
+Library, or to any part thereof. These additional permissions may be
+removed from the License for a material portion or for the entire
+Library. If additional permissions apply only to part of the Library,
+that part may be used separately under those permissions, but the
+entire Library remains governed by this License without regard to the
+additional permissions.
+
+  When you convey a copy of a covered work, you may at your option
+remove any additional permissions from that copy, or from any part of
+it. (Additional permissions may be written to require their own
+removal in certain cases when you modify the work.) You may place
+additional permissions on material, added by you to a covered work,
+for which you have or can give appropriate copyright permission.
+
+  Notwithstanding any other provision of this License, for material you
+add to a covered work, you may (if authorized by the copyright holders of
+that material) supplement the terms of this License with terms:
+
+   a) Disclaiming warranty or limiting liability differently from the
+   terms of sections 15 and 16 of the GNU GPL; or
+
+   b) Requiring preservation of specified reasonable legal notices or
+   author attributions in that material or in the Appropriate Legal
+   Notices displayed by works containing it; or
+
+   c) Prohibiting misrepresentation of the origin of that material, or
+   requiring that modified versions of such material be marked in
+   reasonable ways as different from the original version; or
+
+   d) Limiting the use for publicity purposes of names of licensors or
+   authors of the material; or
+
+   e) Declining to grant rights under trademark law for use of some
+   trade names, trademarks, or service marks; or
+
+   f) Requiring indemnification of licensors and authors of that
+   material by anyone who conveys the material (or modified versions of
+   it) with contractual assumptions of liability to the recipient, for
+   any liability that these contractual assumptions directly impose on
+   those licensors and authors.
+
+  All other non-permissive additional terms are considered “further
+restrictions” within the meaning of section 7 of the GNU GPL, and are
+void if imposed on any covered work. If the Library as you received it,
+or any part of it, contains a notice stating that it is governed by
+this License along with a term that is a further restriction, you may
+remove that term. If a license document contains a further restriction
+but permits relicensing or conveying under this License, you may add
+to a covered work material governed by the terms of that license
+document, provided that the further restriction does not survive such
+relicensing or conveying.
+
+  6. Termination.
+
+  Under section 8 of the GNU GPL, your rights under this License
+terminate automatically if you fail to comply with any of its terms.
+Reinstatement of your rights under this License is governed by section
+8 of the GNU GPL.
+
+  If your rights under this License terminate, you must cease all
+activities authorized by this License. If your rights are reinstated,
+you have no rights under this License to the material that you have
+ceased using.
+
+  7. No Surrender of Others' Freedom.
+
+  If conditions are imposed on you (whether by court order, agreement or
+otherwise) that contradict the conditions of this License, they do not
+excuse you from the conditions of this License. If you cannot convey a
+covered work so as to satisfy simultaneously your obligations under this
+License and any other pertinent obligations, then as a consequence you may
+not convey it at all. For example, if you agree to terms that obligate you
+to collect a royalty for further conveying from those to whom you convey
+the Library, the only way you could satisfy both those terms and this
+License would be to refrain entirely from conveying the Library.
+
+  8. Use with the GNU Affero General Public License.
+
+  Notwithstanding any other provision of this License, you have
+permission to link or combine any covered work with a work licensed
+under version 3 of the GNU Affero General Public License into a single
+combined work, and to convey the resulting work. The terms of this
+License will continue to apply to the part which is the Library, but
+the special requirements of the GNU Affero General Public License,
+section 13, concerning interaction through a network will apply to the
+combination as such.
+
+  9. Acceptance Not Required for Having Copies.
+
+  You are not required to accept this License in order to receive or
+run a copy of the Library. Ancillary propagation of a covered work
+occurring solely as a consequence of using peer-to-peer transmission
+to receive a copy likewise does not require acceptance. However,
+nothing other than this License grants you permission to propagate or
+modify any covered work. These actions infringe copyright if you do
+not accept this License. Therefore, by modifying or propagating a
+covered work, you indicate your acceptance of this License to do so.
+
+  10. Automatic Licensing of Downstream Recipients.
+
+  Each time you convey a covered work, the recipient automatically
+receives a license from the original licensors, to run, modify and
+propagate that work, subject to this License. You are not responsible
+for enforcing compliance by third parties with this License.
+
+  11. Patents.
+
+  A contributor grants you a non-exclusive, worldwide, royalty-free
+patent license under the contributor's essential patent claims, to
+make, use, sell, offer for sale, import and otherwise run, modify and
+propagate the contents of its contributor version.
+
+  12. No Warranty.
+
+  THE LIBRARY IS PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND,
+EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
+LIBRARY IS WITH YOU. SHOULD THE LIBRARY PROVE DEFECTIVE, YOU ASSUME
+THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+
+  13. Limitation of Liability.
+
+  IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN
+WRITING WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES
+AND/OR CONVEYS THE LIBRARY AS PERMITTED ABOVE, BE LIABLE TO YOU FOR
+DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL
+DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE THE LIBRARY (INCLUDING
+BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR
+LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A FAILURE OF THE LIBRARY TO
+OPERATE WITH ANY OTHER SOFTWARE), EVEN IF SUCH HOLDER OR OTHER PARTY HAS
+BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+  14. Interpretation of Sections 11 and 12.
+
+  If the disclaimer of warranty and limitation of liability provided
+above cannot be given local legal effect according to their terms,
+reviewing courts shall apply local law that most closely approximates
+an absolute waiver of all civil liability in connection with the
+Library, unless a warranty or assumption of liability accompanies a
+copy of the Library in return for a fee.
+
+ END OF TERMS AND CONDITIONS
+
+How to Apply These Terms to Your New Libraries
+
+  If you develop a new library, and you want it to be of the greatest
+possible use to the public, we recommend making it free software that
+everyone can redistribute and change. You can do so by permitting
+redistribution under these terms (or, alternatively, under the terms of the
+ordinary GNU General Public License).
+
+  To apply these terms, attach the following notices to the library. It is
+safest to attach them to the start of each source file to most effectively
+state the exclusion of warranty; and each file should have at least the
+“copyright” line and a pointer to where the full notice is found.
+
+<one line to give the library's name and a brief idea of what it does.>
+Copyright (C) <year>  <name of author>
+
+This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 3 of the License, or (at your option) any later version.
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, see <https://www.gnu.org/licenses/>.
+
+Also add information on how to contact you by electronic and paper mail.
+
+You should also get your employer (if you work as a programmer) or school,
+if any, to sign a “copyright disclaimer” for the library, if necessary.
+For more information on this, and how to apply and follow the GNU LGPL, see
+<https://www.gnu.org/licenses/>.
