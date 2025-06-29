@@ -1,0 +1,6 @@
+# Log files
+logs/*.log
+
+# Binaries
+luna
+luna.exe

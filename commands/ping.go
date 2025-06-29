@@ -1,33 +1,26 @@
 package commands
 
 import (
-	"fmt" // 文字列フォーマットのため fmt パッケージをインポート
-	"log"
+	"fmt"
+	"luna/logger" // 新しいloggerパッケージをインポート
 
 	"github.com/bwmarrin/discordgo"
 )
 
-// コマンドの定義を格納するスライス
 var Commands = []*discordgo.ApplicationCommand{
 	{
 		Name:        "ping",
-		Description: "ボットのレイテンシを測定します", // 説明を分かりやすく変更
+		Description: "ボットのレイテンシを測定します",
 	},
-	// ここに新しいコマンドの定義を追加していく
 }
 
-// コマンド名とハンドラ関数をマッピング
 var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 	"ping": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		log.Println("ping command received")
+		logger.Info.Println("ping command received") // log.Println を logger.Info.Println に変更
 
-		// s.HeartbeatLatency() でレイテンシを取得し、ミリ秒単位の数値に変換
 		latency := s.HeartbeatLatency().Milliseconds()
-
-		// 応答メッセージを作成
 		message := fmt.Sprintf("Pong! 🏓 (%dms)", latency)
 
-		// 作成したメッセージで応答する
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -35,8 +28,7 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			},
 		})
 		if err != nil {
-			log.Printf("Error responding to ping command: %v", err)
+			logger.Error.Printf("Error responding to ping command: %v", err) // log.Printf を logger.Error.Printf に変更
 		}
 	},
-	// ここに新しいコマンドのハンドラを追加していく
 }
