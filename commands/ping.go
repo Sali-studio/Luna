@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt" // 文字列フォーマットのため fmt パッケージをインポート
 	"log"
 
 	"github.com/bwmarrin/discordgo"
@@ -10,7 +11,7 @@ import (
 var Commands = []*discordgo.ApplicationCommand{
 	{
 		Name:        "ping",
-		Description: "Pong! と返します",
+		Description: "ボットのレイテンシを測定します", // 説明を分かりやすく変更
 	},
 	// ここに新しいコマンドの定義を追加していく
 }
@@ -19,11 +20,18 @@ var Commands = []*discordgo.ApplicationCommand{
 var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 	"ping": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		log.Println("ping command received")
-		// Pong!というメッセージで応答する
+
+		// s.HeartbeatLatency() でレイテンシを取得し、ミリ秒単位の数値に変換
+		latency := s.HeartbeatLatency().Milliseconds()
+
+		// 応答メッセージを作成
+		message := fmt.Sprintf("Pong! 🏓 (%dms)", latency)
+
+		// 作成したメッセージで応答する
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "Pong! 🏓",
+				Content: message,
 			},
 		})
 		if err != nil {
