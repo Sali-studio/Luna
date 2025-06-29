@@ -6,13 +6,13 @@ import (
 	"syscall"
 
 	"luna/commands"
-	"luna/logger" // 新しいloggerパッケージをインポート
+	"luna/logger"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 func main() {
-	logger.Init() // ★ main関数の最初にロガーを初期化
+	logger.Init()
 
 	token := os.Getenv("DISCORD_BOT_TOKEN")
 	if token == "" {
@@ -23,6 +23,10 @@ func main() {
 	if err != nil {
 		logger.Fatal.Printf("Discordセッションの作成中にエラーが発生しました: %v", err)
 	}
+
+	// ★★★ インテントの設定を追加 ★★★
+	// メンバー情報を取得するために必要
+	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMembers
 
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {

@@ -2,21 +2,20 @@ package commands
 
 import (
 	"fmt"
-	"luna/logger" // 新しいloggerパッケージをインポート
+	"luna/logger"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-var Commands = []*discordgo.ApplicationCommand{
-	{
+// ★★★ このファイル全体をinit()で囲むように変更 ★★★
+func init() {
+	cmd := &discordgo.ApplicationCommand{
 		Name:        "ping",
 		Description: "ボットのレイテンシを測定します",
-	},
-}
+	}
 
-var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-	"ping": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		logger.Info.Println("ping command received") // log.Println を logger.Info.Println に変更
+	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		logger.Info.Println("ping command received")
 
 		latency := s.HeartbeatLatency().Milliseconds()
 		message := fmt.Sprintf("Pong! 🏓 (%dms)", latency)
@@ -28,7 +27,10 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			},
 		})
 		if err != nil {
-			logger.Error.Printf("Error responding to ping command: %v", err) // log.Printf を logger.Error.Printf に変更
+			logger.Error.Printf("Error responding to ping command: %v", err)
 		}
-	},
+	}
+
+	Commands = append(Commands, cmd)
+	CommandHandlers[cmd.Name] = handler
 }
