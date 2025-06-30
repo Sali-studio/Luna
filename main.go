@@ -24,9 +24,7 @@ func main() {
 		logger.Fatal.Printf("Discordセッションの作成中にエラーが発生しました: %v", err)
 	}
 
-	// ★★★ インテントの設定を追加 ★★★
-	// メンバー情報を取得するために必要
-	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMembers
+	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates
 
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {
