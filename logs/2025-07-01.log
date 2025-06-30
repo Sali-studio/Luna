@@ -110,3 +110,5 @@ INFO: 2025/07/01 06:15:31 main.go:72: Bot is now running. Press CTRL-C to exit.
 INFO: 2025/07/01 06:16:37 main.go:77: Botをシャットダウンします。
 INFO: 2025/07/01 06:17:00 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
 INFO: 2025/07/01 06:17:00 main.go:72: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/01 06:19:38 pokemon_stats.go:76: calc-stats command received
+INFO: 2025/07/01 06:32:19 main.go:77: Botをシャットダウンします。
