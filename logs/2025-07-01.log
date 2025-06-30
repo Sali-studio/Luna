@@ -83,3 +83,4 @@ INFO: 2025/07/01 05:40:53 ask.go:27: ask command received
 INFO: 2025/07/01 05:50:39 main.go:77: Botをシャットダウンします。
 INFO: 2025/07/01 05:50:47 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
 INFO: 2025/07/01 05:50:47 main.go:72: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/01 05:52:36 main.go:77: Botをシャットダウンします。

@@ -8,15 +8,16 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// 各電力単位の基準となる値（RF/FEを基準とする）
+// 各電力単位のRF/FEに対するレート
+// 基準: 1 RF/FE = X 他の単位
 var powerConversionRates = map[string]float64{
 	"rf": 1.0,
 	"fe": 1.0,
-	"eu": 4.0,
-	"mj": 10.0,
-	"if": 1.0, // Industrial Foregoingの電力単位 (FEと同じ)
-	"ae": 2.0, // Applied Energistics 2の電力単位 (AE/t)
-	"j":  0.4, // Mekanism Joules (1J = 0.4RF)
+	"eu": 0.25,
+	"mj": 0.1,
+	"if": 1.0,
+	"ae": 0.5,
+	"j":  2.5,
 }
 
 // 単位の正式名称
@@ -30,19 +31,21 @@ var powerUnitFullName = map[string]string{
 	"j":  "Joules (Mekanism)",
 }
 
+// 表示する単位の順番
+var unitDisplayOrder = []string{"rf", "fe", "j", "eu", "mj", "ae", "if"}
+
 func init() {
-	// 各単位を選択肢として動的に生成
 	var unitChoices []*discordgo.ApplicationCommandOptionChoice
-	for key, name := range powerUnitFullName {
+	for _, key := range unitDisplayOrder {
 		unitChoices = append(unitChoices, &discordgo.ApplicationCommandOptionChoice{
-			Name:  fmt.Sprintf("%s (%s)", strings.ToUpper(key), name),
+			Name:  fmt.Sprintf("%s (%s)", strings.ToUpper(key), powerUnitFullName[key]),
 			Value: key,
 		})
 	}
 
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "convert-power",
-		Description: "Minecraft工業MODの電力単位を相互に変換します。",
+		Description: "Minecraft工業MODの電力単位を一覧に変換します。",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionNumber,
@@ -57,13 +60,7 @@ func init() {
 				Required:    true,
 				Choices:     unitChoices,
 			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "to",
-				Description: "変換先の単位",
-				Required:    true,
-				Choices:     unitChoices,
-			},
+			// 「to」オプションを削除
 		},
 	}
 
@@ -78,33 +75,41 @@ func init() {
 
 		amount := optionMap["amount"].FloatValue()
 		fromUnit := optionMap["from"].StringValue()
-		toUnit := optionMap["to"].StringValue()
 
-		// 計算ロジック
+		// --- ここからが新しい計算ロジック ---
 		// 1. 元の単位を基準単位(RF/FE)に変換
 		amountInRF := amount / powerConversionRates[fromUnit]
-		// 2. 基準単位から変換先の単位に変換
-		convertedAmount := amountInRF * powerConversionRates[toUnit]
+
+		// 2. 結果を表示するためのEmbedフィールドを生成
+		var fields []*discordgo.MessageEmbedField
+		for _, unitKey := range unitDisplayOrder {
+			// 基準値から各単位へ変換
+			convertedAmount := amountInRF * powerConversionRates[unitKey]
+
+			// 元の単位と同じ場合はスキップせず、太字で表示する
+			fieldName := fmt.Sprintf("%s (%s)", strings.ToUpper(unitKey), powerUnitFullName[unitKey])
+			fieldValue := fmt.Sprintf("`%.2f`", convertedAmount)
+
+			if unitKey == fromUnit {
+				fieldValue = fmt.Sprintf("**`%.2f`**", convertedAmount)
+			}
+
+			fields = append(fields, &discordgo.MessageEmbedField{
+				Name:   fieldName,
+				Value:  fieldValue,
+				Inline: true,
+			})
+		}
+		// --- ここまで ---
 
 		// 結果表示用のEmbedを作成
 		embed := &discordgo.MessageEmbed{
-			Title: "⚡ 電力単位変換結果",
-			Color: 0xFEE75C, // 黄色
-			Fields: []*discordgo.MessageEmbedField{
-				{
-					Name:   "変換前",
-					Value:  fmt.Sprintf("`%.2f %s`", amount, strings.ToUpper(fromUnit)),
-					Inline: true,
-				},
-				{
-					Name:   "変換後",
-					Value:  fmt.Sprintf("`%.2f %s`", convertedAmount, strings.ToUpper(toUnit)),
-					Inline: true,
-				},
+			Author: &discordgo.MessageEmbedAuthor{
+				Name:    fmt.Sprintf("%.2f %s の変換結果", amount, strings.ToUpper(fromUnit)),
+				IconURL: "https://cdn.discordapp.com/emojis/995772399329759242.png", // MODアイコンなど
 			},
-			Footer: &discordgo.MessageEmbedFooter{
-				Text: fmt.Sprintf("%s ⇄ %s", powerUnitFullName[fromUnit], powerUnitFullName[toUnit]),
-			},
+			Color:  0xFEE75C, // 黄色
+			Fields: fields,
 		}
 
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
