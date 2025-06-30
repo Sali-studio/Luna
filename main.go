@@ -24,10 +24,9 @@ func main() {
 		logger.Fatal.Printf("Discordセッションの作成中にエラーが発生しました: %v", err)
 	}
 
-	// 必要な情報を取得するためのインテントを設定
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentGuildModeration
 
-	// --- スラッシュコマンドとボタンクリックのイベントハンドラ ---
+	// --- イベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
@@ -37,15 +36,19 @@ func main() {
 		case discordgo.InteractionMessageComponent:
 			customID := i.MessageComponentData().CustomID
 			switch customID {
-			case "create_ticket_button":
-				commands.HandleTicketCreation(s, i)
+			case "open_ticket_modal":
+				commands.HandleOpenTicketModal(s, i)
 			case "close_ticket_button":
 				commands.HandleTicketClose(s, i)
+			}
+		case discordgo.InteractionModalSubmit:
+			if i.ModalSubmitData().CustomID == "ticket_creation_modal" {
+				commands.HandleTicketCreation(s, i)
 			}
 		}
 	})
 
-	// --- サーバーイベントのロギング用ハンドラ ---
+	// --- ロギング用ハンドラ ---
 	dg.AddHandler(commands.HandleGuildBanAdd)
 	dg.AddHandler(commands.HandleGuildMemberRemove)
 	dg.AddHandler(commands.HandleGuildMemberUpdate)
@@ -55,7 +58,6 @@ func main() {
 	dg.AddHandler(commands.HandleWebhooksUpdate)
 	dg.AddHandler(commands.HandleGuildMemberAddLog)
 
-	// Discordへの接続を開く
 	err = dg.Open()
 	if err != nil {
 		logger.Fatal.Printf("Discordへの接続中にエラーが発生しました: %v", err)
@@ -64,7 +66,7 @@ func main() {
 
 	logger.Info.Println("Botが起動しました。スラッシュコマンドを登録します。")
 
-	registeredCommands, err := dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", commands.Commands)
+	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", commands.Commands)
 	if err != nil {
 		logger.Fatal.Printf("コマンドの登録に失敗しました: %v", err)
 	}
@@ -76,13 +78,4 @@ func main() {
 	<-sc
 
 	logger.Info.Println("Botをシャットダウンします。")
-
-	for _, cmd := range registeredCommands {
-		err := dg.ApplicationCommandDelete(dg.State.User.ID, "", cmd.ID)
-		if err != nil {
-			logger.Error.Printf("コマンドの削除に失敗しました: %v", err)
-		}
-	}
-
-	logger.Info.Println("コマンドを削除しました。")
 }
