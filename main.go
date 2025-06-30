@@ -25,8 +25,19 @@ func main() {
 	}
 
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {
-			h(s, i)
+		// 受け取ったInteractionのタイプによって処理を分岐
+		switch i.Type {
+		case discordgo.InteractionApplicationCommand:
+			// スラッシュコマンドの場合の処理
+			if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {
+				h(s, i)
+			}
+		case discordgo.InteractionMessageComponent:
+			// ボタンが押された場合の処理
+			// "create_ticket_button" というIDのボタンか確認
+			if i.MessageComponentData().CustomID == "create_ticket_button" {
+				commands.HandleTicketCreation(s, i)
+			}
 		}
 	})
 
@@ -52,11 +63,4 @@ func main() {
 	logger.Info.Println("Botをシャットダウンします。")
 
 	for _, cmd := range registeredCommands {
-		err := dg.ApplicationCommandDelete(dg.State.User.ID, "", cmd.ID)
-		if err != nil {
-			logger.Error.Printf("コマンドの削除に失敗しました: %v", err)
-		}
-	}
-
-	logger.Info.Println("コマンドを削除しました。")
-}
+		err := dg.ApplicationCommandDelete(dg.State
