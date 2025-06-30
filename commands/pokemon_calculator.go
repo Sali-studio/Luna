@@ -1,6 +1,7 @@
 package commands
 
 import (
+	// ★★★ ここにimport文を正しく記述します ★★★
 	"fmt"
 	"luna/logger"
 	"math"
@@ -22,23 +23,14 @@ func init() {
 		Name:        "calc-pokemon",
 		Description: "ポケモンの各種数値を計算します。",
 		Options: []*discordgo.ApplicationCommandOption{
-			// ★★★ ここからサブコマンドの定義 ★★★
 			{
 				Name:        "stats",
 				Description: "ポケモンの実数値を計算します。",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
-				Options: []*discordgo.ApplicationCommandOption{ // サブコマンドが持つオプション
+				Options: []*discordgo.ApplicationCommandOption{
+					{Type: discordgo.ApplicationCommandOptionInteger, Name: "base_stat", Description: "計算したいステータスの種族値", Required: true},
 					{
-						Type:        discordgo.ApplicationCommandOptionInteger,
-						Name:        "base_stat",
-						Description: "計算したいステータスの種族値",
-						Required:    true,
-					},
-					{
-						Type:        discordgo.ApplicationCommandOptionString,
-						Name:        "stat_type",
-						Description: "ステータスの種類",
-						Required:    true,
+						Type: discordgo.ApplicationCommandOptionString, Name: "stat_type", Description: "ステータスの種類", Required: true,
 						Choices: []*discordgo.ApplicationCommandOptionChoice{
 							{Name: "HP", Value: "hp"}, {Name: "こうげき (Attack)", Value: "attack"}, {Name: "ぼうぎょ (Defense)", Value: "defense"},
 							{Name: "とくこう (Sp. Atk)", Value: "sp_attack"}, {Name: "とくぼう (Sp. Def)", Value: "sp_defense"}, {Name: "すばやさ (Speed)", Value: "speed"},
@@ -81,7 +73,6 @@ func init() {
 	}
 
 	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		// サブコマンドによって処理を分岐
 		switch i.ApplicationCommandData().Options[0].Name {
 		case "stats":
 			handleStatsCalc(s, i)
@@ -106,7 +97,7 @@ func init() {
 func handleStatsCalc(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	logger.Info.Println("calc-pokemon stats command received")
 
-	options := i.ApplicationCommandData().Options[0].Options // サブコマンドのオプションを取得
+	options := i.ApplicationCommandData().Options[0].Options
 	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
 	for _, opt := range options {
 		optionMap[opt.Name] = opt
