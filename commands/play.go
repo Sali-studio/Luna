@@ -6,7 +6,7 @@ import (
 	"io"
 	"luna/logger"
 	"os/exec"
-	"time" // timeパッケージのインポートを元に戻す
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -96,31 +96,23 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 		})
 	}
 
-	ytdlp := exec.Command("yt-dlp", "--no-playlist", "--quiet", "--no-warnings", "-f", "bestaudio", "-o", "-", url)
-	ytdlp.Stderr = &stderrBuf
+	// ★★★ ここからコマンド実行方法を全面的に変更 ★★★
+	// 実行するコマンド全体を一つの文字列として作成
+	// "URL" のように、URLをダブルクォートで囲むのが安定動作のコツ
+	commandString := fmt.Sprintf(`yt-dlp --no-playlist --quiet --no-warnings -f bestaudio -o - "%s" | ffmpeg -i pipe:0 -f s16le -ar 48000 -ac 2 -loglevel error pipe:1`, url)
 
-	ffmpeg := exec.Command("ffmpeg", "-i", "pipe:0", "-f", "s16le", "-ar", "48000", "-ac", "2", "-loglevel", "error", "pipe:1")
-	ffmpeg.Stderr = &stderrBuf
+	// cmd.exe を経由してコマンドを実行
+	cmd := exec.Command("cmd", "/C", commandString)
+	cmd.Stderr = &stderrBuf
 
-	var err error
-	ffmpeg.Stdin, err = ytdlp.StdoutPipe()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		sendError("yt-dlpパイプ作成エラー", err)
+		sendError("コマンドパイプ作成エラー", err)
 		return
 	}
 
-	stdout, err := ffmpeg.StdoutPipe()
-	if err != nil {
-		sendError("ffmpegパイプ作成エラー", err)
-		return
-	}
-
-	if err := ytdlp.Start(); err != nil {
-		sendError("yt-dlpの起動エラー", err)
-		return
-	}
-	if err := ffmpeg.Start(); err != nil {
-		sendError("ffmpegの起動エラー", err)
+	if err := cmd.Start(); err != nil {
+		sendError("コマンドの起動エラー", err)
 		return
 	}
 
@@ -132,7 +124,6 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 	vc.Speaking(true)
 	defer vc.Speaking(false)
 
-	// 接続安定のための待機時間を元に戻す
 	time.Sleep(250 * time.Millisecond)
 
 	for {
@@ -149,10 +140,7 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 		vc.OpusSend <- opusPacket
 	}
 
-	if err := ytdlp.Wait(); err != nil {
-		sendError("yt-dlp実行時エラー", err)
-	}
-	if err := ffmpeg.Wait(); err != nil {
-		sendError("ffmpeg実行時エラー", err)
+	if err := cmd.Wait(); err != nil {
+		sendError("コマンド実行時エラー", err)
 	}
 }
