@@ -1,6 +1,6 @@
 # Discord Bot Luna 🌙
 
-多機能を目指して開発中のGo言語製Discordボットです。
+Luna is a multi-functional Discord bot built with Go, designed to streamline server management and enhance community engagement.
 
 [![Go Version](https://img.shields.io/badge/Go-1.18%2B-blue.svg)](https://golang.org/)
 [![DiscordGo](https://img.shields.io/badge/lib-DiscordGo-blue.svg)](https://github.com/bwmarrin/discordgo)
@@ -8,71 +8,97 @@
 
 ---
 
-## ✨ 機能一覧
+## ✨ Features
 
-Lunaは、サーバー管理を効率化し、コミュニティを活性化させるための様々な機能を搭載しています。
+Luna is packed with a variety of features to improve your Discord server.
 
-* ** スラッシュコマンド**: 直感的で分かりやすいスラッシュコマンドに対応。
-* **⚙️ ユーティリティ**: サーバーやユーザーの情報を簡単に確認できます。
-* **🎫 チケットシステム**: ボタン一つで、ユーザーごとのプライベートなサポートチャンネルを作成・管理できます。
-* **📝 モジュール化**: コマンドごとにファイルが整理されており、新しい機能の追加やメンテナンスが容易な設計です。
+* **🤖 AI Chat**: Integrates with the Google Gemini API to answer user questions.
+* **🎫 Ticket System**: A complete support ticket system using buttons and modals to create private channels for user inquiries.
+* **🛡️ Moderation**: Simple and effective moderation commands, including Kick, Ban, and Timeout.
+* **📈 Advanced Logging**: A superior audit log that records various server events in a specific channel with beautifully formatted embeds.
+* **⚙️ Utilities**: Handy utility commands to provide useful information.
+* **📝 Modular Design**: Features are organized by command, making maintenance and the addition of new features easy.
 
 ---
 
-## 🚀 導入方法
+## 🚀 Installation
 
-### 1. 前提条件
-* [Go言語](https://go.dev/dl/) (バージョン 1.18以上) がインストールされていること。
+### 1. Prerequisites
+* [Go](https://go.dev/dl/) (version 1.18 or higher) must be installed.
 
-### 2. 設定
-1.  このリポジトリをクローンまたはダウンロードします。
+### 2. Configuration
+1.  Clone or download this repository.
     ```bash
     git clone [https://github.com/pepeyukke/luna.git](https://github.com/pepeyukke/luna.git)
     cd luna
     ```
-2.  必要なライブラリをインストールします。
+2.  Install the necessary dependencies.
     ```bash
     go mod tidy
     ```
-3.  [Discord Developer Portal](https://discord.com/developers/applications) で取得した**ボットトークン**を環境変数に設定します。
+3.  Set the required API keys as environment variables.
 
     **Windows (PowerShell)**
     ```powershell
+    # Your Discord Bot Token
     $env:DISCORD_BOT_TOKEN="YOUR_BOT_TOKEN_HERE"
+
+    # Your Gemini API Key from Google AI Studio
+    $env:GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
     ```
     **macOS / Linux**
     ```bash
     export DISCORD_BOT_TOKEN="YOUR_BOT_TOKEN_HERE"
+    export GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
     ```
 
-### 3. 実行
-以下のコマンドでボットを起動します。
+### 3. Running the Bot
+Run the following command from the project's root directory. It is recommended to run this in a terminal with **Administrator privileges**.
 ```bash
 go run .
 ```
 
-### 4. サーバーへの招待
-[Discord Developer Portal](https://discord.com/developers/applications)の`OAuth2 > URL Generator`から、以下のスコープと権限を選択して招待リンクを生成してください。
+### 4. Inviting the Bot to Your Server
+Generate an invite link from the `OAuth2 > URL Generator` page in your [Discord Developer Portal](https://discord.com/developers/applications). Select the following scopes and permissions:
+
 * **SCOPES**: `bot`, `applications.commands`
 * **BOT PERMISSIONS**:
     * `Send Messages`
     * `Embed Links`
     * `Read Messages/View Channels`
-    * `Manage Channels` (チケット機能で必要)
+    * `Manage Channels` (Required for Ticket System)
+    * `Manage Roles` (Required for Ticket System)
+    * `Kick Members`
+    * `Ban Members`
+    * `Moderate Members` (Required for Timeout)
+    * `View Audit Log` (Required for Logging System)
 
 ---
 
-## 📋 コマンドリスト
+## 📋 Command List
 
-| コマンド | 説明 | 使い方 |
-|:---|:---|:---|
-| `/ping` | ボットの応答速度(レイテンシ)を測定します。 | `/ping` |
-| `/avatar` | あなた、または指定したユーザーのアバターを表示します。| `/avatar user:@ユーザー名` |
-| `/embed` | 指定した内容でEmbedメッセージを自由に作成します。 | `/embed title:タイトル description:説明 ...` |
-| `/ticket-setup` | サポートチケット作成用のパネルを設置します。(管理者用) | `/ticket-setup channel:#チャンネル staff-role:@ロール`|
+| Command         | Description                                        | Permissions Required        |
+|:----------------|:---------------------------------------------------|:----------------------------|
+| `/ping`         | Measures the bot's response time (latency).        | Everyone                    |
+| `/avatar`       | Displays your avatar or a specified user's avatar. | Everyone                    |
+| `/embed`        | Creates a custom embed message with your content.  | Everyone                    |
+| `/ask`          | Asks a question to the AI.                         | Everyone                    |
+| `/ticket-setup` | Sets up the panel for creating support tickets.    | Manage Channels             |
+| `/log-setup`    | Sets the channel for logging server events.        | Manage Server               |
+| `/kick`         | Kicks a user from the server.                      | Kick Members                |
+| `/ban`          | Bans a user from the server.                       | Ban Members                 |
+| `/timeout`      | Times out a user for a specified duration.         | Moderate Members            |
+
+---
+## 📜 Logged Events
+When configured with `/log-setup`, the following events will be logged:
+- Member Join / Leave
+- Member Kick / Ban / Timeout (including removal)
+- Channel Create / Delete
+- Message Delete
+- Webhook Update
 
 ---
 
-## ライセンス
-
-このプロジェクトは [LGPL-3.0](LICENSE) の下で公開されています。
+## License
+This project is licensed under the [LGPL-3.0](LICENSE).
