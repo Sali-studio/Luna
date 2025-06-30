@@ -92,3 +92,6 @@ INFO: 2025/07/01 05:56:27 main.go:65: Botが起動しました。スラッシュ
 INFO: 2025/07/01 05:56:28 main.go:72: Bot is now running. Press CTRL-C to exit.
 INFO: 2025/07/01 05:57:44 power_converter.go:68: convert-power command received
 INFO: 2025/07/01 05:59:04 main.go:77: Botをシャットダウンします。
+INFO: 2025/07/01 05:59:11 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/01 05:59:12 main.go:72: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/01 05:59:18 power_converter.go:68: convert-power command received
