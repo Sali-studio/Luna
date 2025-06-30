@@ -104,3 +104,7 @@ INFO: 2025/07/01 06:12:34 main.go:77: Botをシャットダウンします。
 INFO: 2025/07/01 06:12:47 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
 FATAL: 2025/07/01 06:12:48 main.go:69: コマンドの登録に失敗しました: HTTP 400 Bad Request, {"message": "Invalid Form Body", "code": 50035, "errors": {"7": {"options": {"4": {"_errors": [{"code": "APPLICATION_COMMAND_OPTIONS_REQUIRED_INVALID", "message": "Required options must be placed before non-required options"}]}}}}}
 INFO: 2025/07/01 06:12:48 main.go:72: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/01 06:15:12 main.go:77: Botをシャットダウンします。
+INFO: 2025/07/01 06:15:31 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/01 06:15:31 main.go:72: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/01 06:16:37 main.go:77: Botをシャットダウンします。
