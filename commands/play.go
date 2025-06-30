@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"luna/logger"
 	"os/exec"
@@ -11,7 +13,7 @@ import (
 func init() {
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "play",
-		Description: "指定されたYouTubeのURLを再生します",
+		Description: "指定されたYouTubeのURLを再生します（VCにいない場合は自動で参加します）", // 説明を更新
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
@@ -25,88 +27,132 @@ func init() {
 	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		logger.Info.Println("play command received")
 
+		// ★★★ ここからが修正箇所 ★★★
 		// ボットがVCに参加しているか確認
 		vc, ok := VoiceConnections[i.GuildID]
 		if !ok {
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "先に/joinコマンドでボットをVCに参加させてください。"},
-			})
-			return
-		}
+			// いなかった場合、ユーザーのいるVCを探して参加する
+			logger.Info.Println("Bot is not in a voice channel. Attempting to join.")
+			guild, err := s.State.Guild(i.GuildID)
+			if err != nil {
+				logger.Error.Printf("Failed to get guild: %v", err)
+				return
+			}
 
-		// URLを取得
+			var voiceChannelID string
+			for _, vs := range guild.VoiceStates {
+				if vs.UserID == i.Member.User.ID {
+					voiceChannelID = vs.ChannelID
+					break
+				}
+			}
+
+			// ユーザーがVCにいない場合はエラーを返す
+			if voiceChannelID == "" {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "ボイスチャンネルに参加してからコマンドを実行してください。",
+					},
+				})
+				return
+			}
+
+			// VCに接続
+			newVc, err := s.ChannelVoiceJoin(i.GuildID, voiceChannelID, false, true)
+			if err != nil {
+				logger.Error.Printf("Failed to join voice channel: %v", err)
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "ボイスチャンネルへの接続に失敗しました。",
+					},
+				})
+				return
+			}
+			// 新しい接続情報をマップと変数に保存
+			VoiceConnections[i.GuildID] = newVc
+			vc = newVc
+			logger.Info.Printf("Joined voice channel: %s", voiceChannelID)
+		}
+		// ★★★ ここまでが修正箇所 ★★★
+
 		url := i.ApplicationCommandData().Options[0].StringValue()
 
-		// まずはコマンドを受け付けたことをユーザーに知らせる
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: "🎵 再生準備中です..."},
 		})
 
-		// playYoutube関数をゴルーチンで非同期に実行
-		go playYoutube(vc, url)
+		go playYoutube(s, i, vc, url)
 	}
 
 	Commands = append(Commands, cmd)
 	CommandHandlers[cmd.Name] = handler
 }
 
-// playYoutube は指定されたURLの音声を再生する関数
-func playYoutube(vc *discordgo.VoiceConnection, url string) {
-	// yt-dlp と ffmpeg をパイプで繋いで実行するコマンドを設定
-	ytdlp := exec.Command("yt-dlp", "-f", "bestaudio", "-o", "-", url)
-	ffmpeg := exec.Command("ffmpeg", "-i", "pipe:0", "-f", "s16le", "-ar", "48000", "-ac", "2", "pipe:1")
+func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *discordgo.VoiceConnection, url string) {
+	var stderrBuf bytes.Buffer
 
-	// yt-dlpの標準出力をffmpegの標準入力に接続
+	sendError := func(msg string, err error) {
+		logger.Error.Printf("%s: %v\n--- Stderr ---\n%s", msg, err, stderrBuf.String())
+		content := fmt.Sprintf("❌ 再生に失敗しました: %s", msg)
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &content,
+		})
+	}
+
+	ytdlp := exec.Command("yt-dlp", "-f", "bestaudio", "-o", "-", url)
+	ytdlp.Stderr = &stderrBuf
+
+	ffmpeg := exec.Command("ffmpeg", "-i", "pipe:0", "-f", "s16le", "-ar", "48000", "-ac", "2", "pipe:1")
+	ffmpeg.Stderr = &stderrBuf
+
 	r, w := io.Pipe()
 	ytdlp.Stdout = w
 	ffmpeg.Stdin = r
 
-	// ffmpegの標準出力を取得
 	stdout, err := ffmpeg.StdoutPipe()
 	if err != nil {
-		logger.Error.Printf("ffmpeg.StdoutPipe() error: %v", err)
+		sendError("ffmpegパイプ作成エラー", err)
 		return
 	}
 
-	// コマンドを開始
-	err = ytdlp.Start()
-	if err != nil {
-		logger.Error.Printf("ytdlp.Start() error: %v", err)
+	if err := ytdlp.Start(); err != nil {
+		sendError("yt-dlpの起動エラー", err)
 		return
 	}
-	err = ffmpeg.Start()
-	if err != nil {
-		logger.Error.Printf("ffmpeg.Start() error: %v", err)
+	if err := ffmpeg.Start(); err != nil {
+		sendError("ffmpegの起動エラー", err)
 		return
 	}
 
-	// VCのスピーカーをオンにする
+	content := fmt.Sprintf("🎶 再生を開始します: `%s`", url)
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Content: &content,
+	})
+
 	vc.Speaking(true)
-	defer vc.Speaking(false) // 関数終了時にオフにする
+	defer vc.Speaking(false)
 
-	// Opusパケットを送信するためのループ
 	for {
-		// Opusの1フレームは20ms = 960サンプル * 2ch * 2byte = 3840 byte
 		opusPacket := make([]byte, 3840)
-
-		// stdoutからopusPacketに直接読み込む
 		_, err := io.ReadFull(stdout, opusPacket)
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			logger.Info.Println("再生が終了しました。")
 			break
 		}
 		if err != nil {
-			logger.Error.Printf("io.ReadFull() error: %v", err)
+			sendError("音声データの読み込みエラー", err)
 			break
 		}
-
-		// VCのOpus送信チャネルにデータを送る
 		vc.OpusSend <- opusPacket
 	}
 
-	// プロセスを終了
-	ytdlp.Process.Kill()
-	ffmpeg.Process.Kill()
+	if err := ytdlp.Wait(); err != nil {
+		sendError("yt-dlp実行時エラー", err)
+	}
+	if err := ffmpeg.Wait(); err != nil {
+		sendError("ffmpeg実行時エラー", err)
+	}
 }
