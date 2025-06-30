@@ -12,7 +12,7 @@ func init() {
 		Name:        "moderate",
 		Description: "ユーザーに対する管理操作を行います。",
 		Options: []*discordgo.ApplicationCommandOption{
-			// --- Kickサブコマンド ---
+			// Kickサブコマンド
 			{
 				Name:        "kick",
 				Description: "ユーザーをサーバーから追放します。",
@@ -22,7 +22,7 @@ func init() {
 					{Type: discordgo.ApplicationCommandOptionString, Name: "reason", Description: "追放する理由", Required: false},
 				},
 			},
-			// --- Banサブコマンド ---
+			// Banサブコマンド
 			{
 				Name:        "ban",
 				Description: "ユーザーをサーバーからBANします。",
@@ -32,7 +32,7 @@ func init() {
 					{Type: discordgo.ApplicationCommandOptionString, Name: "reason", Description: "BANする理由", Required: false},
 				},
 			},
-			// --- Timeoutサブコマンド ---
+			// Timeoutサブコマンド
 			{
 				Name:        "timeout",
 				Description: "ユーザーをタイムアウトさせます。",
@@ -62,8 +62,7 @@ func init() {
 	CommandHandlers[cmd.Name] = handler
 }
 
-// --- 確認モーダルを表示する関数群 ---
-
+// 確認モーダルを表示する関数群
 func handleShowKickModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// ユーザーIDなどの情報をモーダルのIDに埋め込むことで、後の処理で使えるようにする
 	userID := i.ApplicationCommandData().Options[0].Options[0].UserValue(s).ID

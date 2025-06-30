@@ -76,7 +76,6 @@ func init() {
 		amount := optionMap["amount"].FloatValue()
 		fromUnit := optionMap["from"].StringValue()
 
-		// --- ここからが新しい計算ロジック ---
 		// 1. 元の単位を基準単位(RF/FE)に変換
 		amountInRF := amount / powerConversionRates[fromUnit]
 
@@ -100,7 +99,6 @@ func init() {
 				Inline: true,
 			})
 		}
-		// --- ここまで ---
 
 		// 結果表示用のEmbedを作成
 		embed := &discordgo.MessageEmbed{
