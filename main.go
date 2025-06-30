@@ -63,6 +63,7 @@ func main() {
 	defer dg.Close()
 
 	logger.Info.Println("Botが起動しました。スラッシュコマンドを登録します。")
+	// ボット起動時にコマンドを上書き登録
 	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", commands.Commands)
 	if err != nil {
 		logger.Fatal.Printf("コマンドの登録に失敗しました: %v", err)
