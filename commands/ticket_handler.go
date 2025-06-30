@@ -2,12 +2,15 @@ package commands
 
 import (
 	"fmt"
+	"luna/gemini" // ★★★ geminiパッケージをインポート ★★★
 	"luna/logger"
+	"os" // ★★★ osパッケージをインポート ★★★
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
+// HandleOpenTicketModal はチケット作成モーダルを表示します
 func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseModal,
@@ -47,12 +50,17 @@ func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate)
 	}
 }
 
+// HandleTicketCreation はモーダルから送信されたデータに基づいてチケットを作成し、AIによる一次回答を試みます
 func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// commands.goで定義された共有変数を参照
-	ticketCounter[i.GuildID]++
-	currentTicketNumber := ticketCounter[i.GuildID]
+	// ★★★ この関数を全面的に書き換えます ★★★
 
-	channelName := fmt.Sprintf("チケット-%03d", currentTicketNumber)
+	// まずは遅延応答で時間を確保
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Flags: discordgo.MessageFlagsEphemeral,
+		},
+	})
 
 	data := i.ModalSubmitData()
 	subject := data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
@@ -61,6 +69,31 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	user := i.Member.User
 	staffRoleID := ticketStaffRoleID[i.GuildID]
 	categoryID := ticketCategoryID[i.GuildID]
+
+	// --- AIによる一次回答を試みる ---
+	var aiResponse string
+	apiKey := os.Getenv("GEMINI_API_KEY")
+	if apiKey != "" {
+		// AIに渡すプロンプト（質問文）を作成
+		prompt := fmt.Sprintf("以下のユーザーからの問い合わせについて、一次回答を生成してください。\n\n件名: %s\n\n詳細: %s", subject, details)
+
+		// Geminiクライアントを呼び出し
+		response, err := gemini.GenerateContent(apiKey, prompt)
+		if err != nil {
+			logger.Error.Printf("Failed to get response from Gemini: %v", err)
+			aiResponse = "AIによる一次回答の生成中にエラーが発生しました。"
+		} else {
+			aiResponse = response
+		}
+	} else {
+		aiResponse = "AIによる一次回答機能は現在無効です。"
+	}
+	// --- AIの処理ここまで ---
+
+	// チケット番号をインクリメント
+	ticketCounter[i.GuildID]++
+	currentTicketNumber := ticketCounter[i.GuildID]
+	channelName := fmt.Sprintf("チケット-%03d", currentTicketNumber)
 
 	permissionOverwrites := []*discordgo.PermissionOverwrite{
 		{ID: i.GuildID, Type: discordgo.PermissionOverwriteTypeRole, Deny: discordgo.PermissionViewChannel},
@@ -80,22 +113,25 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 		return
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("✅ チケットを作成しました: <#%s>", ch.ID),
-			Flags:   discordgo.MessageFlagsEphemeral,
-		},
+	// 遅延応答を編集して、ユーザーにチケット作成完了を通知
+	content := fmt.Sprintf("✅ チケットを作成しました: <#%s>", ch.ID)
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Content: &content,
 	})
 
+	// チケットチャンネルに送信する詳細なEmbedを作成
 	ticketEmbed := &discordgo.MessageEmbed{
-		Author:      &discordgo.MessageEmbedAuthor{Name: "新規チケット作成", IconURL: user.AvatarURL("")},
+		Author:      &discordgo.MessageEmbedAuthor{Name: user.Username, IconURL: user.AvatarURL("")},
 		Title:       subject,
 		Description: details,
-		Color:       0x57F287,
+		Color:       0x5865F2,
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "作成者", Value: user.Mention(), Inline: true},
 			{Name: "対応担当", Value: fmt.Sprintf("<@&%s>", staffRoleID), Inline: true},
+			{
+				Name:  "🤖 AIによる一次回答",
+				Value: aiResponse, // AIからの回答をここに表示
+			},
 		},
 		Footer: &discordgo.MessageEmbedFooter{Text: fmt.Sprintf("チケット番号: %d", currentTicketNumber)},
 	}
@@ -108,7 +144,8 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	}
 
 	s.ChannelMessageSendComplex(ch.ID, &discordgo.MessageSend{
-		Embeds: []*discordgo.MessageEmbed{ticketEmbed},
+		Content: fmt.Sprintf("ようこそ <@%s> さん。まずはAIからの回答をご確認ください。", user.ID),
+		Embeds:  []*discordgo.MessageEmbed{ticketEmbed},
 		Components: []discordgo.MessageComponent{
 			discordgo.ActionsRow{
 				Components: []discordgo.MessageComponent{closeButton},
@@ -117,37 +154,24 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	})
 }
 
+// HandleTicketClose はチケットを閉じるボタンが押されたときの処理を行います
 func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	channel, err := s.Channel(i.ChannelID)
-	if err != nil {
-		logger.Error.Printf("Failed to get channel info: %v", err)
-		return
-	}
-
+	channel, _ := s.Channel(i.ChannelID)
 	closedName := strings.Replace(channel.Name, "チケット", "closed", 1)
 
 	var ticketCreator *discordgo.User
 	for _, overwrite := range channel.PermissionOverwrites {
 		if overwrite.Type == discordgo.PermissionOverwriteTypeMember {
 			member, err := s.GuildMember(i.GuildID, overwrite.ID)
-			if err != nil {
+			if err != nil || member.User.Bot {
 				continue
 			}
-			if !member.User.Bot {
-				ticketCreator = member.User
-				break
-			}
+			ticketCreator = member.User
+			break
 		}
 	}
 
 	if ticketCreator == nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "チケットの作成者が見つからなかったため、チャンネルを削除します。",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
 		s.ChannelDelete(i.ChannelID)
 		return
 	}
