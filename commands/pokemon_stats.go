@@ -15,13 +15,28 @@ var natureMultipliers = map[string]float64{
 	"down":    0.9,
 }
 
+// ランク補正の倍率マップ
+var rankMultipliers = map[int64]float64{
+	6:  4.0,
+	5:  3.5,
+	4:  3.0,
+	3:  2.5,
+	2:  2.0,
+	1:  1.5,
+	0:  1.0,
+	-1: 0.66,
+	-2: 0.5,
+	-3: 0.4,
+	-4: 0.33,
+	-5: 0.28,
+	-6: 0.25,
+}
+
 func init() {
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "calc-stats",
-		Description: "ポケモンの実数値を計算します。",
+		Description: "ポケモンの実数値をランク・アイテム補正込みで計算します。",
 		Options: []*discordgo.ApplicationCommandOption{
-			// ★★★ ここからオプションの順番を修正 ★★★
-			// --- 必須オプション ---
 			{
 				Type:        discordgo.ApplicationCommandOptionInteger,
 				Name:        "base_stat",
@@ -31,14 +46,17 @@ func init() {
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "stat_type",
-				Description: "ステータスの種類 (HPかそれ以外か)",
+				Description: "ステータスの種類",
 				Required:    true,
 				Choices: []*discordgo.ApplicationCommandOptionChoice{
 					{Name: "HP", Value: "hp"},
-					{Name: "こうげき / ぼうぎょ / とくこう / とくぼう / すばやさ", Value: "other"},
+					{Name: "こうげき (Attack)", Value: "attack"},
+					{Name: "ぼうぎょ (Defense)", Value: "defense"},
+					{Name: "とくこう (Sp. Atk)", Value: "sp_attack"},
+					{Name: "とくぼう (Sp. Def)", Value: "sp_defense"},
+					{Name: "すばやさ (Speed)", Value: "speed"},
 				},
 			},
-			// --- 任意オプション ---
 			{
 				Type:        discordgo.ApplicationCommandOptionInteger,
 				Name:        "level",
@@ -68,7 +86,26 @@ func init() {
 					{Name: "⬇️ 下降補正 (0.9倍)", Value: "down"},
 				},
 			},
-			// ★★★ ここまで修正 ★★★
+			{
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Name:        "rank",
+				Description: "能力ランク (-6 ~ +6, デフォルト: 0)",
+				// MinValueとMaxValueにはfloat64のポインタを渡す必要がある
+				MinValue: func(f float64) *float64 { return &f }(-6.0),
+				MaxValue: 6, // こちらはintのままでも型推論でfloat64として扱われる
+				Required: false,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "item",
+				Description: "ステータス補正のある持ち物 (デフォルト: なし)",
+				Required:    false,
+				Choices: []*discordgo.ApplicationCommandOptionChoice{
+					{Name: "こだわりハチマキ (Choice Band)", Value: "choice_band"},
+					{Name: "こだわりメガネ (Choice Specs)", Value: "choice_specs"},
+					{Name: "こだわりスカーフ (Choice Scarf)", Value: "choice_scarf"},
+				},
+			},
 		},
 	}
 
@@ -83,7 +120,6 @@ func init() {
 
 		baseStat := float64(optionMap["base_stat"].IntValue())
 		statType := optionMap["stat_type"].StringValue()
-
 		level := float64(50)
 		if opt, ok := optionMap["level"]; ok {
 			level = float64(opt.IntValue())
@@ -100,14 +136,44 @@ func init() {
 		if opt, ok := optionMap["nature"]; ok {
 			natureKey = opt.StringValue()
 		}
+		rank := int64(0)
+		if opt, ok := optionMap["rank"]; ok {
+			rank = opt.IntValue()
+		}
+		item := ""
+		if opt, ok := optionMap["item"]; ok {
+			item = opt.StringValue()
+		}
 
 		var result float64
 		if statType == "hp" {
 			result = math.Floor((baseStat*2+iv+math.Floor(ev/4))*level/100) + level + 10
 		} else {
 			base := math.Floor((baseStat*2+iv+math.Floor(ev/4))*level/100) + 5
-			multiplier := natureMultipliers[natureKey]
-			result = math.Floor(base * multiplier)
+
+			natureMultiplier := natureMultipliers[natureKey]
+			result = math.Floor(base * natureMultiplier)
+
+			if rank != 0 {
+				result = math.Floor(result * rankMultipliers[rank])
+			}
+
+			itemMultiplier := 1.0
+			switch item {
+			case "choice_band":
+				if statType == "attack" {
+					itemMultiplier = 1.5
+				}
+			case "choice_specs":
+				if statType == "sp_attack" {
+					itemMultiplier = 1.5
+				}
+			case "choice_scarf":
+				if statType == "speed" {
+					itemMultiplier = 1.5
+				}
+			}
+			result = math.Floor(result * itemMultiplier)
 		}
 
 		embed := &discordgo.MessageEmbed{
@@ -115,8 +181,9 @@ func init() {
 			Color: 0x3498DB,
 			Fields: []*discordgo.MessageEmbedField{
 				{
-					Name:  "入力情報",
-					Value: fmt.Sprintf("レベル: `%.0f`\n種族値: `%.0f`\n個体値: `%.0f`\n努力値: `%.0f`", level, baseStat, iv, ev),
+					Name: "入力情報",
+					Value: fmt.Sprintf("Lv`%.0f` / 種族値`%.0f` / 個体値`%.0f` / 努力値`%.0f`\n性格補正: `%s` / ランク: `%+d` / 持ち物: `%s`",
+						level, baseStat, iv, ev, natureKey, rank, item),
 				},
 				{
 					Name:  "計算結果",
