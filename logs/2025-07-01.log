@@ -42,3 +42,5 @@ INFO: 2025/07/01 04:21:53 main.go:65: Botが起動しました。スラッシュ
 INFO: 2025/07/01 04:21:54 main.go:72: Bot is now running. Press CTRL-C to exit.
 INFO: 2025/07/01 04:23:13 ask.go:27: ask command received
 INFO: 2025/07/01 04:25:28 ticket_setup.go:42: ticket-setup command received
+INFO: 2025/07/01 04:32:42 main.go:78: Botをシャットダウンします。
+INFO: 2025/07/01 04:33:03 main.go:87: コマンドを削除しました。
