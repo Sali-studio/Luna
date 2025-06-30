@@ -20,12 +20,25 @@ func init() {
 		Name:        "calc-stats",
 		Description: "ポケモンの実数値を計算します。",
 		Options: []*discordgo.ApplicationCommandOption{
+			// ★★★ ここからオプションの順番を修正 ★★★
+			// --- 必須オプション ---
 			{
 				Type:        discordgo.ApplicationCommandOptionInteger,
 				Name:        "base_stat",
 				Description: "計算したいステータスの種族値",
 				Required:    true,
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "stat_type",
+				Description: "ステータスの種類 (HPかそれ以外か)",
+				Required:    true,
+				Choices: []*discordgo.ApplicationCommandOptionChoice{
+					{Name: "HP", Value: "hp"},
+					{Name: "こうげき / ぼうぎょ / とくこう / とくぼう / すばやさ", Value: "other"},
+				},
+			},
+			// --- 任意オプション ---
 			{
 				Type:        discordgo.ApplicationCommandOptionInteger,
 				Name:        "level",
@@ -46,16 +59,6 @@ func init() {
 			},
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "stat_type",
-				Description: "ステータスの種類 (HPかそれ以外か)",
-				Required:    true,
-				Choices: []*discordgo.ApplicationCommandOptionChoice{
-					{Name: "HP", Value: "hp"},
-					{Name: "こうげき / ぼうぎょ / とくこう / とくぼう / すばやさ", Value: "other"},
-				},
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "nature",
 				Description: "性格補正 (デフォルト: 補正なし)",
 				Required:    false,
@@ -65,6 +68,7 @@ func init() {
 					{Name: "⬇️ 下降補正 (0.9倍)", Value: "down"},
 				},
 			},
+			// ★★★ ここまで修正 ★★★
 		},
 	}
 
@@ -78,6 +82,8 @@ func init() {
 		}
 
 		baseStat := float64(optionMap["base_stat"].IntValue())
+		statType := optionMap["stat_type"].StringValue()
+
 		level := float64(50)
 		if opt, ok := optionMap["level"]; ok {
 			level = float64(opt.IntValue())
@@ -90,7 +96,6 @@ func init() {
 		if opt, ok := optionMap["ev"]; ok {
 			ev = float64(opt.IntValue())
 		}
-		statType := optionMap["stat_type"].StringValue()
 		natureKey := "neutral"
 		if opt, ok := optionMap["nature"]; ok {
 			natureKey = opt.StringValue()
@@ -101,7 +106,6 @@ func init() {
 			result = math.Floor((baseStat*2+iv+math.Floor(ev/4))*level/100) + level + 10
 		} else {
 			base := math.Floor((baseStat*2+iv+math.Floor(ev/4))*level/100) + 5
-			// switch文ではなく、マップから直接補正値を取得します
 			multiplier := natureMultipliers[natureKey]
 			result = math.Floor(base * multiplier)
 		}
