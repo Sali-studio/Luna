@@ -95,3 +95,9 @@ INFO: 2025/07/01 05:59:04 main.go:77: Botをシャットダウンします。
 INFO: 2025/07/01 05:59:11 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
 INFO: 2025/07/01 05:59:12 main.go:72: Bot is now running. Press CTRL-C to exit.
 INFO: 2025/07/01 05:59:18 power_converter.go:68: convert-power command received
+ERROR: 2025/07/01 06:08:00 ticket_handler.go:106: Failed to create ticket channel: HTTP 400 Bad Request, {"message": "Invalid Form Body", "code": 50035, "errors": {"permission_overwrites": {"2": {"id": {"_errors": [{"code": "NUMBER_TYPE_COERCE", "message": "Value \"\" is not snowflake."}]}}}}}
+INFO: 2025/07/01 06:08:54 power_converter.go:68: convert-power command received
+INFO: 2025/07/01 06:10:36 ask.go:27: ask command received
+INFO: 2025/07/01 06:11:41 ask.go:27: ask command received
+INFO: 2025/07/01 06:12:02 ask.go:27: ask command received
+INFO: 2025/07/01 06:12:34 main.go:77: Botをシャットダウンします。
