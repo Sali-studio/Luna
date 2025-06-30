@@ -24,7 +24,11 @@ func main() {
 		logger.Fatal.Printf("Discordセッションの作成中にエラーが発生しました: %v", err)
 	}
 
-	// main.go の中の dg.AddHandler(...) の部分
+	// ★★★ この行がインテントの設定です ★★★
+	// サーバーでのBANなどのイベントを受け取るために IntentsGuildModeration を追加
+	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentsGuildModeration
+
+	// --- スラッシュコマンドとボタンクリックのイベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
@@ -32,7 +36,6 @@ func main() {
 				h(s, i)
 			}
 		case discordgo.InteractionMessageComponent:
-			// 押されたボタンのIDによって処理を振り分ける
 			customID := i.MessageComponentData().CustomID
 			switch customID {
 			case "create_ticket_button":
@@ -43,6 +46,13 @@ func main() {
 		}
 	})
 
+	// --- サーバーイベントのロギング用ハンドラ ---
+	// BANイベント
+	dg.AddHandler(commands.HandleGuildBanAdd)
+	// 今後、他のログ機能を追加する場合は、ここに対応するハンドラを追記していく
+	// 例: dg.AddHandler(commands.HandleChannelCreate)
+
+	// Discordへの接続を開く
 	err = dg.Open()
 	if err != nil {
 		logger.Fatal.Printf("Discordへの接続中にエラーが発生しました: %v", err)

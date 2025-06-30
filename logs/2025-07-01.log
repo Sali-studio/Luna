@@ -3,3 +3,13 @@ INFO: 2025/07/01 00:04:14 main.go:59: Bot is now running. Press CTRL-C to exit.
 INFO: 2025/07/01 00:05:30 ticket_setup.go:36: ticket-setup command received
 INFO: 2025/07/01 00:21:21 main.go:65: Botをシャットダウンします。
 INFO: 2025/07/01 00:21:22 main.go:74: コマンドを削除しました。
+INFO: 2025/07/01 00:34:57 main.go:52: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/01 00:34:57 main.go:59: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/01 00:38:35 timeout.go:39: timeout command received
+INFO: 2025/07/01 00:39:02 timeout.go:39: timeout command received
+ERROR: 2025/07/01 00:39:02 timeout.go:83: Failed to timeout user: HTTP 403 Forbidden, {"message": "Missing Permissions", "code": 50013}
+INFO: 2025/07/01 00:40:55 kick.go:32: kick command received
+ERROR: 2025/07/01 00:40:56 kick.go:53: Failed to kick user: HTTP 403 Forbidden, {"message": "Missing Permissions", "code": 50013}
+INFO: 2025/07/01 00:46:54 timeout.go:39: timeout command received
+INFO: 2025/07/01 00:47:30 main.go:65: Botをシャットダウンします。
+INFO: 2025/07/01 00:47:51 main.go:74: コマンドを削除しました。
