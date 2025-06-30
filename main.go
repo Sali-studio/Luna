@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"luna/commands"
@@ -40,16 +41,29 @@ func main() {
 			}
 		// モーダル送信時の処理
 		case discordgo.InteractionModalSubmit:
-			switch i.ModalSubmitData().CustomID {
+			customID := i.ModalSubmitData().CustomID
+			parts := strings.Split(customID, ":")
+			if len(parts) < 1 {
+				return
+			}
+			modalType := parts[0]
+
+			switch modalType {
 			case "ticket_creation_modal":
 				commands.HandleTicketCreation(s, i)
 			case "embed_creation_modal":
 				commands.HandleEmbedCreation(s, i)
+			case "moderate_kick_confirm":
+				commands.HandleExecuteKick(s, i, parts)
+			case "moderate_ban_confirm":
+				commands.HandleExecuteBan(s, i, parts)
+			case "moderate_timeout_confirm":
+				commands.HandleExecuteTimeout(s, i, parts)
 			}
 		}
 	})
 
-	// --- ロギング用ハンドラ ---
+	// --- サーバーイベントのロギング用ハンドラ ---
 	dg.AddHandler(commands.HandleGuildBanAdd)
 	dg.AddHandler(commands.HandleGuildMemberRemove)
 	dg.AddHandler(commands.HandleGuildMemberUpdate)
@@ -62,6 +76,9 @@ func main() {
 	// --- リアクションロール用のハンドラ ---
 	dg.AddHandler(commands.HandleMessageReactionAdd)
 	dg.AddHandler(commands.HandleMessageReactionRemove)
+
+	// --- 一時ボイスチャンネル用のハンドラ ---
+	dg.AddHandler(commands.HandleVoiceStateUpdate)
 
 	// Discordへの接続を開く
 	err = dg.Open()
