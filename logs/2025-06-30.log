@@ -72,3 +72,87 @@ INFO: 2025/06/30 10:06:36 main.go:48: Bot is now running. Press CTRL-C to exit.
 INFO: 2025/06/30 10:07:20 play.go:29: play command received
 INFO: 2025/06/30 10:07:20 play.go:33: Bot is not in a voice channel. Attempting to join.
 INFO: 2025/06/30 10:07:22 play.go:71: Joined voice channel: 948580896796192836
+INFO: 2025/06/30 10:11:21 play.go:143: 再生が終了しました。
+INFO: 2025/06/30 10:11:58 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 10:13:07 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 10:13:08 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 10:13:36 ping.go:18: ping command received
+INFO: 2025/06/30 10:13:49 avatar.go:28: avatar command received
+INFO: 2025/06/30 10:14:08 play.go:29: play command received
+INFO: 2025/06/30 10:14:08 play.go:33: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 10:14:10 play.go:71: Joined voice channel: 948580896796192836
+INFO: 2025/06/30 10:14:12 play.go:142: 再生が終了しました。
+ERROR: 2025/06/30 10:14:12 play.go:92: yt-dlp実行時エラー: exit status 1
+--- Stderr ---
+ERROR: [generic] ':https:/Error opening input: Invalid data found when processing input
+Error opening input file pipe:0.
+Error opening input files: Invalid data found when processing input
+ERROR: 2025/06/30 10:14:13 play.go:92: ffmpeg実行時エラー: exit status 0xbebbb1b7
+--- Stderr ---
+ERROR: [generic] ':https:/Error opening input: Invalid data found when processing input
+Error opening input file pipe:0.
+Error opening input files: Invalid data found when processing input
+INFO: 2025/06/30 10:17:48 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 10:18:10 main.go:63: コマンドを削除しました。
+INFO: 2025/06/30 10:18:32 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 10:18:32 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 10:19:31 play.go:29: play command received
+INFO: 2025/06/30 10:19:31 play.go:33: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 10:19:32 play.go:71: Joined voice channel: 948580896796192836
+INFO: 2025/06/30 10:19:34 play.go:133: 再生が終了しました。
+ERROR: 2025/06/30 10:19:34 play.go:92: コマンド実行時エラー: exit status 0xbebbb1b7
+--- Stderr ---
+ERROR: [generic] '"https://www.youtube.com/watch?v=2ps10BbZ0_k"' is not a valid URL. Set --default-search "ytsearch" (or run  yt-dlp "ytsearch:"https://www.youtube.com/watch?v=2ps10BbZ0_k"" ) to search YouTube
+[in#0 @ 00000256d9c2d340] Error opening input: Invalid data found when processing input
+Error opening input file pipe:0.
+Error opening input files: Invalid data found when processing input
+INFO: 2025/06/30 10:23:03 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 10:23:24 main.go:63: コマンドを削除しました。
+INFO: 2025/06/30 10:23:54 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 10:23:54 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 10:24:28 play.go:29: play command received
+INFO: 2025/06/30 10:24:28 play.go:33: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 10:24:30 play.go:71: Joined voice channel: 948580896796192836
+INFO: 2025/06/30 10:24:50 leave.go:16: leave command received
+INFO: 2025/06/30 10:25:13 play.go:29: play command received
+INFO: 2025/06/30 10:25:13 play.go:33: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 10:25:14 play.go:71: Joined voice channel: 948580896796192836
+INFO: 2025/06/30 10:26:57 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 10:27:00 play.go:130: 再生が終了しました。
+ERROR: 2025/06/30 10:27:00 play.go:92: コマンド実行時エラー: exit status 255
+--- Stderr ---
+
+ERROR: Interrupted by user
+[matroska,webm @ 000001b93468a840] File ended prematurely
+INFO: 2025/06/30 10:27:18 main.go:63: コマンドを削除しました。
+INFO: 2025/06/30 10:30:14 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 10:30:14 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 20:00:02 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 22:50:19 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 22:50:19 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 22:52:09 play.go:29: play command received
+INFO: 2025/06/30 22:52:09 play.go:33: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 22:52:10 play.go:71: Joined voice channel: 982536464145477682
+INFO: 2025/06/30 22:55:23 leave.go:16: leave command received
+INFO: 2025/06/30 22:55:27 join.go:17: join command received
+INFO: 2025/06/30 22:55:36 play.go:29: play command received
+INFO: 2025/06/30 23:00:37 play.go:147: 再生が終了しました。
+INFO: 2025/06/30 23:02:20 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 23:02:40 main.go:63: コマンドを削除しました。
+INFO: 2025/06/30 23:06:28 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 23:06:29 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 23:07:25 join.go:17: join command received
+INFO: 2025/06/30 23:07:41 play.go:29: play command received
+INFO: 2025/06/30 23:08:41 leave.go:16: leave command received
+INFO: 2025/06/30 23:09:08 embed.go:65: embed command received
+INFO: 2025/06/30 23:10:20 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 23:10:41 main.go:63: コマンドを削除しました。
+INFO: 2025/06/30 23:11:08 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 23:11:09 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 23:11:19 ping.go:18: ping command received
+INFO: 2025/06/30 23:11:27 test_tone.go:19: test-tone command received
+INFO: 2025/06/30 23:11:29 test_tone.go:61: Attempting to play test tone...
+INFO: 2025/06/30 23:11:29 test_tone.go:82: Sending test tone data...
+INFO: 2025/06/30 23:11:39 test_tone.go:87: Test tone finished.
+INFO: 2025/06/30 23:19:49 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 23:20:10 main.go:63: コマンドを削除しました。
