@@ -38,6 +38,224 @@ var typeChart = map[string]map[string]float64{
 }
 var typeNames = []string{"normal", "fire", "water", "electric", "grass", "ice", "fighting", "poison", "ground", "flying", "psychic", "bug", "rock", "ghost", "dragon", "dark", "steel"}
 
+// handleStatsCalc は実数値計算の処理を行います
+func handleStatsCalc(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	logger.Info.Println("calc-pokemon stats command received")
+
+	options := i.ApplicationCommandData().Options[0].Options
+	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
+	for _, opt := range options {
+		optionMap[opt.Name] = opt
+	}
+
+	baseStat := float64(optionMap["base_stat"].IntValue())
+	statType := optionMap["stat_type"].StringValue()
+	level := float64(50)
+	if opt, ok := optionMap["level"]; ok {
+		level = float64(opt.IntValue())
+	}
+	iv := float64(31)
+	if opt, ok := optionMap["iv"]; ok {
+		iv = float64(opt.IntValue())
+	}
+	ev := float64(0)
+	if opt, ok := optionMap["ev"]; ok {
+		ev = float64(opt.IntValue())
+	}
+	natureKey := "neutral"
+	if opt, ok := optionMap["nature"]; ok {
+		natureKey = opt.StringValue()
+	}
+	rank := int64(0)
+	if opt, ok := optionMap["rank"]; ok {
+		rank = opt.IntValue()
+	}
+	item := ""
+	if opt, ok := optionMap["item"]; ok {
+		item = opt.StringValue()
+	}
+
+	var result float64
+	if statType == "hp" {
+		result = math.Floor((baseStat*2+iv+math.Floor(ev/4))*level/100) + level + 10
+	} else {
+		base := math.Floor((baseStat*2+iv+math.Floor(ev/4))*level/100) + 5
+		natureMultiplier := natureMultipliers[natureKey]
+		result = math.Floor(base * natureMultiplier)
+		if rank != 0 {
+			result = math.Floor(result * rankMultipliers[rank])
+		}
+		itemMultiplier := 1.0
+		switch item {
+		case "choice_band":
+			if statType == "attack" {
+				itemMultiplier = 1.5
+			}
+		case "choice_specs":
+			if statType == "sp_attack" {
+				itemMultiplier = 1.5
+			}
+		case "choice_scarf":
+			if statType == "speed" {
+				itemMultiplier = 1.5
+			}
+		}
+		result = math.Floor(result * itemMultiplier)
+	}
+
+	itemNote := ""
+	switch item {
+	case "life_orb":
+		itemNote = "⚠️ いのちのたま: 技のダメージが1.3倍になります。"
+	case "expert_belt":
+		itemNote = "⚠️ たつじんのおび: 効果ばつぐんの技のダメージが1.2倍になります。"
+	case "plate":
+		itemNote = "⚠️ プレート: 一致するタイプの技のダメージが1.2倍になります。"
+	}
+
+	embed := &discordgo.MessageEmbed{
+		Title: "📊 ポケモン実数値計算結果",
+		Color: 0x3498DB,
+		Fields: []*discordgo.MessageEmbedField{
+			{
+				Name: "入力情報",
+				Value: fmt.Sprintf("Lv`%.0f` / 種族値`%.0f` / 個体値`%.0f` / 努力値`%.0f`\n性格補正: `%s` / ランク: `%+d` / 持ち物: `%s`",
+					level, baseStat, iv, ev, natureKey, rank, item),
+			},
+			{
+				Name:  "計算結果",
+				Value: fmt.Sprintf("▶️ **実数値: `%.0f`**", result),
+			},
+		},
+	}
+
+	if itemNote != "" {
+		embed.Footer = &discordgo.MessageEmbedFooter{Text: itemNote}
+	}
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{embed},
+		},
+	})
+}
+
+// handleDamageCalc はダメージ計算の処理を行います
+func handleDamageCalc(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	logger.Info.Println("calc-pokemon damage command received")
+
+	options := i.ApplicationCommandData().Options[0].Options
+	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
+	for _, opt := range options {
+		optionMap[opt.Name] = opt
+	}
+
+	level := float64(optionMap["level"].IntValue())
+	power := float64(optionMap["power"].IntValue())
+	attack := float64(optionMap["attack_stat"].IntValue())
+	defense := float64(optionMap["defense_stat"].IntValue())
+	multiplier := 1.0
+	if opt, ok := optionMap["multiplier"]; ok {
+		multiplier = opt.FloatValue()
+	}
+
+	baseDamage := math.Floor(math.Floor(level*2/5+2) * power * attack / defense)
+	minDamage := math.Floor(math.Floor(baseDamage/50+2) * 0.85 * multiplier)
+	maxDamage := math.Floor(math.Floor(baseDamage/50+2) * 1.0 * multiplier)
+
+	embed := &discordgo.MessageEmbed{
+		Title: "⚔️ ポケモンダメージ計算結果",
+		Color: 0xE74C3C,
+		Fields: []*discordgo.MessageEmbedField{
+			{Name: "計算結果 (ダメージ範囲)", Value: fmt.Sprintf("▶️ **`%.0f` ~ `%.0f`**", minDamage, maxDamage)},
+			{Name: "入力情報", Value: fmt.Sprintf("A(C): `%.0f` / B(D): `%.0f` / 技威力: `%.0f` / 補正: `x%.2f`", attack, defense, power, multiplier)},
+		},
+	}
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}},
+	})
+}
+
+// handleTypeCalc はタイプ相性表示の処理を行います
+func handleTypeCalc(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	logger.Info.Println("calc-pokemon type command received")
+
+	options := i.ApplicationCommandData().Options[0].Options
+	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
+	for _, opt := range options {
+		optionMap[opt.Name] = opt
+	}
+
+	type1 := optionMap["type1"].StringValue()
+	type2 := ""
+	if opt, ok := optionMap["type2"]; ok {
+		type2 = opt.StringValue()
+	}
+
+	resistances := make(map[string]float64)
+	for _, t := range typeNames {
+		multiplier := 1.0
+		if m, ok := typeChart[t][type1]; ok {
+			multiplier *= m
+		}
+		if type2 != "" {
+			if m, ok := typeChart[t][type2]; ok {
+				multiplier *= m
+			}
+		}
+		resistances[t] = multiplier
+	}
+
+	x4_weak := []string{}
+	x2_weak := []string{}
+	x0_5_resist := []string{}
+	x0_25_resist := []string{}
+	x0_immune := []string{}
+
+	for t, m := range resistances {
+		switch m {
+		case 4:
+			x4_weak = append(x4_weak, t)
+		case 2:
+			x2_weak = append(x2_weak, t)
+		case 0.5:
+			x0_5_resist = append(x0_5_resist, t)
+		case 0.25:
+			x0_25_resist = append(x0_25_resist, t)
+		case 0:
+			x0_immune = append(x0_immune, t)
+		}
+	}
+
+	title := strings.Title(type1)
+	if type2 != "" {
+		title += " / " + strings.Title(type2)
+	}
+	embed := &discordgo.MessageEmbed{
+		Title: fmt.Sprintf("タイプ相性: %s", title),
+		Color: 0x95A5A6,
+	}
+
+	addFieldIfNotEmpty := func(name string, types []string) {
+		if len(types) > 0 {
+			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{Name: name, Value: strings.Join(types, ", ")})
+		}
+	}
+
+	addFieldIfNotEmpty("x4 弱点", x4_weak)
+	addFieldIfNotEmpty("x2 弱点", x2_weak)
+	addFieldIfNotEmpty("x0.5 耐性", x0_5_resist)
+	addFieldIfNotEmpty("x0.25 耐性", x0_25_resist)
+	addFieldIfNotEmpty("x0 無効", x0_immune)
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}},
+	})
+}
+
 func init() {
 	var typeChoices []*discordgo.ApplicationCommandOptionChoice
 	for _, t := range typeNames {
@@ -83,7 +301,7 @@ func init() {
 						},
 					},
 				},
-			}, // ★★★ このカンマが重要です ★★★
+			},
 			{
 				Name:        "damage",
 				Description: "ダメージ計算を行います。",
@@ -127,123 +345,4 @@ func init() {
 
 	Commands = append(Commands, cmd)
 	CommandHandlers[cmd.Name] = handler
-}
-
-// handleDamageCalc はダメージ計算の処理を行います
-func handleDamageCalc(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	logger.Info.Println("calc-pokemon damage command received")
-
-	options := i.ApplicationCommandData().Options[0].Options
-	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
-	for _, opt := range options {
-		optionMap[opt.Name] = opt
-	}
-
-	level := float64(optionMap["level"].IntValue())
-	power := float64(optionMap["power"].IntValue())
-	attack := float64(optionMap["attack_stat"].IntValue())
-	defense := float64(optionMap["defense_stat"].IntValue())
-	multiplier := 1.0
-	if opt, ok := optionMap["multiplier"]; ok {
-		multiplier = opt.FloatValue()
-	}
-
-	// ダメージ計算式 (乱数幅を考慮し、最小と最大のダメージを計算)
-	baseDamage := math.Floor(math.Floor(level*2/5+2) * power * attack / defense)
-	minDamage := math.Floor(math.Floor(baseDamage/50+2) * 0.85 * multiplier)
-	maxDamage := math.Floor(math.Floor(baseDamage/50+2) * 1.0 * multiplier)
-
-	embed := &discordgo.MessageEmbed{
-		Title: "⚔️ ポケモンダメージ計算結果",
-		Color: 0xE74C3C, // 赤色
-		Fields: []*discordgo.MessageEmbedField{
-			{Name: "計算結果 (ダメージ範囲)", Value: fmt.Sprintf("▶️ **`%.0f` ~ `%.0f`**", minDamage, maxDamage)},
-			{Name: "入力情報", Value: fmt.Sprintf("A(C): `%.0f` / B(D): `%.0f` / 技威力: `%.0f` / 補正: `x%.2f`", attack, defense, power, multiplier)},
-		},
-	}
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}},
-	})
-}
-
-// handleTypeCalc はタイプ相性表示の処理を行います
-func handleTypeCalc(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	logger.Info.Println("calc-pokemon type command received")
-
-	options := i.ApplicationCommandData().Options[0].Options
-	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
-	for _, opt := range options {
-		optionMap[opt.Name] = opt
-	}
-
-	type1 := optionMap["type1"].StringValue()
-	type2 := ""
-	if opt, ok := optionMap["type2"]; ok {
-		type2 = opt.StringValue()
-	}
-
-	// 各タイプの攻撃を受けたときの倍率を計算
-	resistances := make(map[string]float64)
-	for _, t := range typeNames {
-		multiplier := 1.0
-		if m, ok := typeChart[t][type1]; ok {
-			multiplier *= m
-		}
-		if type2 != "" {
-			if m, ok := typeChart[t][type2]; ok {
-				multiplier *= m
-			}
-		}
-		resistances[t] = multiplier
-	}
-
-	// 倍率ごとに分類
-	x4_weak := []string{}
-	x2_weak := []string{}
-	x0_5_resist := []string{}
-	x0_25_resist := []string{}
-	x0_immune := []string{}
-
-	for t, m := range resistances {
-		switch m {
-		case 4:
-			x4_weak = append(x4_weak, t)
-		case 2:
-			x2_weak = append(x2_weak, t)
-		case 0.5:
-			x0_5_resist = append(x0_5_resist, t)
-		case 0.25:
-			x0_25_resist = append(x0_25_resist, t)
-		case 0:
-			x0_immune = append(x0_immune, t)
-		}
-	}
-
-	// 結果表示用のEmbedを作成
-	title := strings.Title(type1)
-	if type2 != "" {
-		title += " / " + strings.Title(type2)
-	}
-	embed := &discordgo.MessageEmbed{
-		Title: fmt.Sprintf("タイプ相性: %s", title),
-		Color: 0x95A5A6, // グレー
-	}
-
-	addFieldIfNotEmpty := func(name string, types []string) {
-		if len(types) > 0 {
-			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{Name: name, Value: strings.Join(types, ", ")})
-		}
-	}
-
-	addFieldIfNotEmpty("x4 弱点", x4_weak)
-	addFieldIfNotEmpty("x2 弱点", x2_weak)
-	addFieldIfNotEmpty("x0.5 耐性", x0_5_resist)
-	addFieldIfNotEmpty("x0.25 耐性", x0_25_resist)
-	addFieldIfNotEmpty("x0 無効", x0_immune)
-
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}},
-	})
 }
