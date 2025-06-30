@@ -90,7 +90,6 @@ func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			if err != nil {
 				continue
 			}
-			// ★★★ ここの比較方法を修正 ★★★
 			if strings.EqualFold(member.User.Username, ticketCreatorName) && member.User.ID != s.State.User.ID {
 				ticketCreator = member.User
 				break
