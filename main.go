@@ -13,12 +13,7 @@ import (
 
 func main() {
 	logger.Init()
-
 	token := os.Getenv("DISCORD_BOT_TOKEN")
-	if token == "" {
-		logger.Fatal.Println("環境変数 DISCORD_BOT_TOKEN が設定されていません。")
-	}
-
 	dg, err := discordgo.New("Bot " + token)
 	if err != nil {
 		logger.Fatal.Printf("Discordセッションの作成中にエラーが発生しました: %v", err)
@@ -29,10 +24,12 @@ func main() {
 	// --- イベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
+		// スラッシュコマンド
 		case discordgo.InteractionApplicationCommand:
 			if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {
 				h(s, i)
 			}
+		// ボタンなどのコンポーネント
 		case discordgo.InteractionMessageComponent:
 			customID := i.MessageComponentData().CustomID
 			switch customID {
@@ -41,6 +38,7 @@ func main() {
 			case "close_ticket_button":
 				commands.HandleTicketClose(s, i)
 			}
+		// モーダル送信時の処理
 		case discordgo.InteractionModalSubmit:
 			if i.ModalSubmitData().CustomID == "ticket_creation_modal" {
 				commands.HandleTicketCreation(s, i)
@@ -65,14 +63,12 @@ func main() {
 	defer dg.Close()
 
 	logger.Info.Println("Botが起動しました。スラッシュコマンドを登録します。")
-
 	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", commands.Commands)
 	if err != nil {
 		logger.Fatal.Printf("コマンドの登録に失敗しました: %v", err)
 	}
 
 	logger.Info.Println("Bot is now running. Press CTRL-C to exit.")
-
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
