@@ -24,8 +24,6 @@ func main() {
 		logger.Fatal.Printf("Discordセッションの作成中にエラーが発生しました: %v", err)
 	}
 
-	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates
-
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {
 			h(s, i)
