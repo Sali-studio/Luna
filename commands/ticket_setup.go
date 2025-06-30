@@ -1,14 +1,13 @@
 package commands
 
 import (
-	"fmt"
 	"luna/logger"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-// チケットを作成するスタッフのロールIDをサーバーごとに保存
 var ticketStaffRoleID = make(map[string]string)
+var ticketCategoryID = make(map[string]string)
 
 func init() {
 	cmd := &discordgo.ApplicationCommand{
@@ -19,8 +18,15 @@ func init() {
 			{
 				Type:         discordgo.ApplicationCommandOptionChannel,
 				Name:         "channel",
-				Description:  "パネルを設置するチャンネル",
+				Description:  "パネルを設置するテキストチャンネル",
 				ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText},
+				Required:     true,
+			},
+			{
+				Type:         discordgo.ApplicationCommandOptionChannel,
+				Name:         "category",
+				Description:  "作成されたチケットを格納するカテゴリ",
+				ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildCategory},
 				Required:     true,
 			},
 			{
@@ -41,39 +47,30 @@ func init() {
 			optionMap[opt.Name] = opt
 		}
 
-		channelID, ok := optionMap["channel"].Value.(string)
-		if !ok {
-			logger.Error.Println("Could not get channel ID from options")
-			return
-		}
-		roleID, ok := optionMap["staff-role"].Value.(string)
-		if !ok {
-			logger.Error.Println("Could not get role ID from options")
-			return
-		}
+		targetChannelID := optionMap["channel"].Value.(string)
+		categoryID := optionMap["category"].Value.(string)
+		staffRoleID := optionMap["staff-role"].Value.(string)
 
-		targetChannel, err := s.Channel(channelID)
-		if err != nil {
-			logger.Error.Printf("Could not get channel object: %v", err)
-			return
-		}
-
-		ticketStaffRoleID[i.GuildID] = roleID
+		ticketStaffRoleID[i.GuildID] = staffRoleID
+		ticketCategoryID[i.GuildID] = categoryID
 
 		embed := &discordgo.MessageEmbed{
-			Title:       "サポートチケット",
-			Description: "下のボタンを押して、サポートチケットを作成してください。\nスタッフが順次対応します。",
+			Title:       "サポート & お問い合わせ",
+			Description: "サーバーに関するご質問や、ユーザー間のトラブル報告など、お気軽にお問い合わせください。\n\n下のボタンを押して、チケットを作成してください。",
 			Color:       0x5865F2,
+			Thumbnail: &discordgo.MessageEmbedThumbnail{
+				URL: "https://cdn.discordapp.com/emojis/864921522055741440.png",
+			},
 		}
 
 		button := discordgo.Button{
 			Label:    "チケットを作成",
-			Style:    discordgo.SuccessButton,
-			Emoji:    &discordgo.ComponentEmoji{Name: "🎫"},
-			CustomID: "create_ticket_button",
+			Style:    discordgo.PrimaryButton,
+			Emoji:    &discordgo.ComponentEmoji{Name: "✉️"},
+			CustomID: "open_ticket_modal",
 		}
 
-		_, err = s.ChannelMessageSendComplex(targetChannel.ID, &discordgo.MessageSend{
+		_, err := s.ChannelMessageSendComplex(targetChannelID, &discordgo.MessageSend{
 			Embeds: []*discordgo.MessageEmbed{embed},
 			Components: []discordgo.MessageComponent{
 				discordgo.ActionsRow{
@@ -84,20 +81,13 @@ func init() {
 
 		if err != nil {
 			logger.Error.Printf("Failed to send ticket panel message: %v", err)
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "エラー: パネルの送信に失敗しました。",
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
 			return
 		}
 
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("✅ チケット作成パネルを <#%s> に設置しました。", targetChannel.ID),
+				Content: "✅ チケット作成パネルを設置しました。",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
@@ -105,8 +95,4 @@ func init() {
 
 	Commands = append(Commands, cmd)
 	CommandHandlers[cmd.Name] = handler
-}
-
-func int64Ptr(i int64) *int64 {
-	return &i
 }

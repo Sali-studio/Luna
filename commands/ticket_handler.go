@@ -8,37 +8,65 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// HandleTicketCreation はチケット作成ボタンが押されたときの処理を行います
+func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: &discordgo.InteractionResponseData{
+			CustomID: "ticket_creation_modal",
+			Title:    "新規サポートチケット",
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.TextInput{
+							CustomID:    "subject",
+							Label:       "件名",
+							Style:       discordgo.TextInputShort,
+							Placeholder: "例: ユーザー間のトラブルについて",
+							Required:    true,
+							MaxLength:   100,
+						},
+					},
+				},
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.TextInput{
+							CustomID:    "details",
+							Label:       "詳細",
+							Style:       discordgo.TextInputParagraph,
+							Placeholder: "いつ、どこで、誰が、何をしたかなど、できるだけ詳しくご記入ください。",
+							Required:    true,
+							MaxLength:   1000,
+						},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		logger.Error.Printf("Failed to show modal: %v", err)
+	}
+}
+
 func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	data := i.ModalSubmitData()
+	subject := data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	details := data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+
 	user := i.Member.User
 	staffRoleID := ticketStaffRoleID[i.GuildID]
+	categoryID := ticketCategoryID[i.GuildID]
 
 	permissionOverwrites := []*discordgo.PermissionOverwrite{
-		{
-			ID:   i.GuildID, // @everyone
-			Type: discordgo.PermissionOverwriteTypeRole,
-			Deny: discordgo.PermissionViewChannel,
-		},
-		{
-			ID:    user.ID,
-			Type:  discordgo.PermissionOverwriteTypeMember,
-			Allow: discordgo.PermissionViewChannel | discordgo.PermissionSendMessages | discordgo.PermissionReadMessageHistory,
-		},
-		{
-			ID:    staffRoleID,
-			Type:  discordgo.PermissionOverwriteTypeRole,
-			Allow: discordgo.PermissionViewChannel | discordgo.PermissionSendMessages | discordgo.PermissionReadMessageHistory,
-		},
-		{
-			ID:    s.State.User.ID,
-			Type:  discordgo.PermissionOverwriteTypeMember,
-			Allow: discordgo.PermissionViewChannel | discordgo.PermissionSendMessages | discordgo.PermissionReadMessageHistory,
-		},
+		{ID: i.GuildID, Type: discordgo.PermissionOverwriteTypeRole, Deny: discordgo.PermissionViewChannel},
+		{ID: user.ID, Type: discordgo.PermissionOverwriteTypeMember, Allow: discordgo.PermissionViewChannel | discordgo.PermissionSendMessages},
+		{ID: staffRoleID, Type: discordgo.PermissionOverwriteTypeRole, Allow: discordgo.PermissionViewChannel | discordgo.PermissionSendMessages},
+		{ID: s.State.User.ID, Type: discordgo.PermissionOverwriteTypeMember, Allow: discordgo.PermissionViewChannel | discordgo.PermissionSendMessages | discordgo.PermissionManageChannels},
 	}
 
 	ch, err := s.GuildChannelCreateComplex(i.GuildID, discordgo.GuildChannelCreateData{
-		Name:                 fmt.Sprintf("ticket-%s", user.Username),
+		Name:                 fmt.Sprintf("🎫-%s", user.Username),
 		Type:                 discordgo.ChannelTypeGuildText,
+		ParentID:             categoryID,
 		PermissionOverwrites: permissionOverwrites,
 	})
 	if err != nil {
@@ -54,6 +82,18 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 		},
 	})
 
+	ticketEmbed := &discordgo.MessageEmbed{
+		Author:      &discordgo.MessageEmbedAuthor{Name: "新規チケット作成", IconURL: user.AvatarURL("")},
+		Title:       subject,
+		Description: details,
+		Color:       0x57F287,
+		Fields: []*discordgo.MessageEmbedField{
+			{Name: "作成者", Value: user.Mention(), Inline: true},
+			{Name: "対応担当", Value: fmt.Sprintf("<@&%s>", staffRoleID), Inline: true},
+		},
+		Footer: &discordgo.MessageEmbedFooter{Text: "スタッフが確認するまでしばらくお待ちください。"},
+	}
+
 	closeButton := discordgo.Button{
 		Label:    "チケットを閉じる",
 		Style:    discordgo.DangerButton,
@@ -61,10 +101,8 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 		CustomID: "close_ticket_button",
 	}
 
-	welcomeMessage := fmt.Sprintf("ようこそ <@%s> さん。\n<@&%s> が対応しますので、ご用件をお書きください。", user.ID, staffRoleID)
-
 	s.ChannelMessageSendComplex(ch.ID, &discordgo.MessageSend{
-		Content: welcomeMessage,
+		Embeds: []*discordgo.MessageEmbed{ticketEmbed},
 		Components: []discordgo.MessageComponent{
 			discordgo.ActionsRow{
 				Components: []discordgo.MessageComponent{closeButton},
@@ -73,7 +111,6 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	})
 }
 
-// HandleTicketClose はチケットを閉じるボタンが押されたときの処理を行います
 func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	channel, err := s.Channel(i.ChannelID)
 	if err != nil {
@@ -81,7 +118,7 @@ func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	ticketCreatorName := strings.TrimPrefix(channel.Name, "ticket-")
+	ticketCreatorName := strings.TrimPrefix(channel.Name, "🎫-")
 
 	var ticketCreator *discordgo.User
 	for _, overwrite := range channel.PermissionOverwrites {
@@ -99,6 +136,13 @@ func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	if ticketCreator == nil {
 		logger.Warning.Printf("Could not find ticket creator for channel %s", channel.Name)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "チケットの作成者が見つからなかったため、チャンネルを削除します。",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
 		s.ChannelDelete(i.ChannelID)
 		return
 	}
