@@ -47,7 +47,7 @@ func init() {
 
 		// 質問内容を取得
 		question := i.ApplicationCommandData().Options[0].StringValue()
-		
+
 		// Geminiクライアントを呼び出して、応答を生成
 		response, err := gemini.GenerateContent(apiKey, question)
 		if err != nil {
@@ -62,19 +62,19 @@ func init() {
 		// AIからの応答をEmbedに整形して表示
 		embed := &discordgo.MessageEmbed{
 			Author: &discordgo.MessageEmbedAuthor{
-				Name: i.Member.User.Username,
+				Name:    i.Member.User.Username,
 				IconURL: i.Member.User.AvatarURL(""),
 			},
 			Description: question, // ユーザーの質問
-			Color: 0x4A90E2,
+			Color:       0x4A90E2,
 			Fields: []*discordgo.MessageEmbedField{
 				{
-					Name: " Luna ",
+					Name:  "Luna Assistant",
 					Value: response,
 				},
 			},
 		}
-		
+
 		// 最初に返信したメッセージを、AIの応答で編集する
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 			Embeds: &[]*discordgo.MessageEmbed{embed},

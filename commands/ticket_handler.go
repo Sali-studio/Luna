@@ -129,7 +129,7 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 			{Name: "作成者", Value: user.Mention(), Inline: true},
 			{Name: "対応担当", Value: fmt.Sprintf("<@&%s>", staffRoleID), Inline: true},
 			{
-				Name:  "🤖 AIによる一次回答",
+				Name:  "Luna Assistantからの補足",
 				Value: aiResponse, // AIからの回答をここに表示
 			},
 		},
