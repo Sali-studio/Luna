@@ -6,26 +6,37 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time" // ★★★ time パッケージをインポート ★★★
+	"time"
 )
 
-// Gemini APIに送信するリクエストの構造体
+// --- ↓↓↓ ここからリクエスト構造体を修正・追加 ↓↓↓ ---
 type GeminiRequest struct {
-	Contents []Content `json:"contents"`
+	Contents         []Content        `json:"contents"`
+	GenerationConfig GenerationConfig `json:"generationConfig"`
+	SafetySettings   []SafetySetting  `json:"safetySettings"`
 }
 
-// Gemini APIから返ってくるレスポンスの構造体
+type GenerationConfig struct {
+	Temperature     float32 `json:"temperature"`
+	MaxOutputTokens int     `json:"maxOutputTokens"`
+}
+
+type SafetySetting struct {
+	Category  string `json:"category"`
+	Threshold string `json:"threshold"`
+}
+
+// --- ↑↑↑ ここまで修正・追加 ↑↑↑ ---
+
 type GeminiResponse struct {
 	Candidates     []Candidate    `json:"candidates"`
 	PromptFeedback PromptFeedback `json:"promptFeedback,omitempty"`
 }
 
-// プロンプトがブロックされた際の情報
 type PromptFeedback struct {
 	BlockReason string `json:"blockReason"`
 }
 
-// 各構造体の詳細定義
 type Content struct {
 	Parts []Part `json:"parts"`
 }
@@ -36,16 +47,39 @@ type Candidate struct {
 	Content Content `json:"content"`
 }
 
-// GenerateContent はGemini APIにリクエストを送信し、応答を返します
 func GenerateContent(apiKey, prompt string) (string, error) {
 	apiURL := "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey
 
+	// リクエストボディを作成
 	reqBody := GeminiRequest{
 		Contents: []Content{
 			{
 				Parts: []Part{
 					{Text: prompt},
 				},
+			},
+		},
+		GenerationConfig: GenerationConfig{
+			Temperature:     0.7,  // 創造性を少し抑える
+			MaxOutputTokens: 1000, // 最大長を1000トークンに制限
+		},
+
+		SafetySettings: []SafetySetting{
+			{
+				Category:  "HARM_CATEGORY_HARASSMENT",
+				Threshold: "BLOCK_MEDIUM_AND_ABOVE",
+			},
+			{
+				Category:  "HARM_CATEGORY_HATE_SPEECH",
+				Threshold: "BLOCK_MEDIUM_AND_ABOVE",
+			},
+			{
+				Category:  "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+				Threshold: "BLOCK_MEDIUM_AND_ABOVE",
+			},
+			{
+				Category:  "HARM_CATEGORY_DANGEROUS_CONTENT",
+				Threshold: "BLOCK_MEDIUM_AND_ABOVE",
 			},
 		},
 	}
@@ -61,7 +95,6 @@ func GenerateContent(apiKey, prompt string) (string, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	// 30秒のタイムアウトを設定したHTTPクライアントを作成
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 	}
