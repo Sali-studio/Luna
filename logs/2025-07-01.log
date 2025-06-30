@@ -13,3 +13,12 @@ ERROR: 2025/07/01 00:40:56 kick.go:53: Failed to kick user: HTTP 403 Forbidden, 
 INFO: 2025/07/01 00:46:54 timeout.go:39: timeout command received
 INFO: 2025/07/01 00:47:30 main.go:65: Botをシャットダウンします。
 INFO: 2025/07/01 00:47:51 main.go:74: コマンドを削除しました。
+INFO: 2025/07/01 04:01:52 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/01 04:01:52 main.go:72: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/01 04:03:56 ask.go:27: ask command received
+INFO: 2025/07/01 04:04:28 ask.go:27: ask command received
+INFO: 2025/07/01 04:05:15 ask.go:27: ask command received
+INFO: 2025/07/01 04:06:31 ping.go:17: ping command received
+INFO: 2025/07/01 04:06:49 ask.go:27: ask command received
+INFO: 2025/07/01 04:07:05 ask.go:27: ask command received
+INFO: 2025/07/01 04:07:21 ask.go:27: ask command received
