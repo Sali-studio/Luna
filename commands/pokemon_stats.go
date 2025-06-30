@@ -90,17 +90,18 @@ func init() {
 				Type:        discordgo.ApplicationCommandOptionInteger,
 				Name:        "rank",
 				Description: "能力ランク (-6 ~ +6, デフォルト: 0)",
-				// MinValueとMaxValueにはfloat64のポインタを渡す必要がある
-				MinValue: func(f float64) *float64 { return &f }(-6.0),
-				MaxValue: 6, // こちらはintのままでも型推論でfloat64として扱われる
-				Required: false,
+				MinValue:    func(f float64) *float64 { return &f }(-6.0),
+				MaxValue:    6,
+				Required:    false,
 			},
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "item",
 				Description: "ステータス補正のある持ち物 (デフォルト: なし)",
 				Required:    false,
+				// ★★★ ここの選択肢を修正 ★★★
 				Choices: []*discordgo.ApplicationCommandOptionChoice{
+					{Name: "いのちのたま (Life Orb)", Value: "life_orb"},
 					{Name: "こだわりハチマキ (Choice Band)", Value: "choice_band"},
 					{Name: "こだわりメガネ (Choice Specs)", Value: "choice_specs"},
 					{Name: "こだわりスカーフ (Choice Scarf)", Value: "choice_scarf"},
@@ -160,6 +161,10 @@ func init() {
 
 			itemMultiplier := 1.0
 			switch item {
+			case "life_orb":
+				if statType == "attack" || statType == "sp_attack" {
+					itemMultiplier = 1.3
+				}
 			case "choice_band":
 				if statType == "attack" {
 					itemMultiplier = 1.5
