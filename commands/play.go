@@ -96,12 +96,9 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 		})
 	}
 
-	// ★★★ ここからコマンド実行方法を全面的に変更 ★★★
-	// 実行するコマンド全体を一つの文字列として作成
-	// "URL" のように、URLをダブルクォートで囲むのが安定動作のコツ
-	commandString := fmt.Sprintf(`yt-dlp --no-playlist --quiet --no-warnings -f bestaudio -o - "%s" | ffmpeg -i pipe:0 -f s16le -ar 48000 -ac 2 -loglevel error pipe:1`, url)
+	// ★★★ この行の "%s" を囲んでいたダブルクォートを削除 ★★★
+	commandString := fmt.Sprintf(`yt-dlp --no-playlist --quiet --no-warnings -f bestaudio -o - %s | ffmpeg -i pipe:0 -f s16le -ar 48000 -ac 2 -loglevel error pipe:1`, url)
 
-	// cmd.exe を経由してコマンドを実行
 	cmd := exec.Command("cmd", "/C", commandString)
 	cmd.Stderr = &stderrBuf
 
