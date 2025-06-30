@@ -6,7 +6,7 @@ import (
 	"io"
 	"luna/logger"
 	"os/exec"
-	"time"
+	"time" // timeパッケージのインポートを元に戻す
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -102,7 +102,6 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 	ffmpeg := exec.Command("ffmpeg", "-i", "pipe:0", "-f", "s16le", "-ar", "48000", "-ac", "2", "-loglevel", "error", "pipe:1")
 	ffmpeg.Stderr = &stderrBuf
 
-	// ★★★ ここから連携方法を変更 ★★★
 	var err error
 	ffmpeg.Stdin, err = ytdlp.StdoutPipe()
 	if err != nil {
@@ -115,7 +114,6 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 		sendError("ffmpegパイプ作成エラー", err)
 		return
 	}
-	// ★★★ ここまで変更 ★★★
 
 	if err := ytdlp.Start(); err != nil {
 		sendError("yt-dlpの起動エラー", err)
@@ -134,6 +132,7 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 	vc.Speaking(true)
 	defer vc.Speaking(false)
 
+	// 接続安定のための待機時間を元に戻す
 	time.Sleep(250 * time.Millisecond)
 
 	for {
