@@ -96,7 +96,7 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 	}
 
 	// ★★★ この行を修正 ★★★
-	ytdlp := exec.Command("yt-dlp", "--no-playlist", "-f", "bestaudio", "-o", "-", url)
+	ytdlp := exec.Command("yt-dlp", "--no-playlist", "--quiet", "--no-warnings", "-f", "bestaudio", "-o", "-", url)
 	ytdlp.Stderr = &stderrBuf
 
 	ffmpeg := exec.Command("ffmpeg", "-i", "pipe:0", "-f", "s16le", "-ar", "48000", "-ac", "2", "pipe:1")

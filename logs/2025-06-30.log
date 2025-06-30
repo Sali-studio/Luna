@@ -29,3 +29,8 @@ INFO: 2025/06/30 09:41:52 play.go:35: Bot is not in a voice channel. Attempting 
 INFO: 2025/06/30 09:41:53 play.go:76: Joined voice channel: 948580896796192836
 INFO: 2025/06/30 09:42:22 main.go:54: Botをシャットダウンします。
 INFO: 2025/06/30 09:42:43 main.go:63: コマンドを削除しました。
+INFO: 2025/06/30 09:43:06 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 09:43:06 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 09:44:08 play.go:28: play command received
+INFO: 2025/06/30 09:44:08 play.go:32: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 09:44:09 play.go:70: Joined voice channel: 948580896796192836
