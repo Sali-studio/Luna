@@ -6,8 +6,8 @@ import (
 	"io"
 	"luna/logger"
 	"os/exec"
+	"time"
 
-	// "time" パッケージのインポートを削除
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -99,18 +99,23 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 	ytdlp := exec.Command("yt-dlp", "--no-playlist", "--quiet", "--no-warnings", "-f", "bestaudio", "-o", "-", url)
 	ytdlp.Stderr = &stderrBuf
 
-	ffmpeg := exec.Command("ffmpeg", "-i", "pipe:0", "-f", "s16le", "-ar", "48000", "-ac", "2", "-loglevel", "debug", "pipe:1")
+	ffmpeg := exec.Command("ffmpeg", "-i", "pipe:0", "-f", "s16le", "-ar", "48000", "-ac", "2", "-loglevel", "error", "pipe:1")
 	ffmpeg.Stderr = &stderrBuf
 
-	r, w := io.Pipe()
-	ytdlp.Stdout = w
-	ffmpeg.Stdin = r
+	// ★★★ ここから連携方法を変更 ★★★
+	var err error
+	ffmpeg.Stdin, err = ytdlp.StdoutPipe()
+	if err != nil {
+		sendError("yt-dlpパイプ作成エラー", err)
+		return
+	}
 
 	stdout, err := ffmpeg.StdoutPipe()
 	if err != nil {
 		sendError("ffmpegパイプ作成エラー", err)
 		return
 	}
+	// ★★★ ここまで変更 ★★★
 
 	if err := ytdlp.Start(); err != nil {
 		sendError("yt-dlpの起動エラー", err)
@@ -128,6 +133,8 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 
 	vc.Speaking(true)
 	defer vc.Speaking(false)
+
+	time.Sleep(250 * time.Millisecond)
 
 	for {
 		opusPacket := make([]byte, 3840)
