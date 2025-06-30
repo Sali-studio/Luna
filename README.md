@@ -4,7 +4,7 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.18%2B-blue.svg)](https://golang.org/)
 [![DiscordGo](https://img.shields.io/badge/lib-DiscordGo-blue.svg)](https://github.com/bwmarrin/discordgo)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-LGPL--3.0-blue.svg)](LICENSE)
 
 ---
 
