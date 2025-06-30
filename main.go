@@ -2,7 +2,9 @@ package main
 
 import (
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"luna/commands"
 	"luna/logger"
@@ -20,12 +22,15 @@ func main() {
 
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentGuildModeration
 
+	// --- イベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
+		// スラッシュコマンド
 		case discordgo.InteractionApplicationCommand:
 			if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {
 				h(s, i)
 			}
+		// ボタンなどのコンポーネント
 		case discordgo.InteractionMessageComponent:
 			customID := i.MessageComponentData().CustomID
 			switch customID {
@@ -34,9 +39,9 @@ func main() {
 			case "close_ticket_button":
 				commands.HandleTicketClose(s, i)
 			}
+		// モーダル送信時の処理
 		case discordgo.InteractionModalSubmit:
 			customID := i.ModalSubmitData().CustomID
-			// モーダルのIDを':'で分割して、どの処理か判断する
 			parts := strings.Split(customID, ":")
 			if len(parts) < 1 {
 				return
@@ -48,7 +53,6 @@ func main() {
 				commands.HandleTicketCreation(s, i)
 			case "embed_creation_modal":
 				commands.HandleEmbedCreation(s, i)
-			// --- モデレーションの確認モーダル処理を追加 ---
 			case "moderate_kick_confirm":
 				commands.HandleExecuteKick(s, i, parts)
 			case "moderate_ban_confirm":
@@ -59,6 +63,38 @@ func main() {
 		}
 	})
 
-	// (ロギング用ハンドラなどは変更なし)
-	// ...
+	// --- ロギング用ハンドラ ---
+	dg.AddHandler(commands.HandleGuildBanAdd)
+	dg.AddHandler(commands.HandleGuildMemberRemove)
+	dg.AddHandler(commands.HandleGuildMemberUpdate)
+	dg.AddHandler(commands.HandleChannelCreate)
+	dg.AddHandler(commands.HandleChannelDelete)
+	dg.AddHandler(commands.HandleMessageDelete)
+	dg.AddHandler(commands.HandleWebhooksUpdate)
+	dg.AddHandler(commands.HandleGuildMemberAddLog)
+
+	// --- ★★★ ここからが追加・修正された部分です ★★★ ---
+	// Discordへの接続を開く
+	err = dg.Open()
+	if err != nil {
+		logger.Fatal.Printf("Discordへの接続中にエラーが発生しました: %v", err)
+	}
+	defer dg.Close()
+
+	logger.Info.Println("Botが起動しました。スラッシュコマンドを登録します。")
+
+	// ボット起動時にコマンドを上書き登録
+	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", commands.Commands)
+	if err != nil {
+		logger.Fatal.Printf("コマンドの登録に失敗しました: %v", err)
+	}
+
+	logger.Info.Println("Bot is now running. Press CTRL-C to exit.")
+
+	// Botが終了シグナル (Ctrl+Cなど) を受け取るまで待機
+	sc := make(chan os.Signal, 1)
+	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+	<-sc
+
+	logger.Info.Println("Botをシャットダウンします。")
 }

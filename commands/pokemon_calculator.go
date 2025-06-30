@@ -1,7 +1,6 @@
 package commands
 
 import (
-	// ★★★ ここにimport文を正しく記述します ★★★
 	"fmt"
 	"luna/logger"
 	"math"
