@@ -1,4 +1,4 @@
-# 🌙 Luna 1.6.2
+# 🌙 Luna 1.6.3
 Luna is a multi-functional Discord bot built with Go, designed to streamline server management and enhance community engagement.
 
 [![Go Version](https://img.shields.io/badge/Go-1.18%2B-blue.svg)](https://golang.org/)
