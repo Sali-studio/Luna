@@ -1,3 +1,57 @@
+package commands
+
+import (
+	"io"
+	"luna/logger"
+	"os/exec"
+
+	"github.com/bwmarrin/discordgo"
+)
+
+func init() {
+	cmd := &discordgo.ApplicationCommand{
+		Name:        "play",
+		Description: "指定されたYouTubeのURLを再生します",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "url",
+				Description: "再生するYouTube動画のURL",
+				Required:    true,
+			},
+		},
+	}
+
+	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		logger.Info.Println("play command received")
+
+		// ボットがVCに参加しているか確認
+		vc, ok := VoiceConnections[i.GuildID]
+		if !ok {
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "先に/joinコマンドでボットをVCに参加させてください。"},
+			})
+			return
+		}
+
+		// URLを取得
+		url := i.ApplicationCommandData().Options[0].StringValue()
+
+		// まずはコマンドを受け付けたことをユーザーに知らせる
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: "🎵 再生準備中です..."},
+		})
+
+		// playYoutube関数をゴルーチンで非同期に実行
+		go playYoutube(vc, url)
+	}
+
+	Commands = append(Commands, cmd)
+	CommandHandlers[cmd.Name] = handler
+}
+
 // playYoutube は指定されたURLの音声を再生する関数
 func playYoutube(vc *discordgo.VoiceConnection, url string) {
 	// yt-dlp と ffmpeg をパイプで繋いで実行するコマンドを設定
@@ -32,11 +86,9 @@ func playYoutube(vc *discordgo.VoiceConnection, url string) {
 	vc.Speaking(true)
 	defer vc.Speaking(false) // 関数終了時にオフにする
 
-	// ★★★ ここからが修正箇所 ★★★
 	// Opusパケットを送信するためのループ
 	for {
 		// Opusの1フレームは20ms = 960サンプル * 2ch * 2byte = 3840 byte
-		// []int16 ではなく、[]byte のスライスを用意する
 		opusPacket := make([]byte, 3840)
 
 		// stdoutからopusPacketに直接読み込む
@@ -51,10 +103,8 @@ func playYoutube(vc *discordgo.VoiceConnection, url string) {
 		}
 
 		// VCのOpus送信チャネルにデータを送る
-		// これで型が一致するのでエラーにならない
 		vc.OpusSend <- opusPacket
 	}
-	// ★★★ ここまでが修正箇所 ★★★
 
 	// プロセスを終了
 	ytdlp.Process.Kill()
