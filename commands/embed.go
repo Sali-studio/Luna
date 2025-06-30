@@ -4,118 +4,126 @@ import (
 	"luna/logger"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 func init() {
-	// Embed作成コマンドの定義
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "embed",
-		Description: "指定した内容でEmbedメッセージを作成します",
-		Options: []*discordgo.ApplicationCommandOption{
-			// 各オプションを定義。すべて任意項目(Required: false)とする
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "title",
-				Description: "Embedのタイトル",
-				Required:    false,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "description",
-				Description: "Embedの説明文",
-				Required:    false,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "color",
-				Description: "左側の線の色 (#RRGGBB形式)",
-				Required:    false,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "author",
-				Description: "作成者名",
-				Required:    false,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "footer",
-				Description: "フッターに表示するテキスト",
-				Required:    false,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "image_url",
-				Description: "メイン画像のURL",
-				Required:    false,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "thumbnail_url",
-				Description: "サムネイル画像のURL",
-				Required:    false,
-			},
-		},
+		Description: "Embed作成ビルダーを起動します。",
 	}
 
-	// コマンドのハンドラ
 	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		logger.Info.Println("embed command received")
+		logger.Info.Println("embed command received, showing modal")
 
-		// オプションをマップに変換して使いやすくする
-		optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption)
-		for _, opt := range i.ApplicationCommandData().Options {
-			optionMap[opt.Name] = opt
-		}
-
-		// 空のEmbedを作成
-		embed := &discordgo.MessageEmbed{}
-
-		// 各オプションが指定されていれば、Embedの対応するフィールドに設定
-		if opt, ok := optionMap["title"]; ok {
-			embed.Title = opt.StringValue()
-		}
-		if opt, ok := optionMap["description"]; ok {
-			embed.Description = opt.StringValue()
-		}
-		if opt, ok := optionMap["author"]; ok {
-			embed.Author = &discordgo.MessageEmbedAuthor{Name: opt.StringValue()}
-		}
-		if opt, ok := optionMap["footer"]; ok {
-			embed.Footer = &discordgo.MessageEmbedFooter{Text: opt.StringValue()}
-		}
-		if opt, ok := optionMap["image_url"]; ok {
-			embed.Image = &discordgo.MessageEmbedImage{URL: opt.StringValue()}
-		}
-		if opt, ok := optionMap["thumbnail_url"]; ok {
-			embed.Thumbnail = &discordgo.MessageEmbedThumbnail{URL: opt.StringValue()}
-		}
-		if opt, ok := optionMap["color"]; ok {
-			// カラーコードの文字列(#RRGGBB)を数値に変換
-			colorStr := strings.TrimPrefix(opt.StringValue(), "#")
-			colorInt, err := strconv.ParseInt(colorStr, 16, 32)
-			if err == nil {
-				embed.Color = int(colorInt)
-			} else {
-				logger.Warning.Printf("Invalid color code provided: %s", opt.StringValue())
-			}
-		}
-
-		// Embedを送信して応答
+		// Embed作成用のモーダルを表示する
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Type: discordgo.InteractionResponseModal,
 			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{embed},
+				CustomID: "embed_creation_modal",
+				Title:    "Embed 作成ビルダー",
+				Components: []discordgo.MessageComponent{
+					discordgo.ActionsRow{
+						Components: []discordgo.MessageComponent{
+							discordgo.TextInput{
+								CustomID:    "title",
+								Label:       "タイトル",
+								Style:       discordgo.TextInputShort,
+								Placeholder: "Embedのタイトルを入力",
+								Required:    true,
+							},
+						},
+					},
+					discordgo.ActionsRow{
+						Components: []discordgo.MessageComponent{
+							discordgo.TextInput{
+								CustomID:    "description",
+								Label:       "説明文 (メインのテキスト)",
+								Style:       discordgo.TextInputParagraph,
+								Placeholder: "ここにメインの文章を入力します。\n改行も可能です。",
+								Required:    true,
+							},
+						},
+					},
+					discordgo.ActionsRow{
+						Components: []discordgo.MessageComponent{
+							discordgo.TextInput{
+								CustomID:    "color",
+								Label:       "色 (16進数カラーコード)",
+								Style:       discordgo.TextInputShort,
+								Placeholder: "例: #3498DB (未入力の場合はDiscordのデフォルト色)",
+								Required:    false,
+								MaxLength:   7,
+							},
+						},
+					},
+					discordgo.ActionsRow{
+						Components: []discordgo.MessageComponent{
+							discordgo.TextInput{
+								CustomID:    "footer",
+								Label:       "フッター (一番下のテキスト)",
+								Style:       discordgo.TextInputShort,
+								Placeholder: "例: サーバーからのお知らせ",
+								Required:    false,
+							},
+						},
+					},
+				},
 			},
 		})
 		if err != nil {
-			logger.Error.Printf("Error responding to embed command: %v", err)
+			logger.Error.Printf("Failed to show embed modal: %v", err)
 		}
 	}
 
-	// コマンドとハンドラを登録
 	Commands = append(Commands, cmd)
 	CommandHandlers[cmd.Name] = handler
+}
+
+// HandleEmbedCreation はモーダルから送信されたデータに基づいてEmbedを作成します
+func HandleEmbedCreation(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	data := i.ModalSubmitData()
+
+	title := data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	description := data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	colorStr := data.Components[2].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	footer := data.Components[3].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+
+	embed := &discordgo.MessageEmbed{
+		Title:       title,
+		Description: description,
+		Timestamp:   time.Now().Format(time.RFC3339),
+		Author: &discordgo.MessageEmbedAuthor{
+			Name:    i.Member.User.Username,
+			IconURL: i.Member.User.AvatarURL(""),
+		},
+	}
+
+	if footer != "" {
+		embed.Footer = &discordgo.MessageEmbedFooter{
+			Text: footer,
+		}
+	}
+
+	if colorStr != "" {
+		colorStr = strings.TrimPrefix(colorStr, "#")
+		colorInt, err := strconv.ParseInt(colorStr, 16, 32)
+		if err == nil {
+			embed.Color = int(colorInt)
+		}
+	}
+
+	// 作成したEmbedを送信
+	s.ChannelMessageSendEmbed(i.ChannelID, embed)
+
+	// モーダルへの応答（Ephemeralで本人にだけ見える）
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "✅ Embedを作成しました。",
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
 }

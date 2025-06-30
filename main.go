@@ -40,8 +40,11 @@ func main() {
 			}
 		// モーダル送信時の処理
 		case discordgo.InteractionModalSubmit:
-			if i.ModalSubmitData().CustomID == "ticket_creation_modal" {
+			switch i.ModalSubmitData().CustomID {
+			case "ticket_creation_modal":
 				commands.HandleTicketCreation(s, i)
+			case "embed_creation_modal":
+				commands.HandleEmbedCreation(s, i)
 			}
 		}
 	})
@@ -63,7 +66,6 @@ func main() {
 	defer dg.Close()
 
 	logger.Info.Println("Botが起動しました。スラッシュコマンドを登録します。")
-	// ボット起動時にコマンドを上書き登録
 	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", commands.Commands)
 	if err != nil {
 		logger.Fatal.Printf("コマンドの登録に失敗しました: %v", err)
