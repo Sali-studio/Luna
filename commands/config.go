@@ -7,6 +7,8 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// ★★★ ここにあった共有変数の定義をすべて削除しました ★★★
+
 func init() {
 	cmd := &discordgo.ApplicationCommand{
 		Name:                     "config",
@@ -17,40 +19,37 @@ func init() {
 	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		logger.Info.Println("config command received")
 
-		// 設定ダッシュボードのEmbedを作成
 		embed := &discordgo.MessageEmbed{
 			Title:       "⚙️ Luna 設定ダッシュボード",
 			Description: "設定したい項目のボタンを押してください。",
-			Color:       0x95A5A6, // グレー
+			Color:       0x95A5A6,
 		}
 
-		// 各機能の設定ボタンを作成
 		components := []discordgo.MessageComponent{
 			discordgo.ActionsRow{
 				Components: []discordgo.MessageComponent{
 					discordgo.Button{
 						Label:    "チケット機能",
 						Style:    discordgo.SecondaryButton,
-						Emoji:    discordgo.ComponentEmoji{Name: "🎫"},
+						Emoji:    &discordgo.ComponentEmoji{Name: "🎫"}, // & を追加
 						CustomID: "config_ticket_button",
 					},
 					discordgo.Button{
 						Label:    "ログ機能",
 						Style:    discordgo.SecondaryButton,
-						Emoji:    discordgo.ComponentEmoji{Name: "📜"},
+						Emoji:    &discordgo.ComponentEmoji{Name: "📜"}, // & を追加
 						CustomID: "config_log_button",
 					},
 					discordgo.Button{
 						Label:    "一時VC機能",
 						Style:    discordgo.SecondaryButton,
-						Emoji:    discordgo.ComponentEmoji{Name: "🔊"},
+						Emoji:    &discordgo.ComponentEmoji{Name: "🔊"}, // & を追加
 						CustomID: "config_temp_vc_button",
 					},
 				},
 			},
 		}
 
-		// ダッシュボードを本人にだけ見える形で送信
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -67,7 +66,6 @@ func init() {
 
 // --- 各設定モーダルを表示する関数群 ---
 
-// HandleShowTicketConfigModal はチケット設定モーダルを表示します
 func HandleShowTicketConfigModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseModal,
@@ -93,7 +91,6 @@ func HandleShowTicketConfigModal(s *discordgo.Session, i *discordgo.InteractionC
 	}
 }
 
-// HandleShowLogConfigModal はログ設定モーダルを表示します
 func HandleShowLogConfigModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseModal,
@@ -114,7 +111,6 @@ func HandleShowLogConfigModal(s *discordgo.Session, i *discordgo.InteractionCrea
 	}
 }
 
-// HandleShowTempVCConfigModal は一時VC設定モーダルを表示します
 func HandleShowTempVCConfigModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseModal,
