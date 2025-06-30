@@ -8,7 +8,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// --- 計算用の共有マップ ---
+// 計算用の共有マップ
 var natureMultipliers = map[string]float64{
 	"up": 1.1, "neutral": 1.0, "down": 0.9,
 }
