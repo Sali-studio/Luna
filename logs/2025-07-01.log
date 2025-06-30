@@ -68,3 +68,8 @@ INFO: 2025/07/01 05:10:00 main.go:77: Botをシャットダウンします。
 INFO: 2025/07/01 05:10:06 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
 INFO: 2025/07/01 05:10:06 main.go:72: Bot is now running. Press CTRL-C to exit.
 INFO: 2025/07/01 05:15:16 main.go:77: Botをシャットダウンします。
+INFO: 2025/07/01 05:23:01 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/01 05:23:01 main.go:72: Bot is now running. Press CTRL-C to exit.
+ERROR: 2025/07/01 05:24:40 ticket_handler.go:112: Failed to create ticket channel: HTTP 400 Bad Request, {"message": "Invalid Form Body", "code": 50035, "errors": {"permission_overwrites": {"2": {"id": {"_errors": [{"code": "NUMBER_TYPE_COERCE", "message": "Value \"\" is not snowflake."}]}}}}}
+INFO: 2025/07/01 05:25:16 ticket_setup.go:39: ticket-setup command received
+INFO: 2025/07/01 05:34:41 main.go:77: Botをシャットダウンします。
