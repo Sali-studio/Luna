@@ -9,7 +9,6 @@ import (
 )
 
 // --- 既存のログ機能 ---
-
 func HandleGuildBanAdd(s *discordgo.Session, e *discordgo.GuildBanAdd) {
 	logChannel, ok := logChannelID[e.GuildID]
 	if !ok {
@@ -202,15 +201,15 @@ func HandleGuildMemberAddLog(s *discordgo.Session, e *discordgo.GuildMemberAdd) 
 
 	logger.Info.Printf("User %s joined guild %s", e.User.Username, e.GuildID)
 
-	// ユーザーのアカウントがいつ作成されたかを取得
-	createdAt, _ := e.User.CreatedAt()
+	// ★★★ ここを修正 ★★★
+	createdAt, _ := discordgo.SnowflakeTimestamp(e.User.ID)
 
 	embed := &discordgo.MessageEmbed{
 		Author: &discordgo.MessageEmbedAuthor{
 			Name:    "メンバーが参加しました",
 			IconURL: e.User.AvatarURL(""),
 		},
-		Color: 0x57F287, // 緑色
+		Color: 0x57F287,
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "ユーザー", Value: fmt.Sprintf("%s (`%s`)", e.User.Mention(), e.User.ID), Inline: false},
 			{Name: "アカウント作成日", Value: fmt.Sprintf("<t:%d:F>", createdAt.Unix()), Inline: false},
@@ -234,15 +233,12 @@ func HandleMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
 	auditLog, _ := s.GuildAuditLog(e.GuildID, "", "", int(discordgo.AuditLogActionMessageDelete), 1)
 	executor := "不明"
 	if len(auditLog.AuditLogEntries) > 0 {
-		// 最新のメッセージ削除ログを取得
 		entry := auditLog.AuditLogEntries[0]
-		// 削除ログのオプションから、どのチャンネルで、何件のメッセージが削除されたかを確認
-		if entry.Options.ChannelID == e.ChannelID {
+		if entry.Options != nil && entry.Options.ChannelID == e.ChannelID {
 			executor = entry.UserID
 		}
 	}
 
-	// MessageDeleteイベントには内容が含まれないため、表示はここまで
 	embed := &discordgo.MessageEmbed{
 		Author: &discordgo.MessageEmbedAuthor{Name: "メッセージが削除されました", IconURL: "https://cdn.discordapp.com/emojis/864921522055741440.png"},
 		Color:  0xED4245,
@@ -266,23 +262,25 @@ func HandleWebhooksUpdate(s *discordgo.Session, e *discordgo.WebhooksUpdate) {
 
 	logger.Info.Printf("Webhooks were updated in channel %s", e.ChannelID)
 
-	// 最新のWebhook関連の監査ログを取得
-	auditLog, _ := s.GuildAuditLog(e.GuildID, "", "", int(discordgo.AuditLogActionWebhookCreate), 1)
+	auditLog, _ := s.GuildAuditLog(e.GuildID, "", "", -1, 5)
 	executor := "不明"
 	action := "更新"
 
 	if len(auditLog.AuditLogEntries) > 0 {
-		entry := auditLog.AuditLogEntries[0]
-		// 監査ログがWebhook関連のものか、さらに絞り込む
-		if entry.Action == discordgo.AuditLogActionWebhookCreate || entry.Action == discordgo.AuditLogActionWebhookDelete || entry.Action == discordgo.AuditLogActionWebhookUpdate {
-			executor = entry.UserID
-			switch entry.Action {
-			case discordgo.AuditLogActionWebhookCreate:
-				action = "作成"
-			case discordgo.AuditLogActionWebhookDelete:
-				action = "削除"
-			case discordgo.AuditLogActionWebhookUpdate:
-				action = "更新"
+		for _, entry := range auditLog.AuditLogEntries {
+			// ★★★ ここを修正 ★★★
+			// nilチェックを追加し、ポインタをデリファレンス(*)して比較
+			if entry.ActionType != nil && (*entry.ActionType == discordgo.AuditLogActionWebhookCreate || *entry.ActionType == discordgo.AuditLogActionWebhookDelete || *entry.ActionType == discordgo.AuditLogActionWebhookUpdate) {
+				executor = entry.UserID
+				switch *entry.ActionType {
+				case discordgo.AuditLogActionWebhookCreate:
+					action = "作成"
+				case discordgo.AuditLogActionWebhookDelete:
+					action = "削除"
+				case discordgo.AuditLogActionWebhookUpdate:
+					action = "更新"
+				}
+				break
 			}
 		}
 	}
