@@ -51,6 +51,9 @@ func main() {
 	dg.AddHandler(commands.HandleGuildMemberUpdate)
 	dg.AddHandler(commands.HandleChannelCreate)
 	dg.AddHandler(commands.HandleChannelDelete)
+	dg.AddHandler(commands.HandleMessageDelete)
+	dg.AddHandler(commands.HandleWebhooksUpdate)
+	dg.AddHandler(commands.HandleGuildMemberAddLog)
 
 	// Discordへの接続を開く
 	err = dg.Open()
