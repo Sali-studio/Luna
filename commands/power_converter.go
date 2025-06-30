@@ -105,7 +105,7 @@ func init() {
 		// 結果表示用のEmbedを作成
 		embed := &discordgo.MessageEmbed{
 			Author: &discordgo.MessageEmbedAuthor{
-				Name:    fmt.Sprintf("%.2f %s の変換結果", amount, strings.ToUpper(fromUnit)),
+				Name:    fmt.Sprintf("⚡ %.2f %s の変換結果", amount, strings.ToUpper(fromUnit)),
 				IconURL: "https://cdn.discordapp.com/emojis/995772399329759242.png", // MODアイコンなど
 			},
 			Color:  0xFEE75C, // 黄色
