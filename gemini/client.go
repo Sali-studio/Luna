@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time" // ★★★ time パッケージをインポート ★★★
 )
 
 // Gemini APIに送信するリクエストの構造体
@@ -13,19 +14,16 @@ type GeminiRequest struct {
 	Contents []Content `json:"contents"`
 }
 
-// --- ↓↓↓ ここからレスポンス構造体を修正・追加 ↓↓↓ ---
 // Gemini APIから返ってくるレスポンスの構造体
 type GeminiResponse struct {
 	Candidates     []Candidate    `json:"candidates"`
-	PromptFeedback PromptFeedback `json:"promptFeedback,omitempty"` // omitemptyを追加
+	PromptFeedback PromptFeedback `json:"promptFeedback,omitempty"`
 }
 
 // プロンプトがブロックされた際の情報
 type PromptFeedback struct {
 	BlockReason string `json:"blockReason"`
 }
-
-// --- ↑↑↑ ここまで修正・追加 ↑↑↑ ---
 
 // 各構造体の詳細定義
 type Content struct {
@@ -63,7 +61,11 @@ func GenerateContent(apiKey, prompt string) (string, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
+	// 30秒のタイムアウトを設定したHTTPクライアントを作成
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send http request: %w", err)
@@ -84,12 +86,10 @@ func GenerateContent(apiKey, prompt string) (string, error) {
 		return "", fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
 
-	// まず、安全フィルターによってブロックされていないか確認
 	if geminiResp.PromptFeedback.BlockReason != "" {
 		return "", fmt.Errorf("この質問は安全上の理由からブロックされました (理由: %s)", geminiResp.PromptFeedback.BlockReason)
 	}
 
-	// 次に、応答候補(Candidates)があるか確認
 	if len(geminiResp.Candidates) > 0 && len(geminiResp.Candidates[0].Content.Parts) > 0 {
 		return geminiResp.Candidates[0].Content.Parts[0].Text, nil
 	}
