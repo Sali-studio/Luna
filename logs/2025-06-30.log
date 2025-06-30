@@ -156,3 +156,7 @@ INFO: 2025/06/30 23:11:29 test_tone.go:82: Sending test tone data...
 INFO: 2025/06/30 23:11:39 test_tone.go:87: Test tone finished.
 INFO: 2025/06/30 23:19:49 main.go:54: Botをシャットダウンします。
 INFO: 2025/06/30 23:20:10 main.go:63: コマンドを削除しました。
+INFO: 2025/06/30 23:48:01 main.go:39: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 23:48:01 main.go:46: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 23:48:33 ping.go:18: ping command received
+INFO: 2025/06/30 23:48:57 ticket_setup.go:36: ticket-setup command received
