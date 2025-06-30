@@ -8,7 +8,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// 各電力単位の基準となる値（この場合はRF/FEを基準とする）
+// 各電力単位の基準となる値（RF/FEを基準とする）
 var powerConversionRates = map[string]float64{
 	"rf": 1.0,
 	"fe": 1.0,
@@ -16,6 +16,7 @@ var powerConversionRates = map[string]float64{
 	"mj": 10.0,
 	"if": 1.0, // Industrial Foregoingの電力単位 (FEと同じ)
 	"ae": 2.0, // Applied Energistics 2の電力単位 (AE/t)
+	"j":  0.4, // Mekanism Joules (1J = 0.4RF)
 }
 
 // 単位の正式名称
@@ -26,6 +27,7 @@ var powerUnitFullName = map[string]string{
 	"mj": "Minecraft Joules (BuildCraft)",
 	"if": "Industrial Foregoing",
 	"ae": "AE/t (Applied Energistics 2)",
+	"j":  "Joules (Mekanism)",
 }
 
 func init() {
@@ -80,9 +82,9 @@ func init() {
 
 		// 計算ロジック
 		// 1. 元の単位を基準単位(RF/FE)に変換
-		amountInRF := amount * powerConversionRates[fromUnit]
+		amountInRF := amount / powerConversionRates[fromUnit]
 		// 2. 基準単位から変換先の単位に変換
-		convertedAmount := amountInRF / powerConversionRates[toUnit]
+		convertedAmount := amountInRF * powerConversionRates[toUnit]
 
 		// 結果表示用のEmbedを作成
 		embed := &discordgo.MessageEmbed{
