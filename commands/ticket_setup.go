@@ -6,9 +6,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var ticketStaffRoleID = make(map[string]string)
-var ticketCategoryID = make(map[string]string)
-
 func init() {
 	cmd := &discordgo.ApplicationCommand{
 		Name:                     "ticket-setup",
@@ -49,9 +46,10 @@ func init() {
 
 		targetChannelID := optionMap["channel"].Value.(string)
 		categoryID := optionMap["category"].Value.(string)
-		staffRoleID := optionMap["staff-role"].Value.(string)
+		staffRoleIDValue := optionMap["staff-role"].Value.(string)
 
-		ticketStaffRoleID[i.GuildID] = staffRoleID
+		// commands.goで定義された共有変数に値を設定
+		ticketStaffRoleID[i.GuildID] = staffRoleIDValue
 		ticketCategoryID[i.GuildID] = categoryID
 
 		embed := &discordgo.MessageEmbed{

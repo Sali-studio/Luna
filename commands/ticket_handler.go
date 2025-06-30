@@ -8,7 +8,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// HandleOpenTicketModal はチケット作成モーダルを表示します
 func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseModal,
@@ -48,8 +47,13 @@ func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate)
 	}
 }
 
-// HandleTicketCreation はモーダルから送信されたデータに基づいてチケットを作成します
 func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// commands.goで定義された共有変数を参照
+	ticketCounter[i.GuildID]++
+	currentTicketNumber := ticketCounter[i.GuildID]
+
+	channelName := fmt.Sprintf("チケット-%03d", currentTicketNumber)
+
 	data := i.ModalSubmitData()
 	subject := data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
 	details := data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
@@ -66,7 +70,7 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	}
 
 	ch, err := s.GuildChannelCreateComplex(i.GuildID, discordgo.GuildChannelCreateData{
-		Name:                 fmt.Sprintf("🎫-%s", user.Username),
+		Name:                 channelName,
 		Type:                 discordgo.ChannelTypeGuildText,
 		ParentID:             categoryID,
 		PermissionOverwrites: permissionOverwrites,
@@ -93,7 +97,7 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 			{Name: "作成者", Value: user.Mention(), Inline: true},
 			{Name: "対応担当", Value: fmt.Sprintf("<@&%s>", staffRoleID), Inline: true},
 		},
-		Footer: &discordgo.MessageEmbedFooter{Text: "スタッフが確認するまでしばらくお待ちください。"},
+		Footer: &discordgo.MessageEmbedFooter{Text: fmt.Sprintf("チケット番号: %d", currentTicketNumber)},
 	}
 
 	closeButton := discordgo.Button{
@@ -113,10 +117,14 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	})
 }
 
-// HandleTicketClose はチケットを閉じるボタンが押されたときの処理を行います
 func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	channel, _ := s.Channel(i.ChannelID)
-	ticketCreatorName := strings.TrimPrefix(channel.Name, "🎫-")
+	channel, err := s.Channel(i.ChannelID)
+	if err != nil {
+		logger.Error.Printf("Failed to get channel info: %v", err)
+		return
+	}
+
+	closedName := strings.Replace(channel.Name, "チケット", "closed", 1)
 
 	var ticketCreator *discordgo.User
 	for _, overwrite := range channel.PermissionOverwrites {
@@ -125,7 +133,7 @@ func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			if err != nil {
 				continue
 			}
-			if strings.EqualFold(member.User.Username, ticketCreatorName) && member.User.ID != s.State.User.ID {
+			if !member.User.Bot {
 				ticketCreator = member.User
 				break
 			}
@@ -133,7 +141,6 @@ func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	if ticketCreator == nil {
-		logger.Warning.Printf("Could not find ticket creator for channel %s", channel.Name)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -159,7 +166,7 @@ func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	s.ChannelEditComplex(i.ChannelID, &discordgo.ChannelEdit{
-		Name:                 fmt.Sprintf("closed-%s", ticketCreatorName),
+		Name:                 closedName,
 		PermissionOverwrites: newOverwrites,
 	})
 

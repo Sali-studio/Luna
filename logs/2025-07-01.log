@@ -47,3 +47,16 @@ INFO: 2025/07/01 04:33:03 main.go:87: コマンドを削除しました。
 INFO: 2025/07/01 04:33:31 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
 INFO: 2025/07/01 04:33:32 main.go:72: Bot is now running. Press CTRL-C to exit.
 INFO: 2025/07/01 04:34:42 ticket_setup.go:42: ticket-setup command received
+INFO: 2025/07/01 04:38:53 main.go:78: Botをシャットダウンします。
+INFO: 2025/07/01 04:39:15 main.go:87: コマンドを削除しました。
+INFO: 2025/07/01 04:39:24 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/01 04:39:25 main.go:71: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/01 04:44:32 main.go:76: Botをシャットダウンします。
+INFO: 2025/07/01 04:47:19 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/01 04:47:20 main.go:72: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/01 04:47:51 ping.go:17: ping command received
+INFO: 2025/07/01 04:47:53 main.go:77: Botをシャットダウンします。
+INFO: 2025/07/01 04:48:00 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/01 04:48:00 main.go:72: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/01 04:48:03 ping.go:17: ping command received
+INFO: 2025/07/01 04:48:41 ticket_setup.go:42: ticket-setup command received
