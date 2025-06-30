@@ -34,3 +34,41 @@ INFO: 2025/06/30 09:43:06 main.go:48: Bot is now running. Press CTRL-C to exit.
 INFO: 2025/06/30 09:44:08 play.go:28: play command received
 INFO: 2025/06/30 09:44:08 play.go:32: Bot is not in a voice channel. Attempting to join.
 INFO: 2025/06/30 09:44:09 play.go:70: Joined voice channel: 948580896796192836
+INFO: 2025/06/30 09:46:12 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 09:46:33 main.go:63: コマンドを削除しました。
+INFO: 2025/06/30 09:46:45 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 09:46:46 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 09:47:56 play.go:28: play command received
+INFO: 2025/06/30 09:47:56 play.go:32: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 09:47:57 play.go:70: Joined voice channel: 948580896796192836
+INFO: 2025/06/30 09:51:16 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 09:51:37 main.go:63: コマンドを削除しました。
+INFO: 2025/06/30 09:53:26 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 09:53:27 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 09:53:52 join.go:17: join command received
+INFO: 2025/06/30 09:53:56 play.go:28: play command received
+INFO: 2025/06/30 09:54:16 leave.go:16: leave command received
+INFO: 2025/06/30 09:54:20 play.go:28: play command received
+INFO: 2025/06/30 09:54:20 play.go:32: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 09:54:21 play.go:70: Joined voice channel: 948580896796192836
+INFO: 2025/06/30 09:57:07 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 09:57:08 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 09:57:44 ping.go:18: ping command received
+INFO: 2025/06/30 09:58:03 play.go:29: play command received
+INFO: 2025/06/30 09:58:03 play.go:33: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 09:58:04 play.go:71: Joined voice channel: 948580896796192836
+INFO: 2025/06/30 10:00:07 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 10:00:28 main.go:63: コマンドを削除しました。
+INFO: 2025/06/30 10:01:29 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 10:01:29 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 10:02:49 ping.go:18: ping command received
+INFO: 2025/06/30 10:02:59 play.go:29: play command received
+INFO: 2025/06/30 10:02:59 play.go:33: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 10:03:01 play.go:71: Joined voice channel: 948580896796192836
+INFO: 2025/06/30 10:05:25 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 10:05:45 main.go:63: コマンドを削除しました。
+INFO: 2025/06/30 10:06:35 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 10:06:36 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 10:07:20 play.go:29: play command received
+INFO: 2025/06/30 10:07:20 play.go:33: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 10:07:22 play.go:71: Joined voice channel: 948580896796192836
