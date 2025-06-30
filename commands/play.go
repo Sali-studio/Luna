@@ -96,22 +96,39 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 		})
 	}
 
-	// ★★★ この行の "%s" を囲んでいたダブルクォートを削除 ★★★
-	commandString := fmt.Sprintf(`yt-dlp --no-playlist --quiet --no-warnings -f bestaudio -o - %s | ffmpeg -i pipe:0 -f s16le -ar 48000 -ac 2 -loglevel error pipe:1`, url)
+	// ★★★ ここからコマンド実行方法を最終形に変更 ★★★
+	ytdlp := exec.Command("yt-dlp", "--no-playlist", "--quiet", "--no-warnings", "-f", "bestaudio", "-o", "-", url)
+	ytdlp.Stderr = &stderrBuf
 
-	cmd := exec.Command("cmd", "/C", commandString)
-	cmd.Stderr = &stderrBuf
+	ffmpeg := exec.Command("ffmpeg", "-i", "pipe:0", "-f", "s16le", "-ar", "48000", "-ac", "2", "-loglevel", "error", "pipe:1")
+	ffmpeg.Stderr = &stderrBuf
 
-	stdout, err := cmd.StdoutPipe()
+	// yt-dlpの標準出力を取得
+	ytdlpOutput, err := ytdlp.StdoutPipe()
 	if err != nil {
-		sendError("コマンドパイプ作成エラー", err)
+		sendError("yt-dlpパイプ作成エラー", err)
+		return
+	}
+	// 取得した出力をffmpegの標準入力に設定
+	ffmpeg.Stdin = ytdlpOutput
+
+	// ffmpegの標準出力を取得
+	ffmpegOutput, err := ffmpeg.StdoutPipe()
+	if err != nil {
+		sendError("ffmpegパイプ作成エラー", err)
 		return
 	}
 
-	if err := cmd.Start(); err != nil {
-		sendError("コマンドの起動エラー", err)
+	// 各プロセスを開始
+	if err := ytdlp.Start(); err != nil {
+		sendError("yt-dlpの起動エラー", err)
 		return
 	}
+	if err := ffmpeg.Start(); err != nil {
+		sendError("ffmpegの起動エラー", err)
+		return
+	}
+	// ★★★ ここまで変更 ★★★
 
 	content := fmt.Sprintf("🎶 再生を開始します: `%s`", url)
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
@@ -125,7 +142,7 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 
 	for {
 		opusPacket := make([]byte, 3840)
-		_, err := io.ReadFull(stdout, opusPacket)
+		_, err := io.ReadFull(ffmpegOutput, opusPacket) // ffmpegの出力から読み込む
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			logger.Info.Println("再生が終了しました。")
 			break
@@ -137,7 +154,10 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 		vc.OpusSend <- opusPacket
 	}
 
-	if err := cmd.Wait(); err != nil {
-		sendError("コマンド実行時エラー", err)
+	if err := ytdlp.Wait(); err != nil {
+		sendError("yt-dlp実行時エラー", err)
+	}
+	if err := ffmpeg.Wait(); err != nil {
+		sendError("ffmpeg実行時エラー", err)
 	}
 }
