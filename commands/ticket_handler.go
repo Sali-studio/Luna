@@ -2,9 +2,9 @@ package commands
 
 import (
 	"fmt"
-	"luna/gemini" // ★★★ geminiパッケージをインポート ★★★
+	"luna/gemini"
 	"luna/logger"
-	"os" // ★★★ osパッケージをインポート ★★★
+	"os"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -138,7 +138,7 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	}
 
 	s.ChannelMessageSendComplex(ch.ID, &discordgo.MessageSend{
-		Content: fmt.Sprintf("ようこそ <@%s> さん。まずはAIからの回答をご確認ください。", user.ID),
+		Content: fmt.Sprintf("ようこそ <@%s> さん。スタッフが対応しますので、しばらくお待ちください。", user.ID),
 		Embeds:  []*discordgo.MessageEmbed{ticketEmbed},
 		Components: []discordgo.MessageComponent{
 			discordgo.ActionsRow{
