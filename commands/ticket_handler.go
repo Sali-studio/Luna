@@ -57,7 +57,7 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	closeButton := discordgo.Button{
 		Label:    "チケットを閉じる",
 		Style:    discordgo.DangerButton,
-		Emoji:    &discordgo.ComponentEmoji{Name: "🔒"}, // & を追加
+		Emoji:    &discordgo.ComponentEmoji{Name: "🔒"},
 		CustomID: "close_ticket_button",
 	}
 
@@ -90,7 +90,8 @@ func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			if err != nil {
 				continue
 			}
-			if strings.ToLower(member.User.Username) == strings.ToLower(ticketCreatorName) && member.User.ID != s.State.User.ID {
+			// ★★★ ここの比較方法を修正 ★★★
+			if strings.EqualFold(member.User.Username, ticketCreatorName) && member.User.ID != s.State.User.ID {
 				ticketCreator = member.User
 				break
 			}
