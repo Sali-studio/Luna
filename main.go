@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"luna/commands"
@@ -20,9 +19,9 @@ func main() {
 		logger.Fatal.Printf("Discordセッションの作成中にエラーが発生しました: %v", err)
 	}
 
-	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentGuildModeration
+	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentGuildModeration
 
-	// --- イベントハンドラ ---
+	// --- スラッシュコマンドとコンポーネントのイベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		// スラッシュコマンド
@@ -41,24 +40,11 @@ func main() {
 			}
 		// モーダル送信時の処理
 		case discordgo.InteractionModalSubmit:
-			customID := i.ModalSubmitData().CustomID
-			parts := strings.Split(customID, ":")
-			if len(parts) < 1 {
-				return
-			}
-			modalType := parts[0]
-
-			switch modalType {
+			switch i.ModalSubmitData().CustomID {
 			case "ticket_creation_modal":
 				commands.HandleTicketCreation(s, i)
 			case "embed_creation_modal":
 				commands.HandleEmbedCreation(s, i)
-			case "moderate_kick_confirm":
-				commands.HandleExecuteKick(s, i, parts)
-			case "moderate_ban_confirm":
-				commands.HandleExecuteBan(s, i, parts)
-			case "moderate_timeout_confirm":
-				commands.HandleExecuteTimeout(s, i, parts)
 			}
 		}
 	})
@@ -73,7 +59,10 @@ func main() {
 	dg.AddHandler(commands.HandleWebhooksUpdate)
 	dg.AddHandler(commands.HandleGuildMemberAddLog)
 
-	// --- ★★★ ここからが追加・修正された部分です ★★★ ---
+	// --- リアクションロール用のハンドラ ---
+	dg.AddHandler(commands.HandleMessageReactionAdd)
+	dg.AddHandler(commands.HandleMessageReactionRemove)
+
 	// Discordへの接続を開く
 	err = dg.Open()
 	if err != nil {
@@ -82,16 +71,12 @@ func main() {
 	defer dg.Close()
 
 	logger.Info.Println("Botが起動しました。スラッシュコマンドを登録します。")
-
-	// ボット起動時にコマンドを上書き登録
 	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", commands.Commands)
 	if err != nil {
 		logger.Fatal.Printf("コマンドの登録に失敗しました: %v", err)
 	}
 
 	logger.Info.Println("Bot is now running. Press CTRL-C to exit.")
-
-	// Botが終了シグナル (Ctrl+Cなど) を受け取るまで待機
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
