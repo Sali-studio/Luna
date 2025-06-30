@@ -8,6 +8,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// HandleOpenTicketModal はチケット作成モーダルを表示します
 func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseModal,
@@ -47,6 +48,7 @@ func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate)
 	}
 }
 
+// HandleTicketCreation はモーダルから送信されたデータに基づいてチケットを作成します
 func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.ModalSubmitData()
 	subject := data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
@@ -111,13 +113,9 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	})
 }
 
+// HandleTicketClose はチケットを閉じるボタンが押されたときの処理を行います
 func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	channel, err := s.Channel(i.ChannelID)
-	if err != nil {
-		logger.Error.Printf("Failed to get channel info: %v", err)
-		return
-	}
-
+	channel, _ := s.Channel(i.ChannelID)
 	ticketCreatorName := strings.TrimPrefix(channel.Name, "🎫-")
 
 	var ticketCreator *discordgo.User
