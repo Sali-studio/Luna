@@ -24,22 +24,24 @@ func main() {
 		logger.Fatal.Printf("Discordセッションの作成中にエラーが発生しました: %v", err)
 	}
 
+	// main.go の中の dg.AddHandler(...) の部分
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		// 受け取ったInteractionのタイプによって処理を分岐
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
-			// スラッシュコマンドの場合の処理
 			if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {
 				h(s, i)
 			}
 		case discordgo.InteractionMessageComponent:
-			// ボタンが押された場合の処理
-			// "create_ticket_button" というIDのボタンか確認
-			if i.MessageComponentData().CustomID == "create_ticket_button" {
+			// 押されたボタンのIDによって処理を振り分ける
+			customID := i.MessageComponentData().CustomID
+			switch customID {
+			case "create_ticket_button":
 				commands.HandleTicketCreation(s, i)
+			case "close_ticket_button":
+				commands.HandleTicketClose(s, i)
 			}
 		}
-	}) // --- ↑↑↑ ここまで書き換え ↑↑↑
+	})
 
 	err = dg.Open()
 	if err != nil {
