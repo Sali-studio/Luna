@@ -39,7 +39,7 @@ func main() {
 				commands.HandleTicketCreation(s, i)
 			}
 		}
-	})
+	}) // --- ↑↑↑ ここまで書き換え ↑↑↑
 
 	err = dg.Open()
 	if err != nil {
@@ -63,4 +63,11 @@ func main() {
 	logger.Info.Println("Botをシャットダウンします。")
 
 	for _, cmd := range registeredCommands {
-		err := dg.ApplicationCommandDelete(dg.State
+		err := dg.ApplicationCommandDelete(dg.State.User.ID, "", cmd.ID)
+		if err != nil {
+			logger.Error.Printf("コマンドの削除に失敗しました: %v", err)
+		}
+	}
+
+	logger.Info.Println("コマンドを削除しました。")
+}
