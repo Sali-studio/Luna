@@ -22,12 +22,15 @@ func main() {
 
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentGuildModeration
 
+	// --- スラッシュコマンドとコンポーネントのイベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
+		// スラッシュコマンド
 		case discordgo.InteractionApplicationCommand:
 			if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {
 				h(s, i)
 			}
+		// ボタンなどのコンポーネント
 		case discordgo.InteractionMessageComponent:
 			customID := i.MessageComponentData().CustomID
 			switch customID {
@@ -44,6 +47,7 @@ func main() {
 			case "config_temp_vc_button":
 				commands.HandleShowTempVCConfigModal(s, i)
 			}
+		// モーダル送信時の処理
 		case discordgo.InteractionModalSubmit:
 			customID := i.ModalSubmitData().CustomID
 			parts := strings.Split(customID, ":")
@@ -96,6 +100,9 @@ func main() {
 		logger.Fatal.Printf("Discordへの接続中にエラーが発生しました: %v", err)
 	}
 	defer dg.Close()
+
+	// ★★★ ダッシュボードの自動更新ループを開始 ★★★
+	commands.StartDashboardUpdater(dg)
 
 	logger.Info.Println("Botが起動しました。スラッシュコマンドを登録します。")
 	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", commands.Commands)
