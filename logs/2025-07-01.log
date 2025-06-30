@@ -149,3 +149,5 @@ INFO: 2025/07/01 07:50:04 main.go:84: Botが起動しました。スラッシュ
 INFO: 2025/07/01 07:50:04 main.go:92: Bot is now running. Press CTRL-C to exit.
 INFO: 2025/07/01 07:50:59 calculator.go:69: calc command received
 INFO: 2025/07/01 07:56:03 main.go:99: Botをシャットダウンします。
+INFO: 2025/07/01 07:56:11 main.go:84: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/01 07:56:11 main.go:92: Bot is now running. Press CTRL-C to exit.
