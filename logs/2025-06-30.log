@@ -1,0 +1,31 @@
+INFO: 2025/06/30 09:21:32 main.go:43: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 09:21:32 main.go:50: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 09:22:57 play.go:26: play command received
+INFO: 2025/06/30 09:23:02 join.go:17: join command received
+INFO: 2025/06/30 09:23:19 join.go:17: join command received
+INFO: 2025/06/30 09:24:22 join.go:17: join command received
+INFO: 2025/06/30 09:25:39 ping.go:18: ping command received
+INFO: 2025/06/30 09:26:32 embed.go:65: embed command received
+INFO: 2025/06/30 09:27:42 main.go:56: Botをシャットダウンします。
+INFO: 2025/06/30 09:28:03 main.go:65: コマンドを削除しました。
+INFO: 2025/06/30 09:28:39 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 09:28:39 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 09:29:08 ping.go:18: ping command received
+INFO: 2025/06/30 09:29:13 join.go:17: join command received
+INFO: 2025/06/30 09:29:24 play.go:26: play command received
+INFO: 2025/06/30 09:34:12 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 09:34:33 main.go:63: コマンドを削除しました。
+FATAL: 2025/06/30 09:37:34 main.go:19: 環境変数 DISCORD_BOT_TOKEN が設定されていません。
+FATAL: 2025/06/30 09:37:36 main.go:37: Discordへの接続中にエラーが発生しました: websocket: close 4004: Authentication failed.
+INFO: 2025/06/30 09:37:36 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 09:38:29 main.go:41: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/06/30 09:38:30 main.go:48: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/06/30 09:38:57 play.go:28: play command received
+INFO: 2025/06/30 09:38:57 play.go:35: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 09:38:58 play.go:76: Joined voice channel: 948580896796192836
+INFO: 2025/06/30 09:41:29 leave.go:16: leave command received
+INFO: 2025/06/30 09:41:52 play.go:28: play command received
+INFO: 2025/06/30 09:41:52 play.go:35: Bot is not in a voice channel. Attempting to join.
+INFO: 2025/06/30 09:41:53 play.go:76: Joined voice channel: 948580896796192836
+INFO: 2025/06/30 09:42:22 main.go:54: Botをシャットダウンします。
+INFO: 2025/06/30 09:42:43 main.go:63: コマンドを削除しました。

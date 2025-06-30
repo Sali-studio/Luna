@@ -13,7 +13,7 @@ import (
 func init() {
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "play",
-		Description: "指定されたYouTubeのURLを再生します（VCにいない場合は自動で参加します）", // 説明を更新
+		Description: "指定されたYouTubeのURLを再生します（VCにいない場合は自動で参加します）",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
@@ -27,11 +27,8 @@ func init() {
 	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		logger.Info.Println("play command received")
 
-		// ★★★ ここからが修正箇所 ★★★
-		// ボットがVCに参加しているか確認
 		vc, ok := VoiceConnections[i.GuildID]
 		if !ok {
-			// いなかった場合、ユーザーのいるVCを探して参加する
 			logger.Info.Println("Bot is not in a voice channel. Attempting to join.")
 			guild, err := s.State.Guild(i.GuildID)
 			if err != nil {
@@ -47,7 +44,6 @@ func init() {
 				}
 			}
 
-			// ユーザーがVCにいない場合はエラーを返す
 			if voiceChannelID == "" {
 				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -58,7 +54,6 @@ func init() {
 				return
 			}
 
-			// VCに接続
 			newVc, err := s.ChannelVoiceJoin(i.GuildID, voiceChannelID, false, true)
 			if err != nil {
 				logger.Error.Printf("Failed to join voice channel: %v", err)
@@ -70,12 +65,10 @@ func init() {
 				})
 				return
 			}
-			// 新しい接続情報をマップと変数に保存
 			VoiceConnections[i.GuildID] = newVc
 			vc = newVc
 			logger.Info.Printf("Joined voice channel: %s", voiceChannelID)
 		}
-		// ★★★ ここまでが修正箇所 ★★★
 
 		url := i.ApplicationCommandData().Options[0].StringValue()
 
@@ -102,7 +95,8 @@ func playYoutube(s *discordgo.Session, i *discordgo.InteractionCreate, vc *disco
 		})
 	}
 
-	ytdlp := exec.Command("yt-dlp", "-f", "bestaudio", "-o", "-", url)
+	// ★★★ この行を修正 ★★★
+	ytdlp := exec.Command("yt-dlp", "--no-playlist", "-f", "bestaudio", "-o", "-", url)
 	ytdlp.Stderr = &stderrBuf
 
 	ffmpeg := exec.Command("ffmpeg", "-i", "pipe:0", "-f", "s16le", "-ar", "48000", "-ac", "2", "pipe:1")
