@@ -52,7 +52,6 @@ func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate)
 
 // HandleTicketCreation はモーダルから送信されたデータに基づいてチケットを作成し、AIによる一次回答を試みます
 func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// ★★★ この関数を全面的に書き換えます ★★★
 
 	// まずは遅延応答で時間を確保
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -70,15 +69,11 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	staffRoleID := ticketStaffRoleID[i.GuildID]
 	categoryID := ticketCategoryID[i.GuildID]
 
-	// --- AIによる一次回答を試みる ---
+	// AIによる一次回答を試みる
 	var aiResponse string
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey != "" {
-		// AIに渡すプロンプト（質問文）を作成
-		prompt := fmt.Sprintf("以下のユーザーからの問い合わせについて、一次回答を生成してください。\n\n件名: %s\n\n詳細: %s", subject, details)
-
-		// Geminiクライアントを呼び出し
-		response, err := gemini.GenerateContent(apiKey, prompt)
+		response, err := gemini.GenerateTicketResponse(apiKey, subject, details)
 		if err != nil {
 			logger.Error.Printf("Failed to get response from Gemini: %v", err)
 			aiResponse = "AIによる一次回答の生成中にエラーが発生しました。"
@@ -88,7 +83,6 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	} else {
 		aiResponse = "AIによる一次回答機能は現在無効です。"
 	}
-	// --- AIの処理ここまで ---
 
 	// チケット番号をインクリメント
 	ticketCounter[i.GuildID]++
