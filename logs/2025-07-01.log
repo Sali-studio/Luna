@@ -117,3 +117,10 @@ INFO: 2025/07/01 06:32:26 main.go:72: Bot is now running. Press CTRL-C to exit.
 INFO: 2025/07/01 06:35:15 pokemon_stats.go:113: calc-stats command received
 INFO: 2025/07/01 06:37:58 calculator.go:27: calc command received
 INFO: 2025/07/01 06:40:39 main.go:77: Botをシャットダウンします。
+INFO: 2025/07/01 06:40:46 main.go:65: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/01 06:40:46 main.go:72: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/01 06:42:02 pokemon_stats.go:114: calc-stats command received
+INFO: 2025/07/01 06:42:13 calculator.go:27: calc command received
+ERROR: 2025/07/01 06:42:13 calculator.go:35: Failed to parse expression: Undefined function abs
+INFO: 2025/07/01 06:42:36 calculator.go:27: calc command received
+ERROR: 2025/07/01 06:42:36 calculator.go:35: Failed to parse expression: Undefined function abs
