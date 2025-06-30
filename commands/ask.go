@@ -69,7 +69,7 @@ func init() {
 			Color: 0x4A90E2,
 			Fields: []*discordgo.MessageEmbedField{
 				{
-					Name: "🤖 Luna (Gemini)",
+					Name: " Luna ",
 					Value: response,
 				},
 			},
