@@ -44,9 +44,7 @@ func init() {
 		} else {
 			reason = "理由が指定されていません"
 		}
-
-		// 実行者が対象者より上位のロールを持っているかなどのチェックを追加すると、より安全になります
-
+		
 		// 実際にKickを実行
 		err := s.GuildMemberDeleteWithReason(i.GuildID, targetUser.ID, reason)
 		if err != nil {

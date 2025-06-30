@@ -29,7 +29,6 @@ func init() {
 	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		logger.Info.Println("log-setup command received")
 
-		// --- ↓↓↓ ここを全面的に修正しました ↓↓↓ ---
 		options := i.ApplicationCommandData().Options
 
 		// 型アサーションを使って、安全にチャンネルIDを取得
@@ -48,7 +47,6 @@ func init() {
 
 		// マップにチャンネルIDを保存
 		logChannelID[i.GuildID] = channelID
-		// --- ↑↑↑ ここまで修正 ---
 
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,

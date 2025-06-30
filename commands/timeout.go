@@ -65,7 +65,6 @@ func init() {
 
 		until := time.Now().Add(duration)
 
-		// --- ↓↓↓ ここからが修正箇所です ↓↓↓ ---
 		// タイムアウトを実行
 		// 理由がある場合は、WithAuditLogReasonオプションを追加する
 		var auditLogOption discordgo.RequestOption

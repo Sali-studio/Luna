@@ -8,7 +8,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// --- 既存のログ機能 ---
 func HandleGuildBanAdd(s *discordgo.Session, e *discordgo.GuildBanAdd) {
 	logChannel, ok := logChannelID[e.GuildID]
 	if !ok {
@@ -190,8 +189,6 @@ func HandleChannelDelete(s *discordgo.Session, e *discordgo.ChannelDelete) {
 	s.ChannelMessageSendEmbed(logChannel, embed)
 }
 
-// --- ここからが新しいログ機能（修正済み）---
-
 // HandleGuildMemberAddLog はユーザーがサーバーに参加したときのイベントを処理します
 func HandleGuildMemberAddLog(s *discordgo.Session, e *discordgo.GuildMemberAdd) {
 	logChannel, ok := logChannelID[e.GuildID]
@@ -201,7 +198,6 @@ func HandleGuildMemberAddLog(s *discordgo.Session, e *discordgo.GuildMemberAdd) 
 
 	logger.Info.Printf("User %s joined guild %s", e.User.Username, e.GuildID)
 
-	// ★★★ ここを修正 ★★★
 	createdAt, _ := discordgo.SnowflakeTimestamp(e.User.ID)
 
 	embed := &discordgo.MessageEmbed{
@@ -268,7 +264,6 @@ func HandleWebhooksUpdate(s *discordgo.Session, e *discordgo.WebhooksUpdate) {
 
 	if len(auditLog.AuditLogEntries) > 0 {
 		for _, entry := range auditLog.AuditLogEntries {
-			// ★★★ ここを修正 ★★★
 			// nilチェックを追加し、ポインタをデリファレンス(*)して比較
 			if entry.ActionType != nil && (*entry.ActionType == discordgo.AuditLogActionWebhookCreate || *entry.ActionType == discordgo.AuditLogActionWebhookDelete || *entry.ActionType == discordgo.AuditLogActionWebhookUpdate) {
 				executor = entry.UserID

@@ -7,7 +7,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// ★★★ このファイル全体をinit()で囲むように変更 ★★★
 func init() {
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "ping",
