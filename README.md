@@ -1,5 +1,6 @@
-# 🌙 Luna 1.6.3
-Luna is a multi-functional Discord bot built with Go, designed to streamline server management and enhance community engagement.
+# Luna 1.6.3
+
+Go言語で開発された、サーバー管理、AIとの対話、そして多彩なユーティリティ機能を提供する、次世代の多機能Discordボットです。
 
 [![Go Version](https://img.shields.io/badge/Go-1.18%2B-blue.svg)](https://golang.org/)
 [![DiscordGo](https://img.shields.io/badge/lib-DiscordGo-blue.svg)](https://github.com/bwmarrin/discordgo)
@@ -7,42 +8,46 @@ Luna is a multi-functional Discord bot built with Go, designed to streamline ser
 
 ---
 
-## ✨ Features
+## ✨ 機能一覧
 
-Luna is packed with a variety of features to improve your Discord server.
+Lunaは、サーバー運営を円滑にし、コミュニティを活性化させるための幅広い機能を、洗練されたUI/UXで提供します。
 
-* **🤖 AI Chat**: Integrates with the Google Gemini API to answer user questions.
-* **🎫 Ticket System**: A complete support ticket system using buttons and modals to create private channels for user inquiries.
-* **🛡️ Moderation**: Simple and effective moderation commands, including Kick, Ban, and Timeout.
-* **📈 Advanced Logging**: A superior audit log that records various server events in a specific channel with beautifully formatted embeds.
-* **⚙️ Utilities**: Handy utility commands to provide useful information.
-* **📝 Modular Design**: Features are organized by command, making maintenance and the addition of new features easy.
+* **🤖 AIチャット**: GoogleのGemini APIと連携し、ユーザーの質問にAIが自然に応答します。
+* **🎫 高度なチケットシステム**: ボタンとモーダル形式で問い合わせを受け付け、AIによる一次回答を提示することで、サポート業務を効率化します。
+* **🛡️ モデレーション**: Kick, BAN, Timeoutなどの基本的な管理機能を、理由付きで素早く実行できます。
+* **📈 詳細なロギング**: サーバー内のあらゆる重要イベントを、見やすいEmbed形式でリアルタイムに記録し、監査ログを強力に補完します。
+* **🔧 便利なツール群**:
+  - **高機能電卓**: 括弧や関数にも対応した、強力な計算機機能。
+  - **ポケモン実数値計算機**: レベル、個体値、努力値から性格・ランク・アイテム補正まで、対戦環境に即した詳細なステータス計算が可能。
+  - **工業MOD電力変換機**: Minecraftの工業MODプレイヤー向けに、各種電力単位を相互変換します。
+* **⚙️ ユーティリティ**: ユーザーアバターの表示や、カスタムEmbedの作成など、コミュニケーションを豊かにする機能を提供します。
 
 ---
 
-## 🚀 Installation
+## 🚀 導入方法
 
-### 1. Prerequisites
-* [Go](https://go.dev/dl/) (version 1.18 or higher) must be installed.
+### 1. 前提条件
+* [Go言語](https://go.dev/dl/) (バージョン 1.18以上) がインストールされていること。
 
-### 2. Configuration
-1.  Clone or download this repository.
+### 2. 設定
+1.  このリポジトリをクローンまたはダウンロードします。
     ```bash
     git clone [https://github.com/pepeyukke/luna.git](https://github.com/pepeyukke/luna.git)
     cd luna
     ```
-2.  Install the necessary dependencies.
+2.  必要なライブラリをインストールします。
     ```bash
     go mod tidy
+    go get [github.com/Knetic/govaluate](https://github.com/Knetic/govaluate)
     ```
-3.  Set the required API keys as environment variables.
+3.  各種**APIキー**を環境変数に設定します。
 
     **Windows (PowerShell)**
     ```powershell
-    # Your Discord Bot Token
+    # Discordボットのトークン
     $env:DISCORD_BOT_TOKEN="YOUR_BOT_TOKEN_HERE"
 
-    # Your Gemini API Key from Google AI Studio
+    # Google AI Studioで取得したGemini APIキー
     $env:GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
     ```
     **macOS / Linux**
@@ -51,53 +56,52 @@ Luna is packed with a variety of features to improve your Discord server.
     export GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
     ```
 
-### 3. Running the Bot
-Run the following command from the project's root directory. It is recommended to run this in a terminal with **Administrator privileges**.
+### 3. 実行
+**管理者権限で開いたターミナル**で、以下のコマンドを実行します。
 ```bash
 go run .
 ```
 
-### 4. Inviting the Bot to Your Server
-Generate an invite link from the `OAuth2 > URL Generator` page in your [Discord Developer Portal](https://discord.com/developers/applications). Select the following scopes and permissions:
+### 4. サーバーへの招待
+[Discord Developer Portal](https://discord.com/developers/applications)の`OAuth2 > URL Generator`から、以下のスコープと権限を選択して招待リンクを生成してください。
 
 * **SCOPES**: `bot`, `applications.commands`
 * **BOT PERMISSIONS**:
-    * `Send Messages`
-    * `Embed Links`
-    * `Read Messages/View Channels`
-    * `Manage Channels` (Required for Ticket System)
-    * `Manage Roles` (Required for Ticket System)
-    * `Kick Members`
-    * `Ban Members`
-    * `Moderate Members` (Required for Timeout)
-    * `View Audit Log` (Required for Logging System)
+    * `Send Messages`, `Embed Links`, `Read Messages/View Channels`
+    * `Manage Channels` (チケット機能)
+    * `Manage Roles` (チケット機能)
+    * `Kick Members`, `Ban Members`, `Moderate Members`
+    * `View Audit Log` (ログ機能)
 
 ---
 
-## 📋 Command List
+## 📋 コマンドリスト
 
-| Command         | Description                                        | Permissions Required        |
-|:----------------|:---------------------------------------------------|:----------------------------|
-| `/ping`         | Measures the bot's response time (latency).        | Everyone                    |
-| `/avatar`       | Displays your avatar or a specified user's avatar. | Everyone                    |
-| `/embed`        | Creates a custom embed message with your content.  | Everyone                    |
-| `/ask`          | Asks a question to the AI.                         | Everyone                    |
-| `/ticket-setup` | Sets up the panel for creating support tickets.    | Manage Channels             |
-| `/log-setup`    | Sets the channel for logging server events.        | Manage Server               |
-| `/kick`         | Kicks a user from the server.                      | Kick Members                |
-| `/ban`          | Bans a user from the server.                       | Ban Members                 |
-| `/timeout`      | Times out a user for a specified duration.         | Moderate Members            |
-
----
-## 📜 Logged Events
-When configured with `/log-setup`, the following events will be logged:
-- Member Join / Leave
-- Member Kick / Ban / Timeout (including removal)
-- Channel Create / Delete
-- Message Delete
-- Webhook Update
+| コマンド | 説明 | 必要な権限 |
+|:---|:---|:---|
+| `/ping` | ボットの応答速度を測定します。 | 全員 |
+| `/avatar` | ユーザーのアバターを表示します。| 全員 |
+| `/embed` | カスタムEmbedメッセージを作成します。 | 全員 |
+| `/ask` | AIに質問します。 | 全員 |
+| `/calc` | 数式を計算します。 | 全員 |
+| `/convert-power` | 工業MODの電力単位を相互変換します。 | 全員 |
+| `/calc-stats` | ポケモンの実数値を詳細に計算します。 | 全員 |
+| `/ticket-setup` | サポートチケット作成パネルを設置します。 | チャンネルの管理 |
+| `/log-setup` | ログを送信するチャンネルを設定します。 | サーバーの管理 |
+| `/kick` | ユーザーをサーバーから追放します。 | メンバーをキック |
+| `/ban` | ユーザーをサーバーからBANします。 | メンバーをBAN |
+| `/timeout` | ユーザーをタイムアウトさせます。 | メンバーをタイムアウト |
 
 ---
+## 📜 ログ機能で記録されるイベント一覧
+`/log-setup`で設定したチャンネルには、以下のイベントが発生した際にログが記録されます。
+- メンバーの参加 / 退出
+- メンバーのKick / BAN / Timeout (解除も含む)
+- チャンネルの作成 / 削除
+- メッセージの削除
+- Webhookの更新
 
-## License
-This project is licensed under the [LGPL-3.0](LICENSE).
+---
+
+## ライセンス
+このプロジェクトは [LGPL-3.0](LICENSE) の下で公開されています。
