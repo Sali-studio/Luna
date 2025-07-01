@@ -9,9 +9,6 @@ import (
 
 const (
 	EmbedModalCustomID = "embed_creator_modal"
-	EmbedTitleID       = "embed_title"
-	EmbedDescriptionID = "embed_description"
-	EmbedColorID       = "embed_color"
 )
 
 type EmbedCommand struct{}
@@ -32,13 +29,13 @@ func (c *EmbedCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 			Title:    "Embedを作成",
 			Components: []discordgo.MessageComponent{
 				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-					discordgo.TextInput{CustomID: EmbedTitleID, Label: "タイトル", Style: discordgo.TextInputShort, Placeholder: "Embedのタイトルを入力", Required: true, MaxLength: 256},
+					discordgo.TextInput{CustomID: "title", Label: "タイトル", Style: discordgo.TextInputShort, Placeholder: "Embedのタイトルを入力", Required: false, MaxLength: 256},
 				}},
 				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-					discordgo.TextInput{CustomID: EmbedDescriptionID, Label: "説明文", Style: discordgo.TextInputParagraph, Placeholder: "Embedの本文を入力。Markdownが使えます。", Required: true},
+					discordgo.TextInput{CustomID: "description", Label: "説明文", Style: discordgo.TextInputParagraph, Placeholder: "Embedの本文を入力。Markdownが使えます。", Required: true},
 				}},
 				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-					discordgo.TextInput{CustomID: EmbedColorID, Label: "色 (16進数カラーコード)", Style: discordgo.TextInputShort, Placeholder: "例: 7289da (Discord Blue)", Required: false, MinLength: 6, MaxLength: 6},
+					discordgo.TextInput{CustomID: "color", Label: "色 (16進数カラーコード)", Style: discordgo.TextInputShort, Placeholder: "例: 7289da (Discord Blue)", Required: false, MinLength: 6, MaxLength: 6},
 				}},
 			},
 		},

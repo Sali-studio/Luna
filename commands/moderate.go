@@ -103,13 +103,55 @@ func (c *ModerateCommand) executeKick(s *discordgo.Session, i *discordgo.Interac
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: response, Flags: discordgo.MessageFlagsEphemeral}})
 }
 
-// (showBanModal, executeBan, showTimeoutModal, executeTimeout も上記と同様に実装)
+func (c *ModerateCommand) showBanModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	options := i.ApplicationCommandData().Options[0].Options
+	userID := options[0].UserValue(s).ID
+	reason := ""
+	if len(options) > 1 {
+		reason = options[1].StringValue()
+	}
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: &discordgo.InteractionResponseData{
+			CustomID: modalBanPrefix + userID, Title: "BAN実行確認",
+			Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+				discordgo.TextInput{CustomID: "reason", Label: "理由（変更可能）", Style: discordgo.TextInputParagraph, Value: reason, Required: true},
+			}}},
+		},
+	})
+}
 
-func (c *ModerateCommand) showBanModal(s *discordgo.Session, i *discordgo.InteractionCreate) { /* ... */
+func (c *ModerateCommand) executeBan(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	userID := strings.TrimPrefix(i.ModalSubmitData().CustomID, modalBanPrefix)
+	reason := i.ModalSubmitData().Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	err := s.GuildBanCreateWithReason(i.GuildID, userID, reason, 0)
+	if err != nil {
+		logger.Error.Printf("BANの実行に失敗: %v", err)
+		return
+	}
+	response := fmt.Sprintf("✅ ユーザー <@%s> を理由「%s」でサーバーからBANしました。", userID, reason)
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: response, Flags: discordgo.MessageFlagsEphemeral}})
 }
-func (c *ModerateCommand) executeBan(s *discordgo.Session, i *discordgo.InteractionCreate) { /* ... */ }
-func (c *ModerateCommand) showTimeoutModal(s *discordgo.Session, i *discordgo.InteractionCreate) { /* ... */
+
+func (c *ModerateCommand) showTimeoutModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	options := i.ApplicationCommandData().Options[0].Options
+	userID := options[0].UserValue(s).ID
+	durationStr := options[1].StringValue()
+	reason := ""
+	if len(options) > 2 {
+		reason = options[2].StringValue()
+	}
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: &discordgo.InteractionResponseData{
+			CustomID: fmt.Sprintf("%s%s:%s", modalTimeoutPrefix, userID, durationStr), Title: "Timeout実行確認",
+			Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+				discordgo.TextInput{CustomID: "reason", Label: "理由（変更可能）", Style: discordgo.TextInputParagraph, Value: reason, Required: true},
+			}}},
+		},
+	})
 }
+
 func (c *ModerateCommand) executeTimeout(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	customID := i.ModalSubmitData().CustomID
 	parts := strings.Split(strings.TrimPrefix(customID, modalTimeoutPrefix), ":")
@@ -117,16 +159,19 @@ func (c *ModerateCommand) executeTimeout(s *discordgo.Session, i *discordgo.Inte
 	reason := i.ModalSubmitData().Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
 
 	duration, err := time.ParseDuration(durationStr)
-	if err != nil { /* ... エラー処理 ... */
+	if err != nil {
+		logger.Error.Printf("期間の解析に失敗: %v", err)
 		return
 	}
 	until := time.Now().Add(duration)
 
 	err = s.GuildMemberTimeout(i.GuildID, userID, &until)
-	if err != nil { /* ... エラー処理 ... */
+	if err != nil {
+		logger.Error.Printf("Timeoutの実行に失敗: %v", err)
 		return
 	}
-	// ... 成功レスポンス ...
+	response := fmt.Sprintf("✅ ユーザー <@%s> を理由「%s」で %s までタイムアウトしました。", userID, reason, until.Format("2006/01/02 15:04"))
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: response, Flags: discordgo.MessageFlagsEphemeral}})
 }
 
 func (c *ModerateCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

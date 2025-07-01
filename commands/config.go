@@ -28,7 +28,7 @@ func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {
 				Description: "チケット機能の設定",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
-					{Type: discordgo.ApplicationCommandOptionChannel, Name: "panel_channel", Description: "チケットパネルを設置するチャンネル", Required: true},
+					{Type: discordgo.ApplicationCommandOptionChannel, Name: "panel_channel", Description: "チケットパネルを設置するチャンネル", Required: true, ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText}},
 					{Type: discordgo.ApplicationCommandOptionChannel, Name: "category", Description: "チケットが作成されるカテゴリ", ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildCategory}, Required: true},
 					{Type: discordgo.ApplicationCommandOptionRole, Name: "staff_role", Description: "チケットに対応するスタッフのロール", Required: true},
 				},
@@ -38,7 +38,7 @@ func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {
 				Description: "ログ出力チャンネルを設定します",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
-					{Type: discordgo.ApplicationCommandOptionChannel, Name: "channel", Description: "ログを出力するチャンネル", Required: true},
+					{Type: discordgo.ApplicationCommandOptionChannel, Name: "channel", Description: "ログを出力するチャンネル", Required: true, ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText}},
 				},
 			},
 			{
@@ -56,7 +56,7 @@ func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionBoolean, Name: "enable", Description: "機能を有効にするか", Required: true},
-					{Type: discordgo.ApplicationCommandOptionChannel, Name: "channel", Description: "BUMPコマンドが実行されるチャンネル", Required: true},
+					{Type: discordgo.ApplicationCommandOptionChannel, Name: "channel", Description: "BUMPコマンドが実行されるチャンネル", Required: true, ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText}},
 					{Type: discordgo.ApplicationCommandOptionRole, Name: "role", Description: "リマインド時にメンションするロール", Required: true},
 				},
 			},
@@ -90,7 +90,6 @@ func (c *ConfigCommand) handleTicketConfig(s *discordgo.Session, i *discordgo.In
 
 	if err := c.Store.Save(); err != nil {
 		logger.Error.Printf("設定ファイルの書き込みに失敗 (Guild: %s): %v", i.GuildID, err)
-		// ... エラーレスポンス ...
 		return
 	}
 

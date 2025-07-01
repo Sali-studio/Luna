@@ -5,7 +5,7 @@ import (
 	"luna/logger"
 	"strings"
 
-	"github.comcom/bwmarrin/discordgo"
+	"github.com/bwmarrin/discordgo"
 )
 
 type HelpCommand struct{}
@@ -24,9 +24,18 @@ func (c *HelpCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		{"/help", "このヘルプメッセージを表示します。"},
 		{"/ask", "AIに質問します。"},
 		{"/config", "サーバーの各種設定を行います。"},
+		{"/dashboard-setup", "統計情報ダッシュボードを設置します。"},
 		{"/ticket-setup", "チケットパネルを設置します。"},
 		{"/reaction-role-setup", "リアクションロールを設定します。"},
-		// ... 他の主要なコマンドを追加 ...
+		{"/moderate", "ユーザーの追放、BAN、タイムアウトを行います。"},
+		{"/user-info", "ユーザーの情報を表示します。"},
+		{"/poll", "投票を作成します。"},
+		{"/embed", "埋め込みメッセージを作成します。"},
+		{"/schedule", "メッセージを予約投稿します。"},
+		{"/calc", "数式を計算します。"},
+		{"/calc-pokemon", "ポケモンのステータスを計算します。"},
+		{"/weather", "指定都市の天気を表示します。"},
+		{"/translate", "テキストを翻訳します。"},
 	}
 
 	var builder strings.Builder
