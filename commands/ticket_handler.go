@@ -9,6 +9,23 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// SendTicketPanel はチケット作成パネルを送信するヘルパー関数
+// 他のファイルからも呼び出せるように、名前の先頭を大文字にする
+func SendTicketPanel(s *discordgo.Session, channelID string) {
+	embed := &discordgo.MessageEmbed{
+		Title:       "サポート & お問い合わせ",
+		Description: "下のボタンを押して、サポートチケットを作成してください。",
+		Color:       0x5865F2,
+	}
+	button := discordgo.Button{
+		Label: "チケットを作成", Style: discordgo.PrimaryButton, Emoji: &discordgo.ComponentEmoji{Name: "✉️"}, CustomID: "open_ticket_modal",
+	}
+	s.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
+		Embeds:     []*discordgo.MessageEmbed{embed},
+		Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{button}}},
+	})
+}
+
 func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseModal,
@@ -16,16 +33,12 @@ func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate)
 			CustomID: "ticket_creation_modal",
 			Title:    "新規サポートチケット",
 			Components: []discordgo.MessageComponent{
-				discordgo.ActionsRow{
-					Components: []discordgo.MessageComponent{
-						discordgo.TextInput{CustomID: "subject", Label: "件名", Style: discordgo.TextInputShort, Placeholder: "例: ユーザー間のトラブルについて", Required: true, MaxLength: 100},
-					},
-				},
-				discordgo.ActionsRow{
-					Components: []discordgo.MessageComponent{
-						discordgo.TextInput{CustomID: "details", Label: "詳細", Style: discordgo.TextInputParagraph, Placeholder: "いつ、どこで、誰が、何をしたかなど、できるだけ詳しくご記入ください。", Required: true, MaxLength: 1000},
-					},
-				},
+				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+					discordgo.TextInput{CustomID: "subject", Label: "件名", Style: discordgo.TextInputShort, Placeholder: "例: ユーザー間のトラブルについて", Required: true, MaxLength: 100},
+				}},
+				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+					discordgo.TextInput{CustomID: "details", Label: "詳細", Style: discordgo.TextInputParagraph, Placeholder: "いつ、どこで、誰が、何をしたかなど、できるだけ詳しくご記入ください。", Required: true, MaxLength: 1000},
+				}},
 			},
 		},
 	})
@@ -46,12 +59,10 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 
 	user := i.Member.User
 
-	// Configストアから設定を取得
 	config := Config.GetGuildConfig(i.GuildID)
 	staffRoleID := config.Ticket.StaffRoleID
 	categoryID := config.Ticket.CategoryID
 
-	// AIによる一次回答を試みる
 	var aiResponse string
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey != "" {
@@ -66,7 +77,6 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 		aiResponse = "AIによる一次回答機能は現在無効です。"
 	}
 
-	// チケット番号をインクリメントして保存
 	config.Ticket.Counter++
 	currentTicketNumber := config.Ticket.Counter
 	Config.SaveGuildConfig(i.GuildID, config)
@@ -122,7 +132,6 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 
 func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	channel, _ := s.Channel(i.ChannelID)
-
 	config := Config.GetGuildConfig(i.GuildID)
 	closedName := fmt.Sprintf("closed-%03d", config.Ticket.Counter)
 

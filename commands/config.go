@@ -14,6 +14,8 @@ func init() {
 		DefaultMemberPermissions: int64Ptr(discordgo.PermissionManageGuild),
 	}
 	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		logger.Info.Println("config command received")
+
 		embed := &discordgo.MessageEmbed{
 			Title:       "⚙️ Luna 設定ダッシュボード",
 			Description: "設定したい項目のボタンを押してください。",
@@ -22,9 +24,18 @@ func init() {
 		components := []discordgo.MessageComponent{
 			discordgo.ActionsRow{
 				Components: []discordgo.MessageComponent{
-					discordgo.Button{Label: "チケット機能", Style: discordgo.SecondaryButton, Emoji: &discordgo.ComponentEmoji{Name: "🎫"}, CustomID: "config_ticket_button"},
-					discordgo.Button{Label: "ログ機能", Style: discordgo.SecondaryButton, Emoji: &discordgo.ComponentEmoji{Name: "📜"}, CustomID: "config_log_button"},
-					discordgo.Button{Label: "一時VCセットアップ", Style: discordgo.SuccessButton, Emoji: &discordgo.ComponentEmoji{Name: "🔊"}, CustomID: "execute_temp_vc_setup"},
+					discordgo.Button{
+						Label:    "チケット機能",
+						Style:    discordgo.SecondaryButton,
+						Emoji:    &discordgo.ComponentEmoji{Name: "🎫"},
+						CustomID: "config_ticket_button",
+					},
+					discordgo.Button{
+						Label:    "ログ機能",
+						Style:    discordgo.SecondaryButton,
+						Emoji:    &discordgo.ComponentEmoji{Name: "📜"},
+						CustomID: "config_log_button",
+					},
 				},
 			},
 		}
@@ -76,14 +87,19 @@ func HandleShowLogConfigModal(s *discordgo.Session, i *discordgo.InteractionCrea
 func HandleSaveTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.ModalSubmitData()
 	config := Config.GetGuildConfig(i.GuildID)
+
 	config.Ticket.PanelChannelID = data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
 	config.Ticket.CategoryID = data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
 	config.Ticket.StaffRoleID = data.Components[2].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+
 	Config.SaveGuildConfig(i.GuildID, config)
+
+	// ★★★ ここでticket_handler.goの関数を呼び出す ★★★
+	SendTicketPanel(s, config.Ticket.PanelChannelID)
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{Content: "✅ チケット機能の設定を保存しました。", Flags: discordgo.MessageFlagsEphemeral},
+		Data: &discordgo.InteractionResponseData{Content: "✅ チケット機能の設定を保存し、パネルを更新しました。", Flags: discordgo.MessageFlagsEphemeral},
 	})
 }
 func HandleSaveLogConfig(s *discordgo.Session, i *discordgo.InteractionCreate) {

@@ -8,14 +8,19 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// HandleExecuteTempVCSetup は一時VCのセットアップを実行します
 func HandleExecuteTempVCSetup(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: "⏳ 一時VC機能のセットアップを開始します...",
 			Flags:   discordgo.MessageFlagsEphemeral,
 		},
 	})
+	if err != nil {
+		logger.Error.Printf("Failed to defer temp vc setup response: %v", err)
+		return
+	}
 
 	config := Config.GetGuildConfig(i.GuildID)
 
@@ -44,22 +49,24 @@ func HandleExecuteTempVCSetup(s *discordgo.Session, i *discordgo.InteractionCrea
 	Config.SaveGuildConfig(i.GuildID, config)
 
 	content := "✅ セットアップが完了しました！\n新しく作成された「➕ Join to Create」チャンネルに参加すると一時的なVCが作成されます。"
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &content,
 	})
+	if err != nil {
+		logger.Error.Printf("Failed to edit interaction response for temp vc setup: %v", err)
+	}
 }
 
+// HandleVoiceStateUpdate はボイスチャンネルの状態変化を処理します
 func HandleVoiceStateUpdate(s *discordgo.Session, v *discordgo.VoiceStateUpdate) {
 	config := Config.GetGuildConfig(v.GuildID)
 	lobbyID := config.TempVC.LobbyID
 	if lobbyID == "" {
 		return
 	}
-
 	if v.ChannelID == lobbyID {
 		handleJoinLobby(s, v)
 	}
-
 	if v.BeforeUpdate != nil {
 		if _, ok := tempVCCreated[v.BeforeUpdate.ChannelID]; ok {
 			handleLeaveTempVC(s, v.BeforeUpdate.ChannelID)

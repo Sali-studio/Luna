@@ -21,6 +21,7 @@ func main() {
 
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentGuildModeration
 
+	// --- イベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
@@ -34,12 +35,6 @@ func main() {
 				commands.HandleOpenTicketModal(s, i)
 			case "close_ticket_button":
 				commands.HandleTicketClose(s, i)
-			case "config_ticket_button":
-				commands.HandleShowTicketConfigModal(s, i)
-			case "config_log_button":
-				commands.HandleShowLogConfigModal(s, i)
-			case "execute_temp_vc_setup":
-				commands.HandleExecuteTempVCSetup(s, i)
 			}
 		case discordgo.InteractionModalSubmit:
 			customID := i.ModalSubmitData().CustomID
@@ -48,15 +43,11 @@ func main() {
 				commands.HandleTicketCreation(s, i)
 			case "embed_creation_modal":
 				commands.HandleEmbedCreation(s, i)
-			case "config_ticket_modal":
-				commands.HandleSaveTicketConfig(s, i)
-			case "config_log_modal":
-				commands.HandleSaveLogConfig(s, i)
 			}
 		}
 	})
 
-	// --- 各機能のイベントハンドラ ---
+	// --- 各機能のイベントハンドラを登録 ---
 	dg.AddHandler(commands.HandleGuildBanAdd)
 	dg.AddHandler(commands.HandleGuildMemberRemove)
 	dg.AddHandler(commands.HandleGuildMemberUpdate)

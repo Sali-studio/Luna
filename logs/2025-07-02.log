@@ -6,3 +6,42 @@ INFO: 2025/07/02 02:48:50 main.go:93: Botをシャットダウンします。
 INFO: 2025/07/02 02:48:57 main.go:84: Botが起動しました。スラッシュコマンドを登録します。
 INFO: 2025/07/02 02:48:57 dashboard.go:107: Running initial dashboard update...
 INFO: 2025/07/02 02:48:57 main.go:90: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/02 02:52:15 main.go:95: Botをシャットダウンします。
+INFO: 2025/07/02 02:52:21 main.go:81: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/02 02:52:21 dashboard.go:107: Running initial dashboard update...
+INFO: 2025/07/02 02:52:22 main.go:87: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/02 02:53:48 calculator.go:69: calc command received
+ERROR: 2025/07/02 02:53:48 calculator.go:74: Failed to parse expression: Invalid token: '₊'
+INFO: 2025/07/02 02:54:10 calculator.go:69: calc command received
+ERROR: 2025/07/02 02:54:10 calculator.go:74: Failed to parse expression: Invalid token: '₊'
+INFO: 2025/07/02 02:54:39 calculator.go:69: calc command received
+INFO: 2025/07/02 02:54:50 avatar.go:26: avatar command received
+INFO: 2025/07/02 02:55:46 schedule.go:47: schedule command received
+INFO: 2025/07/02 02:56:00 schedule.go:80: Sent scheduled message to channel 956155328834174976
+ERROR: 2025/07/02 02:56:06 reaction_role.go:46: Failed to add reaction for setup: HTTP 400 Bad Request, {"message": "Invalid Form Body", "code": 50035, "errors": {"message_id": {"_errors": [{"code": "NUMBER_TYPE_COERCE", "message": "Value \"test\" is not snowflake."}]}}}
+ERROR: 2025/07/02 02:56:26 reaction_role.go:46: Failed to add reaction for setup: HTTP 400 Bad Request, {"message": "Invalid Form Body", "code": 50035, "errors": {"message_id": {"_errors": [{"code": "NUMBER_TYPE_COERCE", "message": "Value \"test\" is not snowflake."}]}}}
+ERROR: 2025/07/02 02:56:49 reaction_role.go:46: Failed to add reaction for setup: HTTP 400 Bad Request, {"message": "Invalid Form Body", "code": 50035, "errors": {"message_id": {"_errors": [{"code": "NUMBER_TYPE_COERCE", "message": "Value \"test\" is not snowflake."}]}}}
+INFO: 2025/07/02 02:57:21 dashboard.go:113: Updating all dashboards...
+INFO: 2025/07/02 02:58:13 calculator.go:69: calc command received
+ERROR: 2025/07/02 02:58:13 calculator.go:74: Failed to parse expression: Undefined function log5sin
+INFO: 2025/07/02 02:58:47 calculator.go:69: calc command received
+ERROR: 2025/07/02 02:58:47 calculator.go:90: Failed to evaluate expression: No parameter 'log5' found.
+INFO: 2025/07/02 02:59:47 calculator.go:69: calc command received
+ERROR: 2025/07/02 02:59:47 calculator.go:74: Failed to parse expression: Cannot transition token types from FUNCTION [0xef32c0] to NUMERIC [5]
+INFO: 2025/07/02 03:00:12 calculator.go:69: calc command received
+ERROR: 2025/07/02 03:00:12 calculator.go:74: Failed to parse expression: Invalid token: '＝'
+INFO: 2025/07/02 03:01:12 calculator.go:69: calc command received
+INFO: 2025/07/02 03:01:52 calculator.go:69: calc command received
+INFO: 2025/07/02 03:02:21 dashboard.go:113: Updating all dashboards...
+INFO: 2025/07/02 03:02:37 calculator.go:69: calc command received
+INFO: 2025/07/02 03:03:16 calculator.go:69: calc command received
+INFO: 2025/07/02 03:04:03 calculator.go:69: calc command received
+INFO: 2025/07/02 03:05:29 ask.go:27: ask command received
+INFO: 2025/07/02 03:07:21 dashboard.go:113: Updating all dashboards...
+INFO: 2025/07/02 03:07:47 ask.go:27: ask command received
+INFO: 2025/07/02 03:09:25 ask.go:27: ask command received
+INFO: 2025/07/02 03:09:35 ask.go:27: ask command received
+INFO: 2025/07/02 03:09:44 ask.go:27: ask command received
+INFO: 2025/07/02 03:09:49 ask.go:27: ask command received
+INFO: 2025/07/02 03:10:55 calculator.go:69: calc command received
+ERROR: 2025/07/02 03:10:55 calculator.go:74: Failed to parse expression: Invalid token: '＝'
