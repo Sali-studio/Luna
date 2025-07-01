@@ -43,23 +43,28 @@ func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.Interactio
 	expression, err := govaluate.NewEvaluableExpression(expressionStr)
 	if err != nil {
 		logger.Error.Printf("数式の解析に失敗: %v", err)
+		// ★★★ ここからが改善点 ★★★
+		// エラーの詳細をユーザーに伝える
+		errorMessage := fmt.Sprintf("❌ 無効な数式です: `%s`\n**エラー:** `%v`", expressionStr, err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("❌ 無効な数式です: `%s`", expressionStr),
+				Content: errorMessage,
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
+		// ★★★ ここまで ★★★
 		return
 	}
 
 	result, err := expression.Evaluate(nil)
 	if err != nil {
 		logger.Error.Printf("数式の計算に失敗: %v", err)
+		errorMessage := fmt.Sprintf("❌ 数式の計算中にエラーが発生しました: `%s`\n**エラー:** `%v`", expressionStr, err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("❌ 数式の計算中にエラーが発生しました: `%s`", expressionStr),
+				Content: errorMessage,
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
