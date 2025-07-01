@@ -27,37 +27,26 @@ func init() {
 				Components: []discordgo.MessageComponent{
 					discordgo.Button{
 						Label:    "チケット機能",
-						Style:    discordgo.SecondaryButton, // 灰色
+						Style:    discordgo.SecondaryButton,
 						Emoji:    &discordgo.ComponentEmoji{Name: "🎫"},
 						CustomID: "config_ticket_button",
 					},
 					discordgo.Button{
 						Label:    "ログ機能",
-						Style:    discordgo.SecondaryButton, // 灰色
+						Style:    discordgo.SecondaryButton,
 						Emoji:    &discordgo.ComponentEmoji{Name: "📜"},
 						CustomID: "config_log_button",
-					},
-					discordgo.Button{
-						Label:    "一時VCセットアップ",
-						Style:    discordgo.SuccessButton, // 緑色
-						Emoji:    &discordgo.ComponentEmoji{Name: "🔊"},
-						CustomID: "execute_temp_vc_setup",
 					},
 				},
 			},
 		}
-
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Embeds:     []*discordgo.MessageEmbed{embed},
-				Components: components,
-				Flags:      discordgo.MessageFlagsEphemeral,
-			},
+			Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}, Components: components, Flags: discordgo.MessageFlagsEphemeral},
 		})
 	}
 	Commands = append(Commands, cmd)
-	CommandHandlers["config"] = handler
+	CommandHandlers[cmd.Name] = handler
 }
 
 func HandleShowTicketConfigModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -102,13 +91,12 @@ func HandleSaveTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate
 	data := i.ModalSubmitData()
 	config := Config.GetGuildConfig(i.GuildID)
 
-	config.Ticket.PanelChannelID = data.Components()[0].(*discordgo.ActionsRow).Components()[0].(*discordgo.TextInput).Value
-	config.Ticket.CategoryID = data.Components()[1].(*discordgo.ActionsRow).Components()[0].(*discordgo.TextInput).Value
-	config.Ticket.StaffRoleID = data.Components()[2].(*discordgo.ActionsRow).Components()[0].(*discordgo.TextInput).Value
+	config.Ticket.PanelChannelID = data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	config.Ticket.CategoryID = data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	config.Ticket.StaffRoleID = data.Components[2].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
 
 	Config.SaveGuildConfig(i.GuildID, config)
 
-	// ★★★ ここでticket_handler.goの関数を呼び出す ★★★
 	SendTicketPanel(s, config.Ticket.PanelChannelID)
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -120,7 +108,7 @@ func HandleSaveTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate
 func HandleSaveLogConfig(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.ModalSubmitData()
 	config := Config.GetGuildConfig(i.GuildID)
-	config.Log.ChannelID = data.Components()[0].(*discordgo.ActionsRow).Components()[0].(*discordgo.TextInput).Value
+	config.Log.ChannelID = data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
 	Config.SaveGuildConfig(i.GuildID, config)
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
