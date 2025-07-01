@@ -30,7 +30,6 @@ func (c *CalculatorCommand) GetCommandDef() *discordgo.ApplicationCommand {
 func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	expressionStr := i.ApplicationCommandData().Options[0].StringValue()
 
-	// ★★★ ここからが改善点 ★★★
 	// 利用可能な数学関数を定義します
 	functions := map[string]govaluate.ExpressionFunction{
 		// 三角関数
@@ -95,7 +94,6 @@ func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.Interactio
 	}
 
 	result, err := expression.Evaluate(parameters) // 定数を渡す
-	// ★★★ ここまで ★★★
 
 	if err != nil {
 		logger.Error.Printf("数式の計算に失敗: %v", err)
