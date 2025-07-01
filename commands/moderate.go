@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"luna/logger"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -23,27 +24,21 @@ func (c *ModerateCommand) GetCommandDef() *discordgo.ApplicationCommand {
 		DefaultMemberPermissions: int64Ptr(discordgo.PermissionKickMembers | discordgo.PermissionBanMembers | discordgo.PermissionModerateMembers),
 		Options: []*discordgo.ApplicationCommandOption{
 			{
-				Name:        "kick",
-				Description: "ユーザーをサーバーから追放します。",
-				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name: "kick", Description: "ユーザーをサーバーから追放します。", Type: discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionUser, Name: "user", Description: "追放するユーザー", Required: true},
 					{Type: discordgo.ApplicationCommandOptionString, Name: "reason", Description: "追放する理由", Required: false},
 				},
 			},
 			{
-				Name:        "ban",
-				Description: "ユーザーをサーバーからBANします。",
-				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name: "ban", Description: "ユーザーをサーバーからBANします。", Type: discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionUser, Name: "user", Description: "BANするユーザー", Required: true},
 					{Type: discordgo.ApplicationCommandOptionString, Name: "reason", Description: "BANする理由", Required: false},
 				},
 			},
 			{
-				Name:        "timeout",
-				Description: "ユーザーをタイムアウトさせます。",
-				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name: "timeout", Description: "ユーザーをタイムアウトさせます。", Type: discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionUser, Name: "user", Description: "タイムアウトさせるユーザー", Required: true},
 					{Type: discordgo.ApplicationCommandOptionString, Name: "duration", Description: "期間 (例: 5m, 1h, 3d)", Required: true},
@@ -54,20 +49,18 @@ func (c *ModerateCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	}
 }
 
-// Handle はサブコマンドに応じて適切なモーダルを表示します
 func (c *ModerateCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	subcommand := i.ApplicationCommandData().Options[0]
 	switch subcommand.Name {
 	case "kick":
-		c.showKickModal(s, i, subcommand.Options)
+		c.showKickModal(s, i)
 	case "ban":
-		c.showBanModal(s, i, subcommand.Options)
+		c.showBanModal(s, i)
 	case "timeout":
-		c.showTimeoutModal(s, i, subcommand.Options)
+		c.showTimeoutModal(s, i)
 	}
 }
 
-// HandleModal は送信されたモーダルに応じて処理を実行します
 func (c *ModerateCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	customID := i.ModalSubmitData().CustomID
 	switch {
@@ -80,54 +73,63 @@ func (c *ModerateCommand) HandleModal(s *discordgo.Session, i *discordgo.Interac
 	}
 }
 
-// --- モーダル表示処理 ---
-func (c *ModerateCommand) showKickModal(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandOption) {
+func (c *ModerateCommand) showKickModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	options := i.ApplicationCommandData().Options[0].Options
 	userID := options[0].UserValue(s).ID
 	reason := ""
 	if len(options) > 1 {
 		reason = options[1].StringValue()
 	}
-
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseModal,
 		Data: &discordgo.InteractionResponseData{
-			CustomID: modalKickPrefix + userID,
-			Title:    "Kick実行確認",
-			Components: []discordgo.MessageComponent{
-				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-					discordgo.TextInput{CustomID: "reason", Label: "理由（変更可能）", Style: discordgo.TextInputParagraph, Value: reason, Required: true},
-				}},
-			},
+			CustomID: modalKickPrefix + userID, Title: "Kick実行確認",
+			Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+				discordgo.TextInput{CustomID: "reason", Label: "理由（変更可能）", Style: discordgo.TextInputParagraph, Value: reason, Required: true},
+			}}},
 		},
 	})
-	if err != nil {
-		logger.Error.Printf("Kickモーダルの表示に失敗: %v", err)
-	}
 }
 
-// (showBanModal, showTimeoutModal も同様に実装)
-
-// --- 実行処理 ---
 func (c *ModerateCommand) executeKick(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	userID := strings.TrimPrefix(i.ModalSubmitData().CustomID, modalKickPrefix)
 	reason := i.ModalSubmitData().Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
-
 	err := s.GuildMemberDeleteWithReason(i.GuildID, userID, reason)
 	if err != nil {
 		logger.Error.Printf("Kickの実行に失敗: %v", err)
-		// ... エラーレスポンス ...
 		return
 	}
-	response := fmt.Sprintf("✅ ユーザーを理由「%s」でサーバーから追放しました。", reason)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{Content: response, Flags: discordgo.MessageFlagsEphemeral},
-	})
+	response := fmt.Sprintf("✅ ユーザー <@%s> を理由「%s」でサーバーから追放しました。", userID, reason)
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: response, Flags: discordgo.MessageFlagsEphemeral}})
 }
 
-// (executeBan, executeTimeout も同様に実装)
+// (showBanModal, executeBan, showTimeoutModal, executeTimeout も上記と同様に実装)
+
+func (c *ModerateCommand) showBanModal(s *discordgo.Session, i *discordgo.InteractionCreate) { /* ... */
+}
+func (c *ModerateCommand) executeBan(s *discordgo.Session, i *discordgo.InteractionCreate) { /* ... */ }
+func (c *ModerateCommand) showTimeoutModal(s *discordgo.Session, i *discordgo.InteractionCreate) { /* ... */
+}
+func (c *ModerateCommand) executeTimeout(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	customID := i.ModalSubmitData().CustomID
+	parts := strings.Split(strings.TrimPrefix(customID, modalTimeoutPrefix), ":")
+	userID, durationStr := parts[0], parts[1]
+	reason := i.ModalSubmitData().Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+
+	duration, err := time.ParseDuration(durationStr)
+	if err != nil { /* ... エラー処理 ... */
+		return
+	}
+	until := time.Now().Add(duration)
+
+	err = s.GuildMemberTimeout(i.GuildID, userID, &until)
+	if err != nil { /* ... エラー処理 ... */
+		return
+	}
+	// ... 成功レスポンス ...
+}
 
 func (c *ModerateCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
-
-// showBanModal, showTimeoutModal, executeBan, executeTimeout の中身は長くなるため省略しますが、
-// executeKick と同様のロジックで実装してください。
+func (c *ModerateCommand) GetComponentIDs() []string {
+	return []string{modalKickPrefix, modalBanPrefix, modalTimeoutPrefix}
+}

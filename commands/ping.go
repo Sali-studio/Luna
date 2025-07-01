@@ -30,10 +30,6 @@ func (c *PingCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	}
 }
 
-func (c *PingCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// このコマンドにはComponentはありません
-}
-
-func (c *PingCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// このコマンドにはModalはありません
-}
+func (c *PingCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
+func (c *PingCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
+func (c *PingCommand) GetComponentIDs() []string                                            { return []string{} }

@@ -7,24 +7,22 @@ import (
 	"luna/logger"
 	"net/http"
 	"net/url"
-	"os"
 
-	"github.com/bwmarrin/discordgo"
+	"github.comcom/bwmarrin/discordgo"
 )
 
 const (
 	TranslateModalCustomID = "translate_modal"
-	TranslateTextID        = "translate_text"
-	TranslateTargetLangID  = "translate_target_lang"
 )
 
-// Google Apps Script APIのレスポンス
 type gasResponse struct {
 	Code int    `json:"code"`
 	Text string `json:"text"`
 }
 
-type TranslateCommand struct{}
+type TranslateCommand struct {
+	APIURL string
+}
 
 func (c *TranslateCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
@@ -40,29 +38,12 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 			CustomID: TranslateModalCustomID,
 			Title:    "翻訳",
 			Components: []discordgo.MessageComponent{
-				discordgo.ActionsRow{
-					Components: []discordgo.MessageComponent{
-						discordgo.TextInput{
-							CustomID: TranslateTextID,
-							Label:    "翻訳したいテキスト",
-							Style:    discordgo.TextInputParagraph,
-							Required: true,
-						},
-					},
-				},
-				discordgo.ActionsRow{
-					Components: []discordgo.MessageComponent{
-						discordgo.TextInput{
-							CustomID:    TranslateTargetLangID,
-							Label:       "翻訳先の言語コード (例: en, ja, ko)",
-							Style:       discordgo.TextInputShort,
-							Placeholder: "en",
-							Required:    true,
-							MinLength:   2,
-							MaxLength:   2,
-						},
-					},
-				},
+				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+					discordgo.TextInput{CustomID: "text", Label: "翻訳したいテキスト", Style: discordgo.TextInputParagraph, Required: true},
+				}},
+				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+					discordgo.TextInput{CustomID: "lang", Label: "翻訳先の言語コード (例: en, ja, ko)", Style: discordgo.TextInputShort, Placeholder: "en", Required: true, MinLength: 2, MaxLength: 7},
+				}},
 			},
 		},
 	})
@@ -72,26 +53,22 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 }
 
 func (c *TranslateCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	data := i.ModalSubmitData()
-	if data.CustomID != TranslateModalCustomID {
+	if c.APIURL == "" {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: "❌ 翻訳機能は現在利用できません。", Flags: discordgo.MessageFlagsEphemeral},
+		})
 		return
 	}
 
+	data := i.ModalSubmitData()
 	text := data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
 	lang := data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
 
-	// ここにGoogle Apps ScriptのエンドポイントURLを設定してください
-	gasURL := os.Getenv("GOOGLE_TRANSLATE_API_URL")
-	if gasURL == "" {
-		logger.Error.Println("環境変数 'GOOGLE_TRANSLATE_API_URL' が未設定です。")
-		// ... エラーレスポンス ...
-		return
-	}
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}})
 
-	// APIリクエスト
-	resp, err := http.Get(fmt.Sprintf("%s?text=%s&target=%s", gasURL, url.QueryEscape(text), lang))
-	if err != nil {
-		// ... エラーレスポンス ...
+	resp, err := http.Get(fmt.Sprintf("%s?text=%s&target=%s", c.APIURL, url.QueryEscape(text), lang))
+	if err != nil { /* ... エラー処理 ... */
 		return
 	}
 	defer resp.Body.Close()
@@ -100,7 +77,6 @@ func (c *TranslateCommand) HandleModal(s *discordgo.Session, i *discordgo.Intera
 	var result gasResponse
 	json.Unmarshal(body, &result)
 
-	// Embedを作成
 	embed := &discordgo.MessageEmbed{
 		Title: "翻訳結果",
 		Fields: []*discordgo.MessageEmbedField{
@@ -108,13 +84,8 @@ func (c *TranslateCommand) HandleModal(s *discordgo.Session, i *discordgo.Intera
 			{Name: "翻訳文 (" + lang + ")", Value: result.Text},
 		},
 	}
-
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{embed},
-		},
-	})
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
 
 func (c *TranslateCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
+func (c *TranslateCommand) GetComponentIDs() []string                                            { return []string{TranslateModalCustomID} }

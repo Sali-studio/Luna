@@ -5,12 +5,10 @@ import (
 	"luna/logger"
 	"strings"
 
-	"github.com/bwmarrin/discordgo"
+	"github.comcom/bwmarrin/discordgo"
 )
 
-type HelpCommand struct {
-	// 将来的にコマンドリストを動的に生成する場合、ここに全コマンドの定義を持つマップを渡すことができます
-}
+type HelpCommand struct{}
 
 func (c *HelpCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
@@ -20,42 +18,28 @@ func (c *HelpCommand) GetCommandDef() *discordgo.ApplicationCommand {
 }
 
 func (c *HelpCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// NOTE: 本来は main.go から全コマンドのリストを受け取り、
-	//       それを基にヘルプメッセージを動的に生成するのが理想的です。
-	//       ここでは簡単化のため、手動でリストを作成します。
-	commandsList := []struct {
-		Name        string
-		Description string
-	}{
+	// 本来はmain.goから全コマンドのリストを受け取り動的に生成するのが理想
+	commandsList := []struct{ Name, Description string }{
 		{"/ping", "Botの応答速度をテストします。"},
 		{"/help", "このヘルプメッセージを表示します。"},
-		{"/user-info", "ユーザーの情報を表示します。"},
-		{"/weather", "指定した都市の天気を表示します。"},
-		{"/calc", "数式を計算します。"},
-		{"/poll", "投票を作成します。"},
-		{"/embed", "埋め込みメッセージを作成します。"},
-		{"/translate", "テキストを翻訳します。"},
-		{"/schedule", "メッセージを予約投稿します。"},
+		{"/ask", "AIに質問します。"},
+		{"/config", "サーバーの各種設定を行います。"},
 		{"/ticket-setup", "チケットパネルを設置します。"},
 		{"/reaction-role-setup", "リアクションロールを設定します。"},
-		{"/config", "サーバー固有の設定を行います。"},
+		// ... 他の主要なコマンドを追加 ...
 	}
 
 	var builder strings.Builder
 	builder.WriteString("## 🌙 Luna Bot コマンド一覧\n\n")
 	for _, cmd := range commandsList {
-		builder.WriteString(
-			fmt.Sprintf("**`%s`**\n%s\n\n", cmd.Name, cmd.Description),
-		)
+		builder.WriteString(fmt.Sprintf("**`%s`**\n%s\n\n", cmd.Name, cmd.Description))
 	}
 
 	embed := &discordgo.MessageEmbed{
 		Title:       "ヘルプ",
 		Description: builder.String(),
-		Color:       0x7289da, // Discord Blue
-		Footer: &discordgo.MessageEmbedFooter{
-			Text: "Luna Bot",
-		},
+		Color:       0x7289da,
+		Footer:      &discordgo.MessageEmbedFooter{Text: "Luna Bot"},
 	}
 
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -71,3 +55,4 @@ func (c *HelpCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 
 func (c *HelpCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *HelpCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
+func (c *HelpCommand) GetComponentIDs() []string                                            { return []string{} }
