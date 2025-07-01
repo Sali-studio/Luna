@@ -9,15 +9,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var dashStore *storage.DashboardStore
-
 func init() {
-	var err error
-	dashStore, err = storage.NewDashboardStore("dashboards.json")
-	if err != nil {
-		logger.Fatal.Fatalf("Failed to initialize dashboard store: %v", err)
-	}
-
 	cmd := &discordgo.ApplicationCommand{
 		Name:                     "dashboard-setup",
 		Description:              "サーバー統計情報のライブダッシュボードを設置します。",
@@ -34,10 +26,10 @@ func init() {
 	}
 
 	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		channel := i.ApplicationCommandData().Options[0].ChannelValue(s)
+		channelID := i.ApplicationCommandData().Options[0].Value.(string)
 
 		// まずは空のEmbedメッセージを送信
-		msg, err := s.ChannelMessageSendEmbed(channel.ID, &discordgo.MessageEmbed{
+		msg, err := s.ChannelMessageSendEmbed(channelID, &discordgo.MessageEmbed{
 			Title: "📊 サーバー統計情報 (初期化中...)",
 		})
 		if err != nil {
@@ -46,23 +38,18 @@ func init() {
 		}
 
 		// 設定を保存
-		config := &storage.DashboardConfig{
-			GuildID:   i.GuildID,
-			ChannelID: channel.ID,
-			MessageID: msg.ID,
-		}
-		if err := dashStore.Set(config); err != nil {
-			logger.Error.Printf("Failed to save dashboard config: %v", err)
-			return
-		}
+		config := Config.GetGuildConfig(i.GuildID)
+		config.Dashboard.ChannelID = channelID
+		config.Dashboard.MessageID = msg.ID
+		Config.SaveGuildConfig(i.GuildID, config)
 
 		// すぐに最初の更新を実行
-		UpdateDashboard(s, config)
+		UpdateDashboard(s, i.GuildID, config)
 
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("✅ ダッシュボードを <#%s> に設置しました。", channel.ID),
+				Content: fmt.Sprintf("✅ ダッシュボードを <#%s> に設置しました。", channelID),
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
@@ -73,14 +60,18 @@ func init() {
 }
 
 // UpdateDashboard は指定されたダッシュボードのメッセージを更新します
-func UpdateDashboard(s *discordgo.Session, config *storage.DashboardConfig) {
-	guild, err := s.State.Guild(config.GuildID)
+func UpdateDashboard(s *discordgo.Session, guildID string, config *storage.GuildConfig) {
+	// ダッシュボードが設定されていなければ何もしない
+	if config.Dashboard.ChannelID == "" || config.Dashboard.MessageID == "" {
+		return
+	}
+
+	guild, err := s.State.Guild(guildID)
 	if err != nil {
 		logger.Error.Printf("Failed to get guild for dashboard update: %v", err)
 		return
 	}
 
-	// オンラインメンバー数をカウント
 	onlineMembers := 0
 	for _, pres := range guild.Presences {
 		if pres.Status != discordgo.StatusOffline {
@@ -88,7 +79,6 @@ func UpdateDashboard(s *discordgo.Session, config *storage.DashboardConfig) {
 		}
 	}
 
-	// 更新後のEmbedを作成
 	embed := &discordgo.MessageEmbed{
 		Title: fmt.Sprintf("📊 %s サーバー統計情報", guild.Name),
 		Color: 0x5865F2,
@@ -102,8 +92,7 @@ func UpdateDashboard(s *discordgo.Session, config *storage.DashboardConfig) {
 		},
 	}
 
-	// 既存のメッセージを編集
-	_, err = s.ChannelMessageEditEmbed(config.ChannelID, config.MessageID, embed)
+	_, err = s.ChannelMessageEditEmbed(config.Dashboard.ChannelID, config.Dashboard.MessageID, embed)
 	if err != nil {
 		logger.Error.Printf("Failed to edit dashboard message: %v", err)
 	}
@@ -111,21 +100,19 @@ func UpdateDashboard(s *discordgo.Session, config *storage.DashboardConfig) {
 
 // StartDashboardUpdater はすべてのダッシュボードを定期的に更新するループを開始します
 func StartDashboardUpdater(s *discordgo.Session) {
-	// 5分ごとに実行するTickerを作成
 	ticker := time.NewTicker(5 * time.Minute)
 
-	// 即座に最初の更新を実行
-	logger.Info.Println("Running initial dashboard update...")
-	for _, config := range dashStore.Configs {
-		UpdateDashboard(s, config)
-	}
-
-	// Tickerのループ
 	go func() {
+		// 起動時にまず全てのギルドの設定を更新
+		logger.Info.Println("Running initial dashboard update...")
+		for guildID, config := range Config.Configs {
+			UpdateDashboard(s, guildID, config)
+		}
+		// その後、定期実行
 		for range ticker.C {
 			logger.Info.Println("Updating all dashboards...")
-			for _, config := range dashStore.Configs {
-				UpdateDashboard(s, config)
+			for guildID, config := range Config.Configs {
+				UpdateDashboard(s, guildID, config)
 			}
 		}
 	}()
