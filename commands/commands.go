@@ -11,6 +11,8 @@ var (
 	Commands        = []*discordgo.ApplicationCommand{}
 	CommandHandlers = make(map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate))
 	Config          *storage.ConfigStore
+
+	tempVCCreated = make(map[string]string) // Key: 作成されたチャンネルID, Value: 作成したユーザーID
 )
 
 func init() {
