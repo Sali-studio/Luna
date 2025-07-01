@@ -65,14 +65,19 @@ func (c *TicketCommand) HandleComponent(s *discordgo.Session, i *discordgo.Inter
 }
 
 func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// 「考え中...」と即時応答
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}})
 
 	config := c.Store.GetGuildConfig(i.GuildID)
+
+	// ★★★ ここからが改善点 ★★★
+	// 設定がされているか事前にチェック
 	if config.Ticket.CategoryID == "" || config.Ticket.StaffRoleID == "" {
-		content := "❌ チケット機能がまだ設定されていません。"
+		content := "❌ チケット機能がまだ管理者によって設定されていません。サーバーの管理者に連絡してください。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
+	// ★★★ ここまで ★★★
 
 	config.Ticket.Counter++
 	c.Store.Save()
@@ -89,6 +94,8 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 	})
 	if err != nil {
 		logger.Error.Printf("チケットチャンネルの作成に失敗: %v", err)
+		content := "❌ チケットチャンネルの作成に失敗しました。BOTの権限が不足している可能性があります。"
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
 
