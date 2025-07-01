@@ -48,12 +48,16 @@ func (c *WeatherCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	url := fmt.Sprintf("http://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s&units=metric&lang=ja", city, c.APIKey)
 
 	resp, err := http.Get(url)
-	if err != nil { /* ... エラー処理 ... */
+	if err != nil {
 		return
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK { /* ... 都市が見つからない場合などのエラーレスポンス ... */
+	if resp.StatusCode != http.StatusOK {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: "❌ 都市が見つかりませんでした。", Flags: discordgo.MessageFlagsEphemeral},
+		})
 		return
 	}
 

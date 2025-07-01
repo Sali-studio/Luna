@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.comcom/bwmarrin/discordgo"
+	"github.com/bwmarrin/discordgo"
 )
 
 const (
@@ -68,7 +68,8 @@ func (c *TranslateCommand) HandleModal(s *discordgo.Session, i *discordgo.Intera
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}})
 
 	resp, err := http.Get(fmt.Sprintf("%s?text=%s&target=%s", c.APIURL, url.QueryEscape(text), lang))
-	if err != nil { /* ... エラー処理 ... */
+	if err != nil {
+		logger.Error.Printf("翻訳APIへのリクエストに失敗: %v", err)
 		return
 	}
 	defer resp.Body.Close()

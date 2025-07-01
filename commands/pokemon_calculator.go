@@ -27,7 +27,6 @@ func (c *PokemonCalculatorCommand) GetCommandDef() *discordgo.ApplicationCommand
 					{Type: discordgo.ApplicationCommandOptionNumber, Name: "nature_correction", Description: "性格補正 (1.1, 1.0, 0.9)", Required: true, Choices: []*discordgo.ApplicationCommandOptionChoice{{Name: "上昇(1.1)", Value: 1.1}, {Name: "無補正(1.0)", Value: 1.0}, {Name: "下降(0.9)", Value: 0.9}}},
 				},
 			},
-			// 他のサブコマンド (damage, type) も同様に追加可能
 		},
 	}
 }
@@ -63,16 +62,14 @@ func (c *PokemonCalculatorCommand) handleStatsCalc(s *discordgo.Session, i *disc
 
 	var result float64
 	if statName == "hp" {
-		// HPの計算式: { (種族値×2 + 個体値 + 努力値/4) × レベル/100 } + 10 + レベル
 		result = math.Floor((float64(baseStat*2+iv)+math.Floor(float64(ev)/4))*float64(level)/100) + 10 + float64(level)
 	} else {
-		// HP以外の計算式: [ { (種族値×2 + 個体値 + 努力値/4) × レベル/100 } + 5 ] × 性格補正
 		result = math.Floor((math.Floor((float64(baseStat*2+iv)+math.Floor(float64(ev)/4))*float64(level)/100) + 5) * natureCorrection)
 	}
 
 	embed := &discordgo.MessageEmbed{
 		Title: "ポケモン ステータス実数値 計算結果",
-		Color: 0xFF0000, // Red
+		Color: 0xFF0000,
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "入力値", Value: fmt.Sprintf("種族値: %d, 個体値: %d, 努力値: %d, Lv: %d, 性格補正: %.1f", baseStat, iv, ev, level, natureCorrection)},
 			{Name: "計算結果", Value: fmt.Sprintf("実数値: **%d**", int(result))},

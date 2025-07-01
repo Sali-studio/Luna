@@ -15,7 +15,7 @@ const (
 )
 
 type TicketCommand struct {
-	Store *storage.Store
+	Store *storage.ConfigStore
 }
 
 func (c *TicketCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -28,10 +28,18 @@ func (c *TicketCommand) GetCommandDef() *discordgo.ApplicationCommand {
 
 func (c *TicketCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	config := c.Store.GetGuildConfig(i.GuildID)
+	if config.Ticket.PanelChannelID == "" || config.Ticket.CategoryID == "" || config.Ticket.StaffRoleID == "" {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: "チケット機能が完全に設定されていません。`/config ticket`で設定してください。", Flags: discordgo.MessageFlagsEphemeral},
+		})
+		return
+	}
+
 	if config.Ticket.PanelChannelID != i.ChannelID {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: fmt.Sprintf("このコマンドは設定されたパネルチャンネル <#%s> でのみ使用できます。", config.Ticket.PanelChannelID), Flags: discordgo.MessageFlagsEphemeral},
+			Data: &discordgo.InteractionResponseData{Content: fmt.Sprintf("このコマンドは設定されたパネルチャンネル <#%s> で実行する必要があります。", config.Ticket.PanelChannelID), Flags: discordgo.MessageFlagsEphemeral},
 		})
 		return
 	}
@@ -84,7 +92,6 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 		return
 	}
 
-	// チケットチャンネル内の初期メッセージ
 	s.ChannelMessageSendComplex(ch.ID, &discordgo.MessageSend{
 		Content: fmt.Sprintf("ようこそ <@%s> さん！ <@&%s> が対応しますので、ご用件をお書きください。", i.Member.User.ID, config.Ticket.StaffRoleID),
 		Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
