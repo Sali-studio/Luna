@@ -10,8 +10,9 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// govaluateで使えるように、数学関数を定義します
 var functions = map[string]govaluate.ExpressionFunction{
-	// 三角関数
+	// --- 三角関数 ---
 	"sin": func(args ...interface{}) (interface{}, error) {
 		return math.Sin(args[0].(float64)), nil
 	},
@@ -21,19 +22,31 @@ var functions = map[string]govaluate.ExpressionFunction{
 	"tan": func(args ...interface{}) (interface{}, error) {
 		return math.Tan(args[0].(float64)), nil
 	},
-	// 基本的な数学関数
+	// --- 基本的な数学関数 ---
 	"sqrt": func(args ...interface{}) (interface{}, error) {
 		return math.Sqrt(args[0].(float64)), nil
 	},
 	"abs": func(args ...interface{}) (interface{}, error) {
 		return math.Abs(args[0].(float64)), nil
 	},
+	// --- 指数関数・対数関数 ---
+	"exp": func(args ...interface{}) (interface{}, error) {
+		// eのべき乗を計算します (e^x)
+		return math.Exp(args[0].(float64)), nil
+	},
 	"log": func(args ...interface{}) (interface{}, error) {
+		// 自然対数 (ln) を計算します
 		return math.Log(args[0].(float64)), nil
 	},
 	"log10": func(args ...interface{}) (interface{}, error) {
+		// 常用対数 (log₁₀) を計算します
 		return math.Log10(args[0].(float64)), nil
 	},
+	"log2": func(args ...interface{}) (interface{}, error) {
+		// 底が2の対数 (log₂) を計算します
+		return math.Log2(args[0].(float64)), nil
+	},
+	// --- 丸め処理 ---
 	"ceil": func(args ...interface{}) (interface{}, error) {
 		return math.Ceil(args[0].(float64)), nil
 	},
@@ -43,6 +56,7 @@ var functions = map[string]govaluate.ExpressionFunction{
 	"round": func(args ...interface{}) (interface{}, error) {
 		return math.Round(args[0].(float64)), nil
 	},
+	// --- 比較 ---
 	"max": func(args ...interface{}) (interface{}, error) {
 		return math.Max(args[0].(float64), args[1].(float64)), nil
 	},
@@ -84,6 +98,7 @@ func init() {
 
 		parameters := make(map[string]interface{}, 8)
 		parameters["pi"] = math.Pi
+		parameters["e"] = math.E // ネイピア数(e)も定数として追加
 
 		result, err := expression.Evaluate(parameters)
 		if err != nil {

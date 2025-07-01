@@ -21,31 +21,43 @@ func init() {
 			Description: "設定したい項目のボタンを押してください。",
 			Color:       0x95A5A6,
 		}
+
 		components := []discordgo.MessageComponent{
 			discordgo.ActionsRow{
 				Components: []discordgo.MessageComponent{
 					discordgo.Button{
 						Label:    "チケット機能",
-						Style:    discordgo.SecondaryButton,
+						Style:    discordgo.SecondaryButton, // 灰色
 						Emoji:    &discordgo.ComponentEmoji{Name: "🎫"},
 						CustomID: "config_ticket_button",
 					},
 					discordgo.Button{
 						Label:    "ログ機能",
-						Style:    discordgo.SecondaryButton,
+						Style:    discordgo.SecondaryButton, // 灰色
 						Emoji:    &discordgo.ComponentEmoji{Name: "📜"},
 						CustomID: "config_log_button",
+					},
+					discordgo.Button{
+						Label:    "一時VCセットアップ",
+						Style:    discordgo.SuccessButton, // 緑色
+						Emoji:    &discordgo.ComponentEmoji{Name: "🔊"},
+						CustomID: "execute_temp_vc_setup",
 					},
 				},
 			},
 		}
+
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}, Components: components, Flags: discordgo.MessageFlagsEphemeral},
+			Data: &discordgo.InteractionResponseData{
+				Embeds:     []*discordgo.MessageEmbed{embed},
+				Components: components,
+				Flags:      discordgo.MessageFlagsEphemeral,
+			},
 		})
 	}
 	Commands = append(Commands, cmd)
-	CommandHandlers[cmd.Name] = handler
+	CommandHandlers["config"] = handler
 }
 
 func HandleShowTicketConfigModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -66,6 +78,7 @@ func HandleShowTicketConfigModal(s *discordgo.Session, i *discordgo.InteractionC
 		logger.Error.Printf("Failed to show ticket config modal: %v", err)
 	}
 }
+
 func HandleShowLogConfigModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	config := Config.GetGuildConfig(i.GuildID)
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -84,13 +97,14 @@ func HandleShowLogConfigModal(s *discordgo.Session, i *discordgo.InteractionCrea
 		logger.Error.Printf("Failed to show log config modal: %v", err)
 	}
 }
+
 func HandleSaveTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.ModalSubmitData()
 	config := Config.GetGuildConfig(i.GuildID)
 
-	config.Ticket.PanelChannelID = data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
-	config.Ticket.CategoryID = data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
-	config.Ticket.StaffRoleID = data.Components[2].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	config.Ticket.PanelChannelID = data.Components()[0].(*discordgo.ActionsRow).Components()[0].(*discordgo.TextInput).Value
+	config.Ticket.CategoryID = data.Components()[1].(*discordgo.ActionsRow).Components()[0].(*discordgo.TextInput).Value
+	config.Ticket.StaffRoleID = data.Components()[2].(*discordgo.ActionsRow).Components()[0].(*discordgo.TextInput).Value
 
 	Config.SaveGuildConfig(i.GuildID, config)
 
@@ -102,10 +116,11 @@ func HandleSaveTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate
 		Data: &discordgo.InteractionResponseData{Content: "✅ チケット機能の設定を保存し、パネルを更新しました。", Flags: discordgo.MessageFlagsEphemeral},
 	})
 }
+
 func HandleSaveLogConfig(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.ModalSubmitData()
 	config := Config.GetGuildConfig(i.GuildID)
-	config.Log.ChannelID = data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	config.Log.ChannelID = data.Components()[0].(*discordgo.ActionsRow).Components()[0].(*discordgo.TextInput).Value
 	Config.SaveGuildConfig(i.GuildID, config)
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{

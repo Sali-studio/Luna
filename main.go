@@ -24,25 +24,30 @@ func main() {
 	// --- イベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
+		// スラッシュコマンド
 		case discordgo.InteractionApplicationCommand:
 			if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {
 				h(s, i)
 			}
+		// ボタンなどのコンポーネント
 		case discordgo.InteractionMessageComponent:
 			customID := i.MessageComponentData().CustomID
 			switch customID {
-			case "open_ticket_modal":
-				commands.HandleOpenTicketModal(s, i)
-			case "close_ticket_button":
-				commands.HandleTicketClose(s, i)
+			// ★★★ ここからが修正箇所です ★★★
+			case "config_ticket_button":
+				commands.HandleShowTicketConfigModal(s, i)
+			case "config_log_button":
+				commands.HandleShowLogConfigModal(s, i)
+				// ★★★ ここまでが修正箇所です ★★★
 			}
+		// モーダル送信時の処理
 		case discordgo.InteractionModalSubmit:
 			customID := i.ModalSubmitData().CustomID
 			switch customID {
-			case "ticket_creation_modal":
-				commands.HandleTicketCreation(s, i)
-			case "embed_creation_modal":
-				commands.HandleEmbedCreation(s, i)
+			case "config_ticket_modal":
+				commands.HandleSaveTicketConfig(s, i)
+			case "config_log_modal":
+				commands.HandleSaveLogConfig(s, i)
 			}
 		}
 	})

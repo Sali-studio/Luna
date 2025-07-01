@@ -45,3 +45,13 @@ INFO: 2025/07/02 03:09:44 ask.go:27: ask command received
 INFO: 2025/07/02 03:09:49 ask.go:27: ask command received
 INFO: 2025/07/02 03:10:55 calculator.go:69: calc command received
 ERROR: 2025/07/02 03:10:55 calculator.go:74: Failed to parse expression: Invalid token: '＝'
+INFO: 2025/07/02 03:11:48 calculator.go:69: calc command received
+ERROR: 2025/07/02 03:11:48 calculator.go:74: Failed to parse expression: Invalid token: '='
+INFO: 2025/07/02 03:12:21 dashboard.go:113: Updating all dashboards...
+INFO: 2025/07/02 03:12:39 ask.go:27: ask command received
+INFO: 2025/07/02 03:14:39 ask.go:27: ask command received
+INFO: 2025/07/02 03:14:58 ask.go:27: ask command received
+INFO: 2025/07/02 03:16:03 calculator.go:69: calc command received
+INFO: 2025/07/02 03:17:21 dashboard.go:113: Updating all dashboards...
+INFO: 2025/07/02 03:18:24 calculator.go:69: calc command received
+INFO: 2025/07/02 03:22:17 main.go:92: Botをシャットダウンします。
