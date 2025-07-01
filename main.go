@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"luna/commands"
@@ -22,7 +21,6 @@ func main() {
 
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentGuildModeration
 
-	// --- スラッシュコマンドとコンポーネントのイベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
@@ -40,25 +38,14 @@ func main() {
 				commands.HandleShowTicketConfigModal(s, i)
 			case "config_log_button":
 				commands.HandleShowLogConfigModal(s, i)
-			case "config_temp_vc_button":
-				commands.HandleExecuteTempVCSetup(s, i)
 			}
 		case discordgo.InteractionModalSubmit:
 			customID := i.ModalSubmitData().CustomID
-			parts := strings.Split(customID, ":")
-			modalType := parts[0]
-
-			switch modalType {
+			switch customID {
 			case "ticket_creation_modal":
 				commands.HandleTicketCreation(s, i)
 			case "embed_creation_modal":
 				commands.HandleEmbedCreation(s, i)
-			case "moderate_kick_confirm":
-				commands.HandleExecuteKick(s, i, parts)
-			case "moderate_ban_confirm":
-				commands.HandleExecuteBan(s, i, parts)
-			case "moderate_timeout_confirm":
-				commands.HandleExecuteTimeout(s, i, parts)
 			case "config_ticket_modal":
 				commands.HandleSaveTicketConfig(s, i)
 			case "config_log_modal":
@@ -67,7 +54,7 @@ func main() {
 		}
 	})
 
-	// --- 各機能のイベントハンドラを登録 ---
+	// --- 各機能のイベントハンドラ ---
 	dg.AddHandler(commands.HandleGuildBanAdd)
 	dg.AddHandler(commands.HandleGuildMemberRemove)
 	dg.AddHandler(commands.HandleGuildMemberUpdate)
@@ -86,8 +73,6 @@ func main() {
 		logger.Fatal.Printf("Discordへの接続中にエラーが発生しました: %v", err)
 	}
 	defer dg.Close()
-
-	commands.StartDashboardUpdater(dg)
 
 	logger.Info.Println("Botが起動しました。スラッシュコマンドを登録します。")
 	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", commands.Commands)
