@@ -3,138 +3,86 @@ package commands
 import (
 	"fmt"
 	"luna/logger"
-	"math"
-	"strconv"
+	"strings"
 
 	"github.com/Knetic/govaluate"
 	"github.com/bwmarrin/discordgo"
 )
 
-// govaluateで使えるように、数学関数を定義します
-var functions = map[string]govaluate.ExpressionFunction{
-	// --- 三角関数 ---
-	"sin": func(args ...interface{}) (interface{}, error) {
-		return math.Sin(args[0].(float64)), nil
-	},
-	"cos": func(args ...interface{}) (interface{}, error) {
-		return math.Cos(args[0].(float64)), nil
-	},
-	"tan": func(args ...interface{}) (interface{}, error) {
-		return math.Tan(args[0].(float64)), nil
-	},
-	// --- 基本的な数学関数 ---
-	"sqrt": func(args ...interface{}) (interface{}, error) {
-		return math.Sqrt(args[0].(float64)), nil
-	},
-	"abs": func(args ...interface{}) (interface{}, error) {
-		return math.Abs(args[0].(float64)), nil
-	},
-	// --- 指数関数・対数関数 ---
-	"exp": func(args ...interface{}) (interface{}, error) {
-		// eのべき乗を計算します (e^x)
-		return math.Exp(args[0].(float64)), nil
-	},
-	"log": func(args ...interface{}) (interface{}, error) {
-		// 自然対数 (ln) を計算します
-		return math.Log(args[0].(float64)), nil
-	},
-	"log10": func(args ...interface{}) (interface{}, error) {
-		// 常用対数 (log₁₀) を計算します
-		return math.Log10(args[0].(float64)), nil
-	},
-	"log2": func(args ...interface{}) (interface{}, error) {
-		// 底が2の対数 (log₂) を計算します
-		return math.Log2(args[0].(float64)), nil
-	},
-	// --- 丸め処理 ---
-	"ceil": func(args ...interface{}) (interface{}, error) {
-		return math.Ceil(args[0].(float64)), nil
-	},
-	"floor": func(args ...interface{}) (interface{}, error) {
-		return math.Floor(args[0].(float64)), nil
-	},
-	"round": func(args ...interface{}) (interface{}, error) {
-		return math.Round(args[0].(float64)), nil
-	},
-	// --- 比較 ---
-	"max": func(args ...interface{}) (interface{}, error) {
-		return math.Max(args[0].(float64), args[1].(float64)), nil
-	},
-	"min": func(args ...interface{}) (interface{}, error) {
-		return math.Min(args[0].(float64), args[1].(float64)), nil
-	},
-}
+type CalculatorCommand struct{}
 
-func init() {
-	cmd := &discordgo.ApplicationCommand{
+func (c *CalculatorCommand) GetCommandDef() *discordgo.ApplicationCommand {
+	return &discordgo.ApplicationCommand{
 		Name:        "calc",
-		Description: "数式を計算します。",
+		Description: "数式を計算します",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "expression",
-				Description: "計算したい数式 (例: (10 + 20) * 3 / 2)",
+				Description: "計算したい数式 (例: (2 + 3) * 4)",
 				Required:    true,
 			},
 		},
 	}
+}
 
-	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		logger.Info.Println("calc command received")
-		expressionStr := i.ApplicationCommandData().Options[0].StringValue()
+func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	expressionStr := i.ApplicationCommandData().Options[0].StringValue()
 
-		expression, err := govaluate.NewEvaluableExpressionWithFunctions(expressionStr, functions)
-		if err != nil {
-			logger.Error.Printf("Failed to parse expression: %v", err)
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "❌ 無効な数式です。もう一度確認してください。",
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
-			return
-		}
-
-		parameters := make(map[string]interface{}, 8)
-		parameters["pi"] = math.Pi
-		parameters["e"] = math.E // ネイピア数(e)も定数として追加
-
-		result, err := expression.Evaluate(parameters)
-		if err != nil {
-			logger.Error.Printf("Failed to evaluate expression: %v", err)
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "❌ 計算中にエラーが発生しました。",
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
-			return
-		}
-
-		resultStr := strconv.FormatFloat(result.(float64), 'f', -1, 64)
-
-		embed := &discordgo.MessageEmbed{
-			Author: &discordgo.MessageEmbedAuthor{
-				Name:    i.Member.User.Username,
-				IconURL: i.Member.User.AvatarURL(""),
-			},
-			Color: 0x2ECC71,
-			Fields: []*discordgo.MessageEmbedField{
-				{Name: "問題", Value: fmt.Sprintf("```%s```", expressionStr)},
-				{Name: "答え", Value: fmt.Sprintf("```%s```", resultStr)},
-			},
-		}
-
+	if strings.ContainsAny(expressionStr, "abcdefghijklmnopqrstuvwxyz") {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{embed},
+				Content: "❌ 無効な文字が含まれています。数値と演算子のみ使用できます。",
+				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
+		return
 	}
 
-	Commands = append(Commands, cmd)
-	CommandHandlers[cmd.Name] = handler
+	expression, err := govaluate.NewEvaluableExpression(expressionStr)
+	if err != nil {
+		logger.Error.Printf("数式の解析に失敗: %v", err)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("❌ 無効な数式です: `%s`", expressionStr),
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	result, err := expression.Evaluate(nil)
+	if err != nil {
+		logger.Error.Printf("数式の計算に失敗: %v", err)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("❌ 数式の計算中にエラーが発生しました: `%s`", expressionStr),
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	embed := &discordgo.MessageEmbed{
+		Title: "🧮 計算結果",
+		Fields: []*discordgo.MessageEmbedField{
+			{Name: "数式", Value: fmt.Sprintf("```\n%s\n```", expressionStr)},
+			{Name: "結果", Value: fmt.Sprintf("```\n%v\n```", result)},
+		},
+		Color: 0x57F287,
+	}
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{embed},
+		},
+	})
 }
+
+func (c *CalculatorCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
+func (c *CalculatorCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
+func (c *CalculatorCommand) GetComponentIDs() []string                                            { return []string{} }
