@@ -5,12 +5,10 @@ import (
 	"luna/gemini"
 	"luna/logger"
 	"os"
-	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-// HandleOpenTicketModal はチケット作成モーダルを表示します
 func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseModal,
@@ -20,26 +18,12 @@ func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate)
 			Components: []discordgo.MessageComponent{
 				discordgo.ActionsRow{
 					Components: []discordgo.MessageComponent{
-						discordgo.TextInput{
-							CustomID:    "subject",
-							Label:       "件名",
-							Style:       discordgo.TextInputShort,
-							Placeholder: "例: ユーザー間のトラブルについて",
-							Required:    true,
-							MaxLength:   100,
-						},
+						discordgo.TextInput{CustomID: "subject", Label: "件名", Style: discordgo.TextInputShort, Placeholder: "例: ユーザー間のトラブルについて", Required: true, MaxLength: 100},
 					},
 				},
 				discordgo.ActionsRow{
 					Components: []discordgo.MessageComponent{
-						discordgo.TextInput{
-							CustomID:    "details",
-							Label:       "詳細",
-							Style:       discordgo.TextInputParagraph,
-							Placeholder: "いつ、どこで、誰が、何をしたかなど、できるだけ詳しくご記入ください。",
-							Required:    true,
-							MaxLength:   1000,
-						},
+						discordgo.TextInput{CustomID: "details", Label: "詳細", Style: discordgo.TextInputParagraph, Placeholder: "いつ、どこで、誰が、何をしたかなど、できるだけ詳しくご記入ください。", Required: true, MaxLength: 1000},
 					},
 				},
 			},
@@ -50,15 +34,10 @@ func HandleOpenTicketModal(s *discordgo.Session, i *discordgo.InteractionCreate)
 	}
 }
 
-// HandleTicketCreation はモーダルから送信されたデータに基づいてチケットを作成し、AIによる一次回答を試みます
 func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) {
-
-	// まずは遅延応答で時間を確保
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Flags: discordgo.MessageFlagsEphemeral,
-		},
+		Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral},
 	})
 
 	data := i.ModalSubmitData()
@@ -66,8 +45,11 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	details := data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
 
 	user := i.Member.User
-	staffRoleID := ticketStaffRoleID[i.GuildID]
-	categoryID := ticketCategoryID[i.GuildID]
+
+	// Configストアから設定を取得
+	config := Config.GetGuildConfig(i.GuildID)
+	staffRoleID := config.Ticket.StaffRoleID
+	categoryID := config.Ticket.CategoryID
 
 	// AIによる一次回答を試みる
 	var aiResponse string
@@ -84,9 +66,11 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 		aiResponse = "AIによる一次回答機能は現在無効です。"
 	}
 
-	// チケット番号をインクリメント
-	ticketCounter[i.GuildID]++
-	currentTicketNumber := ticketCounter[i.GuildID]
+	// チケット番号をインクリメントして保存
+	config.Ticket.Counter++
+	currentTicketNumber := config.Ticket.Counter
+	Config.SaveGuildConfig(i.GuildID, config)
+
 	channelName := fmt.Sprintf("チケット-%03d", currentTicketNumber)
 
 	permissionOverwrites := []*discordgo.PermissionOverwrite{
@@ -107,13 +91,11 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 		return
 	}
 
-	// 遅延応答を編集して、ユーザーにチケット作成完了を通知
 	content := fmt.Sprintf("✅ チケットを作成しました: <#%s>", ch.ID)
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &content,
 	})
 
-	// チケットチャンネルに送信する詳細なEmbedを作成
 	ticketEmbed := &discordgo.MessageEmbed{
 		Author:      &discordgo.MessageEmbedAuthor{Name: user.Username, IconURL: user.AvatarURL("")},
 		Title:       subject,
@@ -122,36 +104,27 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "作成者", Value: user.Mention(), Inline: true},
 			{Name: "対応担当", Value: fmt.Sprintf("<@&%s>", staffRoleID), Inline: true},
-			{
-				Name:  "Luna Assistantからの補足",
-				Value: aiResponse,
-			},
+			{Name: "🤖 AIによる一次回答", Value: aiResponse},
 		},
 		Footer: &discordgo.MessageEmbedFooter{Text: fmt.Sprintf("チケット番号: %d", currentTicketNumber)},
 	}
 
 	closeButton := discordgo.Button{
-		Label:    "チケットを閉じる",
-		Style:    discordgo.DangerButton,
-		Emoji:    &discordgo.ComponentEmoji{Name: "🔒"},
-		CustomID: "close_ticket_button",
+		Label: "チケットを閉じる", Style: discordgo.DangerButton, Emoji: &discordgo.ComponentEmoji{Name: "🔒"}, CustomID: "close_ticket_button",
 	}
 
 	s.ChannelMessageSendComplex(ch.ID, &discordgo.MessageSend{
-		Content: fmt.Sprintf("ようこそ <@%s> さん。スタッフが対応しますので、しばらくお待ちください。", user.ID),
-		Embeds:  []*discordgo.MessageEmbed{ticketEmbed},
-		Components: []discordgo.MessageComponent{
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{closeButton},
-			},
-		},
+		Content:    fmt.Sprintf("ようこそ <@%s> さん。まずはAIからの回答をご確認ください。", user.ID),
+		Embeds:     []*discordgo.MessageEmbed{ticketEmbed},
+		Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{closeButton}}},
 	})
 }
 
-// HandleTicketClose はチケットを閉じるボタンが押されたときの処理を行います
 func HandleTicketClose(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	channel, _ := s.Channel(i.ChannelID)
-	closedName := strings.Replace(channel.Name, "チケット", "closed", 1)
+
+	config := Config.GetGuildConfig(i.GuildID)
+	closedName := fmt.Sprintf("closed-%03d", config.Ticket.Counter)
 
 	var ticketCreator *discordgo.User
 	for _, overwrite := range channel.PermissionOverwrites {

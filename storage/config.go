@@ -12,23 +12,28 @@ type TicketConfig struct {
 	StaffRoleID    string `json:"staff_role_id"`
 	Counter        int    `json:"counter"`
 }
+
 type LogConfig struct {
 	ChannelID string `json:"channel_id"`
 }
+
 type TempVCConfig struct {
 	LobbyID    string `json:"lobby_id"`
 	CategoryID string `json:"category_id"`
 }
+
 type DashboardConfig struct {
 	ChannelID string `json:"channel_id"`
 	MessageID string `json:"message_id"`
 }
+
 type GuildConfig struct {
 	Ticket    TicketConfig    `json:"ticket"`
 	Log       LogConfig       `json:"log"`
 	TempVC    TempVCConfig    `json:"temp_vc"`
 	Dashboard DashboardConfig `json:"dashboard"`
 }
+
 type ConfigStore struct {
 	mu      sync.Mutex
 	path    string
