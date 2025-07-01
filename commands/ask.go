@@ -14,9 +14,9 @@ type AskCommand struct {
 func (c *AskCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:        "ask",
-		Description: "AI(Gemini)に質問します",
+		Description: "Luna Assistant AIに質問します",
 		Options: []*discordgo.ApplicationCommandOption{
-			{Type: discordgo.ApplicationCommandOptionString, Name: "prompt", Description: "AIへの質問内容", Required: true},
+			{Type: discordgo.ApplicationCommandOptionString, Name: "prompt", Description: "Lunaへの質問内容", Required: true},
 		},
 	}
 }
@@ -33,8 +33,8 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource})
 	responseContent, err := c.Gemini.GenerateContent(prompt)
 	if err != nil {
-		logger.Error.Printf("Geminiからの応答取得に失敗: %v", err)
-		content := "❌ AIへの接続または応答の取得中にエラーが発生しました。"
+		logger.Error.Printf("Luna APIからの応答取得に失敗: %v", err)
+		content := "❌ Luna APIへの接続または応答の取得中にエラーが発生しました。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
