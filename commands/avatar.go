@@ -7,9 +7,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// init関数はパッケージがインポートされたときに自動的に実行されます
 func init() {
-	// コマンドの定義
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "avatar",
 		Description: "ユーザーのアバターまたはサーバープロフィールアイコンを表示します",
@@ -18,7 +16,7 @@ func init() {
 				Type:        discordgo.ApplicationCommandOptionUser,
 				Name:        "user",
 				Description: "アバターを表示するユーザー",
-				Required:    false, // falseにすると、このオプションは任意になります
+				Required:    false,
 			},
 		},
 	}
@@ -30,7 +28,6 @@ func init() {
 		var targetUser *discordgo.User
 		options := i.ApplicationCommandData().Options
 
-		// "user"オプションが指定されているかチェック
 		if len(options) > 0 {
 			targetUser = options[0].UserValue(s)
 		} else {
@@ -39,7 +36,7 @@ func init() {
 		}
 
 		// サーバー固有のアバターを優先して取得するため、Memberオブジェクトを取得
-		// (discordgoのMember.AvatarURLは、サーバー固有のアバターがない場合、自動で通常のアバターを返してくれます)
+		// サーバー固有のアバターがない場合、自動で通常のアバターを返してくれます
 		avatarURL := i.Member.User.AvatarURL("1024") // "1024"は画像のサイズ
 		if len(options) > 0 {
 			// 他のユーザーが指定された場合は、そのユーザーのMember情報を取得する

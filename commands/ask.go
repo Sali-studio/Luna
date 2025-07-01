@@ -2,7 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"luna/gemini" // 作成したgeminiパッケージをインポート
+	"luna/gemini"
 	"luna/logger"
 	"os"
 

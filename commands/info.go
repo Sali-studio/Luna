@@ -14,13 +14,13 @@ func init() {
 		Name:        "info",
 		Description: "サーバーまたはユーザーの情報を表示します。",
 		Options: []*discordgo.ApplicationCommandOption{
-			// --- server サブコマンド ---
+			// server サブコマンド
 			{
 				Name:        "server",
 				Description: "このサーバーの情報を表示します。",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
-			// --- user サブコマンド ---
+			// user サブコマンド
 			{
 				Name:        "user",
 				Description: "指定したユーザーの情報を表示します。",
@@ -106,8 +106,6 @@ func handleUserInfo(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	userCreatedAt, _ := discordgo.SnowflakeTimestamp(member.User.ID)
-	// ★★★ ここが修正箇所です ★★★
-	// .Parse() は不要なので削除します
 	joinedAt := member.JoinedAt
 
 	var roles []string

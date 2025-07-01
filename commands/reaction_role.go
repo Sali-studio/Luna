@@ -29,7 +29,7 @@ func init() {
 	}
 
 	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		// ★★★ ここからが修正箇所です ★★★
+
 		options := i.ApplicationCommandData().Options
 		optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
 		for _, opt := range options {
@@ -39,7 +39,6 @@ func init() {
 		messageID := optionMap["message_id"].StringValue()
 		emoji := optionMap["emoji"].StringValue()
 		role := optionMap["role"].RoleValue(s, i.GuildID)
-		// ★★★ ここまでが修正箇所です ★★★
 
 		// メッセージに実際にリアクションを追加して、設定が正しいか確認
 		err := s.MessageReactionAdd(i.ChannelID, messageID, emoji)

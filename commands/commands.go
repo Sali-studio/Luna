@@ -20,7 +20,7 @@ var (
 	tempVCCreated    = make(map[string]string)
 )
 
-// --- 共有ヘルパー関数 ---
+// 共有ヘルパー関数
 func int64Ptr(i int64) *int64 {
 	return &i
 }

@@ -7,8 +7,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// ★★★ ここにあった共有変数の定義をすべて削除しました ★★★
-
 func init() {
 	cmd := &discordgo.ApplicationCommand{
 		Name:                     "config",
@@ -64,7 +62,7 @@ func init() {
 	CommandHandlers[cmd.Name] = handler
 }
 
-// --- 各設定モーダルを表示する関数群 ---
+// 各設定モーダルを表示する関数群
 
 func HandleShowTicketConfigModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -136,7 +134,7 @@ func HandleShowTempVCConfigModal(s *discordgo.Session, i *discordgo.InteractionC
 	}
 }
 
-// --- モーダルから送信された設定を保存する関数群 ---
+// モーダルから送信された設定を保存する関数群
 
 func HandleSaveTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.ModalSubmitData()

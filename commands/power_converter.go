@@ -60,7 +60,6 @@ func init() {
 				Required:    true,
 				Choices:     unitChoices,
 			},
-			// 「to」オプションを削除
 		},
 	}
 

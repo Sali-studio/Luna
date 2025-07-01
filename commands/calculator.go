@@ -11,7 +11,7 @@ import (
 )
 
 var functions = map[string]govaluate.ExpressionFunction{
-	// --- 三角関数 ---
+	// 三角関数
 	"sin": func(args ...interface{}) (interface{}, error) {
 		return math.Sin(args[0].(float64)), nil
 	},
@@ -21,7 +21,7 @@ var functions = map[string]govaluate.ExpressionFunction{
 	"tan": func(args ...interface{}) (interface{}, error) {
 		return math.Tan(args[0].(float64)), nil
 	},
-	// --- 基本的な数学関数 ---
+	// 基本的な数学関数
 	"sqrt": func(args ...interface{}) (interface{}, error) {
 		return math.Sqrt(args[0].(float64)), nil
 	},
