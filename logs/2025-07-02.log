@@ -1,0 +1,3 @@
+INFO: 2025/07/02 02:43:40 main.go:82: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/02 02:43:40 dashboard.go:107: Running initial dashboard update...
+INFO: 2025/07/02 02:43:40 main.go:88: Bot is now running. Press CTRL-C to exit.

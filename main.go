@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"luna/commands"
@@ -22,7 +21,6 @@ func main() {
 
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentGuildModeration
 
-	// --- イベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
@@ -36,23 +34,27 @@ func main() {
 				commands.HandleOpenTicketModal(s, i)
 			case "close_ticket_button":
 				commands.HandleTicketClose(s, i)
+			// --- 設定ダッシュボードのボタン処理 ---
+			case "config_ticket_button":
+				commands.HandleShowTicketConfigModal(s, i)
+			case "config_log_button":
+				commands.HandleShowLogConfigModal(s, i)
+			// ★★★ 一時VC設定ボタンの処理を追加 ★★★
+			case "config_temp_vc_setup":
+				commands.HandleExecuteTempVCSetup(s, i)
 			}
 		case discordgo.InteractionModalSubmit:
 			customID := i.ModalSubmitData().CustomID
-			parts := strings.Split(customID, ":")
-			modalType := parts[0]
-
-			switch modalType {
+			switch customID {
 			case "ticket_creation_modal":
 				commands.HandleTicketCreation(s, i)
 			case "embed_creation_modal":
 				commands.HandleEmbedCreation(s, i)
-			case "moderate_kick_confirm":
-				commands.HandleExecuteKick(s, i, parts)
-			case "moderate_ban_confirm":
-				commands.HandleExecuteBan(s, i, parts)
-			case "moderate_timeout_confirm":
-				commands.HandleExecuteTimeout(s, i, parts)
+			// --- 設定モーダルの保存処理 ---
+			case "config_ticket_modal":
+				commands.HandleSaveTicketConfig(s, i)
+			case "config_log_modal":
+				commands.HandleSaveLogConfig(s, i)
 			}
 		}
 	})
