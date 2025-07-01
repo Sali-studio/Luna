@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"luna/logger"
 	"luna/storage"
-	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -21,15 +20,11 @@ func NewEventHandler(store *storage.ConfigStore) *EventHandler {
 
 // RegisterAllHandlers はこのハンドラが処理する全てのイベントをdiscordgoセッションに登録します
 func (h *EventHandler) RegisterAllHandlers(s *discordgo.Session) {
-	// Logging
 	s.AddHandler(h.handleMessageDelete)
-	s.AddHandler(h.handleMessageUpdate)
 	s.AddHandler(h.handleGuildBanAdd)
-	s.AddHandler(h.handleGuildBanRemove)
 	s.AddHandler(h.handleGuildMemberAdd)
 	s.AddHandler(h.handleGuildMemberRemove)
 	s.AddHandler(h.handleVoiceStateUpdate)
-	// Reaction Roles
 	s.AddHandler(h.handleReactionAdd)
 	s.AddHandler(h.handleReactionRemove)
 }
@@ -47,14 +42,42 @@ func (h *EventHandler) logEvent(s *discordgo.Session, guildID string, embed *dis
 func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
 	embed := &discordgo.MessageEmbed{
 		Title:       "メッセージ削除",
-		Description: fmt.Sprintf("**チャンネル:** <#%s>\n**メッセージID:** `%s`", e.ChannelID, e.ID),
+		Description: fmt.Sprintf("メッセージが削除されました。\n**チャンネル:** <#%s>", e.ChannelID),
 		Color:       0xffa500, // Orange
 		Timestamp:   time.Now().Format(time.RFC3339),
 	}
 	h.logEvent(s, e.GuildID, embed)
 }
 
-// (handleMessageUpdate, handleGuildBanAdd... などの他のログハンドラも同様にここに実装)
+func (h *EventHandler) handleGuildBanAdd(s *discordgo.Session, e *discordgo.GuildBanAdd) {
+	embed := &discordgo.MessageEmbed{
+		Title:       "ユーザーがBANされました",
+		Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID),
+		Color:       0xff0000, // Red
+		Timestamp:   time.Now().Format(time.RFC3339),
+	}
+	h.logEvent(s, e.GuildID, embed)
+}
+
+func (h *EventHandler) handleGuildMemberAdd(s *discordgo.Session, e *discordgo.GuildMemberAdd) {
+	embed := &discordgo.MessageEmbed{
+		Title:       "メンバー参加",
+		Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID),
+		Color:       0x00ff00, // Green
+		Timestamp:   time.Now().Format(time.RFC3339),
+	}
+	h.logEvent(s, e.GuildID, embed)
+}
+
+func (h *EventHandler) handleGuildMemberRemove(s *discordgo.Session, e *discordgo.GuildMemberRemove) {
+	embed := &discordgo.MessageEmbed{
+		Title:       "メンバー退出",
+		Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID),
+		Color:       0xaaaaaa, // Grey
+		Timestamp:   time.Now().Format(time.RFC3339),
+	}
+	h.logEvent(s, e.GuildID, embed)
+}
 
 // --- Reaction Roles ---
 
@@ -98,35 +121,44 @@ func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo
 		return
 	}
 
-	// ロビーチャンネルに入室したか
+	// ロビーチャンネルに入室した
 	if e.ChannelID == config.TempVC.LobbyID {
-		// 新しいVCを作成
+		member, err := s.State.Member(e.GuildID, e.UserID)
+		if err != nil {
+			member, err = s.GuildMember(e.GuildID, e.UserID)
+			if err != nil {
+				return
+			}
+		}
+
 		newChannel, err := s.GuildChannelCreateComplex(e.GuildID, discordgo.GuildChannelCreateData{
-			Name:     fmt.Sprintf("%sの部屋", e.Member.User.Username),
+			Name:     fmt.Sprintf("%sの部屋", member.User.Username),
 			Type:     discordgo.ChannelTypeGuildVoice,
 			ParentID: config.TempVC.CategoryID,
-			// (パーミッション設定など)
 		})
 		if err != nil {
 			logger.Error.Printf("一時VCの作成に失敗: %v", err)
 			return
 		}
-		// ユーザーを新しいVCに移動
+
 		s.GuildMemberMove(e.GuildID, e.UserID, &newChannel.ID)
 	}
 
 	// 古いチャンネルが一時VCで、誰もいなくなったかチェック
-	if e.BeforeUpdate != nil {
+	if e.BeforeUpdate != nil && e.BeforeUpdate.ChannelID != config.TempVC.LobbyID {
 		oldChannel, err := s.Channel(e.BeforeUpdate.ChannelID)
 		if err != nil {
 			return
 		}
 
-		// チャンネル名やカテゴリで一時VCか判断する（より堅牢な方法が望ましい）
-		if strings.HasSuffix(oldChannel.Name, "の部屋") && oldChannel.ParentID == config.TempVC.CategoryID {
+		// カテゴリで一時VCか判断
+		if oldChannel.ParentID == config.TempVC.CategoryID {
 			members, _ := s.State.VoiceState(e.GuildID, oldChannel.ID)
 			if members == nil || len(members.Members) == 0 {
-				s.ChannelDelete(oldChannel.ID)
+				_, err := s.ChannelDelete(oldChannel.ID)
+				if err != nil {
+					logger.Error.Printf("一時VCの削除に失敗: %v", err)
+				}
 			}
 		}
 	}

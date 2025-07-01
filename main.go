@@ -55,12 +55,11 @@ func main() {
 	commandHandlers = make(map[string]handlers.CommandHandler)
 	componentHandlers = make(map[string]handlers.CommandHandler)
 
-	// --- コマンド登録 ---
+	// --- 全てのコマンドを登録 ---
 	registerCommand(&commands.AskCommand{Gemini: geminiClient})
-	registerCommand(&commands.BumpCommand{Store: configStore, Scheduler: scheduler})
 	registerCommand(&commands.CalculatorCommand{})
 	registerCommand(&commands.ConfigCommand{Store: configStore})
-	registerCommand(&commands.DashboardCommand{Store: configStore})
+	registerCommand(&commands.DashboardCommand{Store: configStore, Scheduler: scheduler})
 	registerCommand(&commands.EmbedCommand{})
 	registerCommand(&commands.HelpCommand{})
 	registerCommand(&commands.ModerateCommand{})

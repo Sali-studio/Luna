@@ -9,13 +9,11 @@ import (
 	"net/http"
 )
 
-// Client はGemini APIとの通信を管理します
 type Client struct {
 	apiKey     string
 	httpClient *http.Client
 }
 
-// APIリクエストの構造体
 type geminiRequest struct {
 	Contents []struct {
 		Parts []struct {
@@ -24,14 +22,12 @@ type geminiRequest struct {
 	} `json:"contents"`
 }
 
-// APIレスポンスの構造体
 type geminiResponse struct {
 	Candidates []struct {
 		Content struct {
 			Parts []struct {
 				Text string `json:"text"`
 			} `json:"parts"`
-			Role string `json:"role"`
 		} `json:"content"`
 	} `json:"candidates"`
 	Error struct {
@@ -39,7 +35,6 @@ type geminiResponse struct {
 	} `json:"error"`
 }
 
-// NewClient は新しいGeminiクライアントを作成します
 func NewClient(apiKey string) (*Client, error) {
 	if apiKey == "" {
 		return nil, errors.New("Gemini APIキーが提供されていません")
@@ -50,10 +45,8 @@ func NewClient(apiKey string) (*Client, error) {
 	}, nil
 }
 
-// GenerateContent はプロンプトを基にテキストを生成します
 func (c *Client) GenerateContent(prompt string) (string, error) {
 	apiURL := "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" + c.apiKey
-
 	reqBody := geminiRequest{
 		Contents: []struct {
 			Parts []struct {
@@ -95,14 +88,11 @@ func (c *Client) GenerateContent(prompt string) (string, error) {
 	if err := json.Unmarshal(body, &geminiResp); err != nil {
 		return "", fmt.Errorf("レスポンスJSONのパースに失敗: %w", err)
 	}
-
 	if geminiResp.Error.Message != "" {
 		return "", fmt.Errorf("APIエラー: %s", geminiResp.Error.Message)
 	}
-
 	if len(geminiResp.Candidates) > 0 && len(geminiResp.Candidates[0].Content.Parts) > 0 {
 		return geminiResp.Candidates[0].Content.Parts[0].Text, nil
 	}
-
 	return "", errors.New("AIから有効な応答がありませんでした")
 }
