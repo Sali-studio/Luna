@@ -161,7 +161,14 @@ func (c *ModerateCommand) executeTimeout(s *discordgo.Session, i *discordgo.Inte
 	duration, err := time.ParseDuration(durationStr)
 	if err != nil {
 		logger.Error.Printf("期間の解析に失敗: %v", err)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "期間の形式が正しくありません。(例: 5m, 1h, 3d)", Flags: discordgo.MessageFlagsEphemeral}})
+		// ユーザーに正しい形式を教える
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ 期間の形式が正しくありません。\n**例:** `10s` (10秒), `5m` (5分), `2h` (2時間), `3d` (3日間)",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
 		return
 	}
 	until := time.Now().Add(duration)
@@ -169,9 +176,13 @@ func (c *ModerateCommand) executeTimeout(s *discordgo.Session, i *discordgo.Inte
 	err = s.GuildMemberTimeout(i.GuildID, userID, &until)
 	if err != nil {
 		logger.Error.Printf("Timeoutの実行に失敗: %v", err)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "タイムアウトの実行に失敗しました。", Flags: discordgo.MessageFlagsEphemeral}})
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: "タイムアウトの実行に失敗しました。BOTの権限が不足している可能性があります。", Flags: discordgo.MessageFlagsEphemeral},
+		})
 		return
 	}
+
 	response := fmt.Sprintf("✅ ユーザー <@%s> を理由「%s」で %s までタイムアウトしました。", userID, reason, until.Format("2006/01/02 15:04"))
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: response, Flags: discordgo.MessageFlagsEphemeral}})
 }
