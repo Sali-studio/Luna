@@ -55,3 +55,9 @@ INFO: 2025/07/02 03:16:03 calculator.go:69: calc command received
 INFO: 2025/07/02 03:17:21 dashboard.go:113: Updating all dashboards...
 INFO: 2025/07/02 03:18:24 calculator.go:69: calc command received
 INFO: 2025/07/02 03:22:17 main.go:92: Botをシャットダウンします。
+INFO: 2025/07/02 03:22:25 main.go:72: Botが起動しました。スラッシュコマンドを登録します。
+INFO: 2025/07/02 03:22:25 dashboard.go:107: Running initial dashboard update...
+INFO: 2025/07/02 03:22:25 main.go:78: Bot is now running. Press CTRL-C to exit.
+INFO: 2025/07/02 03:22:32 config.go:17: config command received
+INFO: 2025/07/02 03:23:44 calculator.go:83: calc command received
+INFO: 2025/07/02 03:24:30 calculator.go:83: calc command received
