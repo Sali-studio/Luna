@@ -1,12 +1,9 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"luna/gemini" // geminiパッケージをインポート
 	"luna/logger"
-	"net/http"
-	"net/url"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -15,19 +12,15 @@ const (
 	TranslateModalCustomID = "translate_modal"
 )
 
-type gasResponse struct {
-	Code int    `json:"code"`
-	Text string `json:"text"`
-}
-
 type TranslateCommand struct {
-	APIURL string
+	// 依存関係をGeminiクライアントに変更
+	Gemini *gemini.Client
 }
 
 func (c *TranslateCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:        "translate",
-		Description: "テキストを翻訳します",
+		Description: "テキストをLuna Translatorを使って翻訳します",
 	}
 }
 
@@ -42,7 +35,7 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 					discordgo.TextInput{CustomID: "text", Label: "翻訳したいテキスト", Style: discordgo.TextInputParagraph, Required: true},
 				}},
 				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-					discordgo.TextInput{CustomID: "lang", Label: "翻訳先の言語コード (例: en, ja, ko)", Style: discordgo.TextInputShort, Placeholder: "en", Required: true, MinLength: 2, MaxLength: 7},
+					discordgo.TextInput{CustomID: "lang", Label: "翻訳先の言語 (例: 英語, 日本語, 韓国語)", Style: discordgo.TextInputShort, Placeholder: "英語", Required: true},
 				}},
 			},
 		},
@@ -53,7 +46,7 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 }
 
 func (c *TranslateCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if c.APIURL == "" {
+	if c.Gemini == nil {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: "❌ 翻訳機能は現在利用できません。", Flags: discordgo.MessageFlagsEphemeral},
@@ -67,23 +60,25 @@ func (c *TranslateCommand) HandleModal(s *discordgo.Session, i *discordgo.Intera
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}})
 
-	resp, err := http.Get(fmt.Sprintf("%s?text=%s&target=%s", c.APIURL, url.QueryEscape(text), lang))
+	// Geminiへの指示（プロンプト）を作成
+	prompt := fmt.Sprintf("以下のテキストを %s に翻訳してください:\n\n---\n%s", lang, text)
+
+	// Geminiに翻訳を実行させる
+	translatedText, err := c.Gemini.GenerateContent(prompt)
 	if err != nil {
-		logger.Error.Printf("翻訳APIへのリクエストに失敗: %v", err)
+		logger.Error.Printf("Luna Translatorからの翻訳応答取得に失敗: %v", err)
+		content := "❌ 翻訳中にエラーが発生しました。"
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
-	defer resp.Body.Close()
-
-	body, _ := ioutil.ReadAll(resp.Body)
-	var result gasResponse
-	json.Unmarshal(body, &result)
 
 	embed := &discordgo.MessageEmbed{
-		Title: "翻訳結果",
+		Title: "翻訳結果 (by Gemini)",
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "原文", Value: text},
-			{Name: "翻訳文 (" + lang + ")", Value: result.Text},
+			{Name: fmt.Sprintf("翻訳文 (%s)", lang), Value: translatedText},
 		},
+		Color: 0x4a8cf7, // Google Blue
 	}
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }

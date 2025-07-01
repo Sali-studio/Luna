@@ -26,7 +26,6 @@ func main() {
 	token := os.Getenv("DISCORD_BOT_TOKEN")
 	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
 	weatherAPIKey := os.Getenv("WEATHER_API_KEY")
-	translateAPIURL := os.Getenv("GOOGLE_TRANSLATE_API_URL")
 
 	if token == "" {
 		logger.Fatal.Println("環境変数 'DISCORD_BOT_TOKEN' が設定されていません。")
@@ -69,7 +68,7 @@ func main() {
 	registerCommand(&commands.ReactionRoleCommand{Store: configStore})
 	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler})
 	registerCommand(&commands.TicketCommand{Store: configStore})
-	registerCommand(&commands.TranslateCommand{APIURL: translateAPIURL})
+	registerCommand(&commands.TranslateCommand{Gemini: geminiClient})
 	registerCommand(&commands.UserInfoCommand{})
 	registerCommand(&commands.WeatherCommand{APIKey: weatherAPIKey})
 
