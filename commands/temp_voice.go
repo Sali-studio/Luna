@@ -8,8 +8,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// ★★★ ここにあった共有変数の定義をすべて削除しました ★★★
-
 // HandleVoiceStateUpdate はボイスチャンネルの状態変化を処理します
 func HandleVoiceStateUpdate(s *discordgo.Session, v *discordgo.VoiceStateUpdate) {
 	// サーバーのロビー設定を取得
@@ -18,12 +16,12 @@ func HandleVoiceStateUpdate(s *discordgo.Session, v *discordgo.VoiceStateUpdate)
 		return
 	}
 
-	// --- チャンネル作成処理 ---
+	// チャンネル作成処理
 	if v.ChannelID == lobbyID {
 		handleJoinLobby(s, v)
 	}
 
-	// --- チャンネル削除処理 ---
+	// チャンネル削除処理
 	if v.BeforeUpdate != nil {
 		if _, ok := tempVCCreated[v.BeforeUpdate.ChannelID]; ok {
 			handleLeaveTempVC(s, v.BeforeUpdate.ChannelID)

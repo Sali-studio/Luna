@@ -124,7 +124,7 @@ func HandleTicketCreation(s *discordgo.Session, i *discordgo.InteractionCreate) 
 			{Name: "対応担当", Value: fmt.Sprintf("<@&%s>", staffRoleID), Inline: true},
 			{
 				Name:  "Luna Assistantからの補足",
-				Value: aiResponse, // AIからの回答をここに表示
+				Value: aiResponse,
 			},
 		},
 		Footer: &discordgo.MessageEmbedFooter{Text: fmt.Sprintf("チケット番号: %d", currentTicketNumber)},

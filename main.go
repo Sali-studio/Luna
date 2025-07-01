@@ -22,7 +22,7 @@ func main() {
 
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentGuildModeration
 
-	// --- スラッシュコマンドとコンポーネントのイベントハンドラ ---
+	// スラッシュコマンドとコンポーネントのイベントハンドラ
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		// スラッシュコマンド
@@ -77,7 +77,7 @@ func main() {
 		}
 	})
 
-	// --- ロギング用ハンドラ ---
+	// ロギング用ハンドラ
 	dg.AddHandler(commands.HandleGuildBanAdd)
 	dg.AddHandler(commands.HandleGuildMemberRemove)
 	dg.AddHandler(commands.HandleGuildMemberUpdate)
@@ -87,11 +87,11 @@ func main() {
 	dg.AddHandler(commands.HandleWebhooksUpdate)
 	dg.AddHandler(commands.HandleGuildMemberAddLog)
 
-	// --- リアクションロール用のハンドラ ---
+	// リアクションロール用のハンドラ
 	dg.AddHandler(commands.HandleMessageReactionAdd)
 	dg.AddHandler(commands.HandleMessageReactionRemove)
 
-	// --- 一時ボイスチャンネル用のハンドラ ---
+	// 一時ボイスチャンネル用のハンドラ
 	dg.AddHandler(commands.HandleVoiceStateUpdate)
 
 	// Discordへの接続を開く
@@ -101,7 +101,6 @@ func main() {
 	}
 	defer dg.Close()
 
-	// ★★★ ダッシュボードの自動更新ループを開始 ★★★
 	commands.StartDashboardUpdater(dg)
 
 	logger.Info.Println("Botが起動しました。スラッシュコマンドを登録します。")
