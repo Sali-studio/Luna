@@ -1,26 +1,25 @@
 package commands
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"luna/logger"
+	"luna/storage"
 
-// --- コマンド登録用の変数 ---
-var Commands = []*discordgo.ApplicationCommand{}
-var CommandHandlers = make(map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate))
-
-// --- 機能ごとの共有変数 ---
-var (
-	// Ticket機能用
-	ticketStaffRoleID = make(map[string]string)
-	ticketCategoryID  = make(map[string]string)
-	ticketCounter     = make(map[string]int)
-	// ログ機能用
-	logChannelID = make(map[string]string)
-	// 一時VC機能用
-	tempVCLobbyID    = make(map[string]string)
-	tempVCCategoryID = make(map[string]string)
-	tempVCCreated    = make(map[string]string) // Key: 作成されたチャンネルID, Value: 作成したユーザーID
+	"github.com/bwmarrin/discordgo"
 )
 
-// --- 共有ヘルパー関数 ---
+var (
+	Commands        = []*discordgo.ApplicationCommand{}
+	CommandHandlers = make(map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate))
+	Config          *storage.ConfigStore
+)
+
+func init() {
+	var err error
+	Config, err = storage.NewConfigStore("config.json")
+	if err != nil {
+		logger.Fatal.Fatalf("Failed to initialize config store: %v", err)
+	}
+}
 func int64Ptr(i int64) *int64 {
 	return &i
 }

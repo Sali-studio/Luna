@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"luna/commands"
@@ -21,7 +22,7 @@ func main() {
 
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentGuildModeration
 
-	// --- イベントハンドラ ---
+	// --- スラッシュコマンドとコンポーネントのイベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
@@ -29,14 +30,34 @@ func main() {
 				h(s, i)
 			}
 		case discordgo.InteractionMessageComponent:
-			// ... (ボタン処理は変更なし)
+			customID := i.MessageComponentData().CustomID
+			switch customID {
+			case "open_ticket_modal":
+				commands.HandleOpenTicketModal(s, i)
+			case "close_ticket_button":
+				commands.HandleTicketClose(s, i)
+			}
 		case discordgo.InteractionModalSubmit:
-			// ... (モーダル処理は変更なし)
+			customID := i.ModalSubmitData().CustomID
+			parts := strings.Split(customID, ":")
+			modalType := parts[0]
+
+			switch modalType {
+			case "ticket_creation_modal":
+				commands.HandleTicketCreation(s, i)
+			case "embed_creation_modal":
+				commands.HandleEmbedCreation(s, i)
+			case "moderate_kick_confirm":
+				commands.HandleExecuteKick(s, i, parts)
+			case "moderate_ban_confirm":
+				commands.HandleExecuteBan(s, i, parts)
+			case "moderate_timeout_confirm":
+				commands.HandleExecuteTimeout(s, i, parts)
+			}
 		}
 	})
 
-	// --- 各機能のイベントハンドラを登録 ---
-	// ★★★ すべてのハンドラ名を大文字始まりに統一 ★★★
+	// --- 各機能のイベントハンドラ ---
 	dg.AddHandler(commands.HandleGuildBanAdd)
 	dg.AddHandler(commands.HandleGuildMemberRemove)
 	dg.AddHandler(commands.HandleGuildMemberUpdate)
