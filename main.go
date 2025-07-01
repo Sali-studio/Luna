@@ -33,17 +33,30 @@ func main() {
 		case discordgo.InteractionMessageComponent:
 			customID := i.MessageComponentData().CustomID
 			switch customID {
+			// チケット作成フローのボタン
+			case "open_ticket_modal":
+				commands.HandleOpenTicketModal(s, i)
+			case "close_ticket_button":
+				commands.HandleTicketClose(s, i)
 			// ★★★ ここからが修正箇所です ★★★
+			// 設定ダッシュボードのボタン処理
 			case "config_ticket_button":
 				commands.HandleShowTicketConfigModal(s, i)
 			case "config_log_button":
 				commands.HandleShowLogConfigModal(s, i)
+			case "execute_temp_vc_setup": // 以前のコードで抜けていたボタンID
+				commands.HandleExecuteTempVCSetup(s, i)
 				// ★★★ ここまでが修正箇所です ★★★
 			}
 		// モーダル送信時の処理
 		case discordgo.InteractionModalSubmit:
 			customID := i.ModalSubmitData().CustomID
 			switch customID {
+			case "ticket_creation_modal":
+				commands.HandleTicketCreation(s, i)
+			case "embed_creation_modal":
+				commands.HandleEmbedCreation(s, i)
+			// 設定モーダルの保存処理
 			case "config_ticket_modal":
 				commands.HandleSaveTicketConfig(s, i)
 			case "config_log_modal":
