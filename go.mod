@@ -6,7 +6,6 @@ require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/robfig/cron/v3 v3.0.1
-	golang.org/x/text v0.26.0
 )
 
 require (
