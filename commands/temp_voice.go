@@ -8,20 +8,65 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// HandleVoiceStateUpdate はボイスチャンネルの状態変化を処理します
+func init() {
+	cmd := &discordgo.ApplicationCommand{
+		Name:                     "temp-vc-setup",
+		Description:              "一時的なボイスチャンネルを作成する機能を自動でセットアップします。",
+		DefaultMemberPermissions: int64Ptr(discordgo.PermissionManageChannels),
+	}
+
+	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		logger.Info.Println("temp-vc-setup command received")
+
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "⏳ セットアップを開始します...",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+
+		category, err := s.GuildChannelCreateComplex(i.GuildID, discordgo.GuildChannelCreateData{
+			Name: "🎤 Temp Voice Channels",
+			Type: discordgo.ChannelTypeGuildCategory,
+		})
+		if err != nil {
+			logger.Error.Printf("Failed to create temp VC category: %v", err)
+			return
+		}
+
+		lobby, err := s.GuildChannelCreateComplex(i.GuildID, discordgo.GuildChannelCreateData{
+			Name:     "➕ Join to Create",
+			Type:     discordgo.ChannelTypeGuildVoice,
+			ParentID: category.ID,
+		})
+		if err != nil {
+			logger.Error.Printf("Failed to create lobby channel: %v", err)
+			s.ChannelDelete(category.ID)
+			return
+		}
+
+		tempVCLobbyID[i.GuildID] = lobby.ID
+		tempVCCategoryID[i.GuildID] = category.ID
+
+		content := "✅ セットアップが完了しました！\n新しく作成された「➕ Join to Create」チャンネルに参加すると一時的なVCが作成されます。"
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &content,
+		})
+	}
+
+	Commands = append(Commands, cmd)
+	CommandHandlers[cmd.Name] = handler
+}
+
 func HandleVoiceStateUpdate(s *discordgo.Session, v *discordgo.VoiceStateUpdate) {
-	// サーバーのロビー設定を取得
 	lobbyID, ok := tempVCLobbyID[v.GuildID]
 	if !ok {
 		return
 	}
-
-	// チャンネル作成処理
 	if v.ChannelID == lobbyID {
 		handleJoinLobby(s, v)
 	}
-
-	// チャンネル削除処理
 	if v.BeforeUpdate != nil {
 		if _, ok := tempVCCreated[v.BeforeUpdate.ChannelID]; ok {
 			handleLeaveTempVC(s, v.BeforeUpdate.ChannelID)
@@ -29,7 +74,6 @@ func HandleVoiceStateUpdate(s *discordgo.Session, v *discordgo.VoiceStateUpdate)
 	}
 }
 
-// handleJoinLobby はユーザーがロビーに参加した際の処理
 func handleJoinLobby(s *discordgo.Session, v *discordgo.VoiceStateUpdate) {
 	categoryID := tempVCCategoryID[v.GuildID]
 	user, _ := s.User(v.UserID)
@@ -40,7 +84,7 @@ func handleJoinLobby(s *discordgo.Session, v *discordgo.VoiceStateUpdate) {
 		Name:     fmt.Sprintf("%sの部屋", user.Username),
 		Type:     discordgo.ChannelTypeGuildVoice,
 		ParentID: categoryID,
-		Topic:    fmt.Sprintf("このチャンネルは%sによって作成されました。全員が退出すると自動的に削除されます。", user.Username),
+		Topic:    fmt.Sprintf("このチャンネルは%sによって作成されました。", user.Username),
 		Bitrate:  64000,
 	})
 	if err != nil {
@@ -58,7 +102,6 @@ func handleJoinLobby(s *discordgo.Session, v *discordgo.VoiceStateUpdate) {
 	}
 }
 
-// handleLeaveTempVC はユーザーが一時VCから退出した際の処理
 func handleLeaveTempVC(s *discordgo.Session, channelID string) {
 	channel, err := s.Channel(channelID)
 	if err != nil {
