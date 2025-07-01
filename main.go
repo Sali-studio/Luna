@@ -2,11 +2,13 @@ package main
 
 import (
 	"luna/commands"
+	"luna/gemini"
 	"luna/handlers"
 	"luna/logger"
 	"luna/storage"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -14,27 +16,21 @@ import (
 )
 
 var (
-	// コマンド名をキーとして、対応するハンドラを保持します
-	commandHandlers map[string]handlers.CommandHandler
-
-	// ボタンやモーダルのCustomIDをキーとして、対応するハンドラを保持します
+	commandHandlers   map[string]handlers.CommandHandler
 	componentHandlers map[string]handlers.CommandHandler
 )
 
 func main() {
-	// 1. 初期化処理
+	// 1. 初期化
 	logger.Init()
-
 	token := os.Getenv("DISCORD_BOT_TOKEN")
+	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
+	weatherAPIKey := os.Getenv("WEATHER_API_KEY")
+	translateAPIURL := os.Getenv("GOOGLE_TRANSLATE_API_URL")
+
 	if token == "" {
 		logger.Fatal.Println("環境変数 'DISCORD_BOT_TOKEN' が設定されていません。")
 		return
-	}
-
-	// 天気APIキーも環境変数から読み込みます
-	weatherAPIKey := os.Getenv("WEATHER_API_KEY")
-	if weatherAPIKey == "" {
-		logger.Warning.Println("環境変数 'WEATHER_API_KEY' が設定されていません。Weatherコマンドは無効になります。")
 	}
 
 	dg, err := discordgo.New("Bot " + token)
@@ -43,49 +39,47 @@ func main() {
 	}
 
 	// 2. 依存関係のセットアップ
-	// 設定ファイルを管理するストアを初期化
 	configStore, err := storage.NewConfigStore("config.json")
 	if err != nil {
 		logger.Fatal.Fatalf("設定ストアの初期化に失敗: %v", err)
 	}
 
-	// スケジュールタスク（cron）を管理するスケジューラを初期化
+	geminiClient, err := gemini.NewClient(geminiAPIKey)
+	if err != nil {
+		logger.Warning.Printf("Geminiクライアントの初期化に失敗: %v。askコマンドは無効になります。", err)
+	}
+
 	scheduler := cron.New()
 
 	// 3. ハンドラの登録
-	// 各ハンドラを格納するためのマップを初期化
 	commandHandlers = make(map[string]handlers.CommandHandler)
 	componentHandlers = make(map[string]handlers.CommandHandler)
 
-	// --- ここに全てのコマンドを登録していきます ---
-	// 引数が必要ないコマンド
-	registerCommand(&commands.PingCommand{})
-	registerCommand(&commands.HelpCommand{})
-	registerCommand(&commands.UserInfoCommand{})
+	// --- コマンド登録 ---
+	registerCommand(&commands.AskCommand{Gemini: geminiClient})
+	registerCommand(&commands.BumpCommand{Store: configStore, Scheduler: scheduler})
 	registerCommand(&commands.CalculatorCommand{})
-	registerCommand(&commands.PollCommand{})
-	registerCommand(&commands.EmbedCommand{})     // モーダルを持つ
-	registerCommand(&commands.TranslateCommand{}) // モーダルを持つ
-
-	// 依存を注入する必要があるコマンド
 	registerCommand(&commands.ConfigCommand{Store: configStore})
-	registerCommand(&commands.TicketCommand{Store: configStore})
+	registerCommand(&commands.DashboardCommand{Store: configStore})
+	registerCommand(&commands.EmbedCommand{})
+	registerCommand(&commands.HelpCommand{})
+	registerCommand(&commands.ModerateCommand{})
+	registerCommand(&commands.PingCommand{})
+	registerCommand(&commands.PokemonCalculatorCommand{})
+	registerCommand(&commands.PollCommand{})
 	registerCommand(&commands.ReactionRoleCommand{Store: configStore})
-	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler, Store: configStore})
+	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler})
+	registerCommand(&commands.TicketCommand{Store: configStore})
+	registerCommand(&commands.TranslateCommand{APIURL: translateAPIURL})
+	registerCommand(&commands.UserInfoCommand{})
 	registerCommand(&commands.WeatherCommand{APIKey: weatherAPIKey})
-	registerCommand(&commands.AskCommand{}) // askコマンドも登録
 
-	// 4. Discordイベントハンドラの設定
-	// すべてのインタラクション（コマンド、ボタン、モーダル）はこの関数に集約されます
+	// 4. イベントハンドラの登録
 	dg.AddHandler(interactionCreate)
-	// リアクションロールのためのリアクションイベント
-	dg.AddHandler(messageReactionAdd)
-	dg.AddHandler(messageReactionRemove)
 
-	// Botがサーバーに参加したときにログを出す
-	dg.AddHandler(func(s *discordgo.Session, event *discordgo.GuildCreate) {
-		logger.Info.Printf("サーバーに接続しました: %s (ID: %s)", event.Guild.Name, event.Guild.ID)
-	})
+	// ログ、リアクションロール、一時VCなどのイベントベースの機能を登録
+	eventHandler := handlers.NewEventHandler(configStore)
+	eventHandler.RegisterAllHandlers(dg)
 
 	// 5. Botの起動
 	err = dg.Open()
@@ -94,19 +88,16 @@ func main() {
 	}
 	defer dg.Close()
 
-	// スケジューラを開始
 	scheduler.Start()
 	defer scheduler.Stop()
 
-	logger.Info.Println("Botが起動しました。スラッシュコマンドをDiscordに登録します...")
+	logger.Info.Println("Botが起動しました。スラッシュコマンドを登録します...")
 
-	// 登録するコマンドの定義リストを作成
 	registeredCommands := make([]*discordgo.ApplicationCommand, 0, len(commandHandlers))
 	for _, handler := range commandHandlers {
 		registeredCommands = append(registeredCommands, handler.GetCommandDef())
 	}
 
-	// コマンドを一括で上書き登録
 	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", registeredCommands)
 	if err != nil {
 		logger.Fatal.Printf("コマンドの登録に失敗しました: %v", err)
@@ -121,71 +112,37 @@ func main() {
 	logger.Info.Println("Botをシャットダウンします...")
 }
 
-// registerCommand はコマンドを各種ハンドラマップに登録するヘルパー関数です
 func registerCommand(cmd handlers.CommandHandler) {
 	def := cmd.GetCommandDef()
 	commandHandlers[def.Name] = cmd
 
-	// コマンドに紐づくコンポーネントやモーダルがあれば、それらのIDも登録します。
-	// これにより、どのボタンがどのコマンドに属しているかを判別できます。
-	switch def.Name {
-	case "ticket-setup":
-		componentHandlers[commands.CreateTicketButtonID] = cmd
-		componentHandlers[commands.CloseTicketButtonID] = cmd // 閉じるボタンも追加
-	case "embed":
-		componentHandlers[commands.EmbedModalCustomID] = cmd
-	case "translate":
-		componentHandlers[commands.TranslateModalCustomID] = cmd
+	// ボタンやモーダルのCustomIDを、プレフィックス（前方一致）で判定できるように登録
+	for _, id := range cmd.GetComponentIDs() {
+		componentHandlers[id] = cmd
 	}
 }
 
-// interactionCreate はすべてのインタラクションを処理する中央ハブです
 func interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	switch i.Type {
 	case discordgo.InteractionApplicationCommand:
 		if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-			// コマンドが実行された場合
 			h.Handle(s, i)
 		}
 	case discordgo.InteractionMessageComponent:
-		if h, ok := componentHandlers[i.MessageComponentData().CustomID]; ok {
-			// ボタンなどが押された場合
-			h.HandleComponent(s, i)
+		// CustomIDの前方一致でハンドラを検索
+		for id, h := range componentHandlers {
+			if strings.HasPrefix(i.MessageComponentData().CustomID, id) {
+				h.HandleComponent(s, i)
+				return
+			}
 		}
 	case discordgo.InteractionModalSubmit:
-		if h, ok := componentHandlers[i.ModalSubmitData().CustomID]; ok {
-			// モーダルが送信された場合
-			h.HandleModal(s, i)
-		}
-	}
-}
-
-// messageReactionAdd はリアクションロール機能のためのハンドラです
-func messageReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
-	// 自分自身のリアクションは無視
-	if r.UserID == s.State.User.ID {
-		return
-	}
-
-	// ReactionRoleCommandのハンドラを取得して処理を委譲
-	// この部分は少しトリッキーですが、一つの方法です
-	if cmd, ok := commandHandlers["reaction-role-setup"]; ok {
-		// 型アサーションで具体的な型に変換
-		if rrCmd, ok := cmd.(*commands.ReactionRoleCommand); ok {
-			rrCmd.HandleReactionAdd(s, r)
-		}
-	}
-}
-
-// messageReactionRemove はリアクションロール機能のためのハンドラです
-func messageReactionRemove(s *discordgo.Session, r *discordgo.MessageReactionRemove) {
-	if r.UserID == s.State.User.ID {
-		return
-	}
-
-	if cmd, ok := commandHandlers["reaction-role-setup"]; ok {
-		if rrCmd, ok := cmd.(*commands.ReactionRoleCommand); ok {
-			rrCmd.HandleReactionRemove(s, r)
+		// CustomIDの前方一致でハンドラを検索
+		for id, h := range componentHandlers {
+			if strings.HasPrefix(i.ModalSubmitData().CustomID, id) {
+				h.HandleModal(s, i)
+				return
+			}
 		}
 	}
 }

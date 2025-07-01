@@ -2,105 +2,112 @@ package storage
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"luna/logger"
+	"os"
 	"sync"
-
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 )
 
-// GuildConfig は各サーバーごとの設定を保持します
-type GuildConfig struct {
-	Ticket struct {
-		CategoryID  string `json:"category_id"`
-		StaffRoleID string `json:"staff_role_id"`
-	} `json:"ticket"`
-	Bump struct {
-		Reminder    bool   `json:"reminder"`
-		BumpRoleID  string `json:"bump_role_id"`
-		BumpChannel string `json:"bump_channel"`
-	} `json:"bump"`
-	ReactionRole map[string]string `json:"reaction_role"` // messageID_emoji -> roleID
+// --- 各機能ごとの設定 ---
+
+type TicketConfig struct {
+	PanelChannelID string `json:"panel_channel_id"`
+	CategoryID     string `json:"category_id"`
+	StaffRoleID    string `json:"staff_role_id"`
+	Counter        int    `json:"counter"`
 }
 
-// NewGuildConfig はデフォルト値でGuildConfigを生成します
-func NewGuildConfig() *GuildConfig {
-	return &GuildConfig{
-		ReactionRole: make(map[string]string),
-	}
+type LogConfig struct {
+	ChannelID string `json:"channel_id"`
+}
+
+type TempVCConfig struct {
+	LobbyID    string `json:"lobby_id"`
+	CategoryID string `json:"category_id"`
+}
+
+type DashboardConfig struct {
+	ChannelID string `json:"channel_id"`
+	MessageID string `json:"message_id"`
+}
+
+type BumpConfig struct {
+	ChannelID string `json:"channel_id"`
+	RoleID    string `json:"role_id"`
+	Reminder  bool   `json:"reminder"`
+}
+
+// --- サーバー全体の総合設定 ---
+
+type GuildConfig struct {
+	Ticket        TicketConfig      `json:"ticket"`
+	Log           LogConfig         `json:"log"`
+	TempVC        TempVCConfig      `json:"temp_vc"`
+	Dashboard     DashboardConfig   `json:"dashboard"`
+	Bump          BumpConfig        `json:"bump"`
+	ReactionRoles map[string]string `json:"reaction_roles"` // messageID_emoji -> roleID
 }
 
 // ConfigStore は設定ファイル(config.json)の読み書きを管理します
 type ConfigStore struct {
-	filePath string
-	mu       sync.RWMutex
-	data     []byte
+	mu      sync.Mutex
+	path    string
+	Configs map[string]*GuildConfig // GuildIDをキーとする設定のマップ
 }
 
 // NewConfigStore は新しいConfigStoreを初期化して返します
-func NewConfigStore(filePath string) (*ConfigStore, error) {
+func NewConfigStore(path string) (*ConfigStore, error) {
 	store := &ConfigStore{
-		filePath: filePath,
+		path:    path,
+		Configs: make(map[string]*GuildConfig),
 	}
-	if err := store.Load(); err != nil {
-		// ファイルが存在しない場合は空のJSONで初期化
-		logger.Warning.Printf("設定ファイル '%s' が見つかりませんでした。新しいファイルを作成します。", filePath)
-		store.data = []byte("{}")
-		if err := store.Save(); err != nil {
-			return nil, err
-		}
+	if err := store.load(); err != nil && !os.IsNotExist(err) {
+		return nil, err
 	}
 	return store, nil
 }
 
-// Load はファイルから設定を読み込みます
-func (s *ConfigStore) Load() error {
+// load はファイルから設定を読み込みます
+func (s *ConfigStore) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var err error
-	s.data, err = ioutil.ReadFile(s.filePath)
-	return err
-}
-
-// Save は現在の設定をファイルに書き込みます
-func (s *ConfigStore) Save() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return ioutil.WriteFile(s.filePath, s.data, 0644)
-}
-
-// GetGuildConfig は指定されたGuildIDの設定を取得します
-func (s *ConfigStore) GetGuildConfig(guildID string) *GuildConfig {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	configJSON := gjson.Get(string(s.data), guildID).Raw
-	if configJSON == "" {
-		return NewGuildConfig()
-	}
-
-	var config GuildConfig
-	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
-		logger.Error.Printf("Guild %s の設定のパースに失敗しました: %v", guildID, err)
-		return NewGuildConfig()
-	}
-	return &config
-}
-
-// SetGuildConfig は指定されたGuildIDの設定を更新します
-func (s *ConfigStore) SetGuildConfig(guildID string, config *GuildConfig) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	configJSON, err := json.Marshal(config)
+	file, err := os.ReadFile(s.path)
 	if err != nil {
 		return err
 	}
+	if len(file) == 0 {
+		s.Configs = make(map[string]*GuildConfig)
+		return nil
+	}
+	return json.Unmarshal(file, &s.Configs)
+}
 
-	// sjsonを使ってJSONデータを更新
-	s.data, err = sjson.SetRaw(string(s.data), guildID, string(configJSON))
-	return err
+// save は現在の設定をファイルに書き込みます
+func (s *ConfigStore) save() error {
+	data, err := json.MarshalIndent(s.Configs, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(s.path, data, 0644)
+}
+
+// GetGuildConfig は指定されたGuildIDの設定を取得します。存在しない場合は新しい設定を作成して返します。
+func (s *ConfigStore) GetGuildConfig(guildID string) *GuildConfig {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	config, ok := s.Configs[guildID]
+	if !ok {
+		config = &GuildConfig{
+			ReactionRoles: make(map[string]string),
+		}
+		s.Configs[guildID] = config
+	}
+	return config
+}
+
+// Save はすべての設定をファイルに保存するパブリックメソッドです
+func (s *ConfigStore) Save() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.save()
 }
