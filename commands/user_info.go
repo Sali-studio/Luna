@@ -39,14 +39,16 @@ func (c *UserInfoCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	}
 
 	// サーバー参加日時を取得
-	joinedAt, err := member.JoinedAt.Parse()
-	if err != nil {
-		logger.Error.Printf("参加日時の解析に失敗: %v", err)
-		return
-	}
+	// エラーメッセージに基づき、.Parse() を削除
+	joinedAt := member.JoinedAt
 
 	// アカウント作成日時を取得
-	createdAt := discordgo.SnowflakeTimestamp(user.ID)
+	// エラーメッセージに基づき、戻り値を2つ受け取るように修正
+	createdAt, err := discordgo.SnowflakeTimestamp(user.ID)
+	if err != nil {
+		logger.Error.Printf("アカウント作成日時の取得に失敗: %v", err)
+		return
+	}
 
 	embed := &discordgo.MessageEmbed{
 		Title:     fmt.Sprintf("%s の情報", user.Username),
