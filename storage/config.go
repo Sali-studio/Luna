@@ -1,79 +1,104 @@
-package storage
+package commands
 
 import (
-	"encoding/json"
-	"os"
-	"sync"
+	"fmt"
+	"luna/logger"
+
+	"github.com/bwmarrin/discordgo"
 )
 
-type TicketConfig struct {
-	PanelChannelID string `json:"panel_channel_id"`
-	CategoryID     string `json:"category_id"`
-	StaffRoleID    string `json:"staff_role_id"`
-	Counter        int    `json:"counter"`
-}
-type LogConfig struct {
-	ChannelID string `json:"channel_id"`
-}
-type TempVCConfig struct {
-	LobbyID    string `json:"lobby_id"`
-	CategoryID string `json:"category_id"`
-}
-type DashboardConfig struct {
-	ChannelID string `json:"channel_id"`
-	MessageID string `json:"message_id"`
-}
-type GuildConfig struct {
-	Ticket    TicketConfig    `json:"ticket"`
-	Log       LogConfig       `json:"log"`
-	TempVC    TempVCConfig    `json:"temp_vc"`
-	Dashboard DashboardConfig `json:"dashboard"`
-}
-type ConfigStore struct {
-	mu      sync.Mutex
-	path    string
-	Configs map[string]*GuildConfig
+// init関数はinit()の中で完結させる
+func init() {
+	cmd := &discordgo.ApplicationCommand{
+		Name:                     "config",
+		Description:              "ボットの各種設定を行うダッシュボードを開きます。",
+		DefaultMemberPermissions: int64Ptr(discordgo.PermissionManageGuild),
+	}
+	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		logger.Info.Println("config command received")
+
+		embed := &discordgo.MessageEmbed{
+			Title:       "⚙️ Luna 設定ダッシュボード",
+			Description: "設定したい項目のボタンを押してください。\n設定はすべてこのサーバーに保存されます。",
+			Color:       0x95A5A6,
+		}
+		components := []discordgo.MessageComponent{
+			discordgo.ActionsRow{
+				Components: []discordgo.MessageComponent{
+					discordgo.Button{Label: "チケット機能", Style: discordgo.SecondaryButton, Emoji: &discordgo.ComponentEmoji{Name: "🎫"}, CustomID: "config_ticket_button"},
+					discordgo.Button{Label: "ログ機能", Style: discordgo.SecondaryButton, Emoji: &discordgo.ComponentEmoji{Name: "📜"}, CustomID: "config_log_button"},
+				},
+			},
+		}
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}, Components: components, Flags: discordgo.MessageFlagsEphemeral},
+		})
+	}
+	Commands = append(Commands, cmd)
+	CommandHandlers[cmd.Name] = handler
 }
 
-func NewConfigStore(path string) (*ConfigStore, error) {
-	store := &ConfigStore{
-		path:    path,
-		Configs: make(map[string]*GuildConfig),
-	}
-	if err := store.load(); err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-	return store, nil
-}
-func (s *ConfigStore) load() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	file, err := os.ReadFile(s.path)
+// 他のファイルから呼び出される関数は、名前の先頭を大文字にする
+func HandleShowTicketConfigModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	config := Config.GetGuildConfig(i.GuildID)
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: &discordgo.InteractionResponseData{
+			CustomID: "config_ticket_modal",
+			Title:    "チケット機能 設定",
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{Components: []discordgo.MessageComponent{discordgo.TextInput{CustomID: "panel_channel_id", Label: "パネルを設置するチャンネルID", Style: discordgo.TextInputShort, Value: config.Ticket.PanelChannelID, Required: true}}},
+				discordgo.ActionsRow{Components: []discordgo.MessageComponent{discordgo.TextInput{CustomID: "category_id", Label: "チケットを作成するカテゴリのID", Style: discordgo.TextInputShort, Value: config.Ticket.CategoryID, Required: true}}},
+				discordgo.ActionsRow{Components: []discordgo.MessageComponent{discordgo.TextInput{CustomID: "staff_role_id", Label: "対応するスタッフロールのID", Style: discordgo.TextInputShort, Value: config.Ticket.StaffRoleID, Required: true}}},
+			},
+		},
+	})
 	if err != nil {
-		return err
+		logger.Error.Printf("Failed to show ticket config modal: %v", err)
 	}
-	return json.Unmarshal(file, &s.Configs)
 }
-func (s *ConfigStore) save() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	data, err := json.MarshalIndent(s.Configs, "", "  ")
+func HandleShowLogConfigModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	config := Config.GetGuildConfig(i.GuildID)
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: &discordgo.InteractionResponseData{
+			CustomID: "config_log_modal",
+			Title:    "ログ機能 設定",
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+					discordgo.TextInput{CustomID: "log_channel_id", Label: "ログを送信するチャンネルのID", Style: discordgo.TextInputShort, Value: config.Log.ChannelID, Required: true},
+				}},
+			},
+		},
+	})
 	if err != nil {
-		return err
+		logger.Error.Printf("Failed to show log config modal: %v", err)
 	}
-	return os.WriteFile(s.path, data, 0644)
 }
-func (s *ConfigStore) GetGuildConfig(guildID string) *GuildConfig {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	config, ok := s.Configs[guildID]
-	if !ok {
-		config = &GuildConfig{}
-		s.Configs[guildID] = config
-	}
-	return config
+func HandleSaveTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	data := i.ModalSubmitData()
+	config := Config.GetGuildConfig(i.GuildID)
+
+	config.Ticket.PanelChannelID = data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	config.Ticket.CategoryID = data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	config.Ticket.StaffRoleID = data.Components[2].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+
+	Config.SaveGuildConfig(i.GuildID, config)
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{Content: "✅ チケット機能の設定を保存しました。", Flags: discordgo.MessageFlagsEphemeral},
+	})
 }
-func (s *ConfigStore) SaveGuildConfig(guildID string, config *GuildConfig) error {
-	s.Configs[guildID] = config
-	return s.save()
+func HandleSaveLogConfig(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	data := i.ModalSubmitData()
+	config := Config.GetGuildConfig(i.GuildID)
+	config.Log.ChannelID = data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	Config.SaveGuildConfig(i.GuildID, config)
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{Content: fmt.Sprintf("✅ ログチャンネルを <#%s> に設定しました。", config.Log.ChannelID), Flags: discordgo.MessageFlagsEphemeral},
+	})
 }

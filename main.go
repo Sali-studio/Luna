@@ -36,6 +36,12 @@ func main() {
 				commands.HandleOpenTicketModal(s, i)
 			case "close_ticket_button":
 				commands.HandleTicketClose(s, i)
+			case "config_ticket_button":
+				commands.HandleShowTicketConfigModal(s, i)
+			case "config_log_button":
+				commands.HandleShowLogConfigModal(s, i)
+			case "config_temp_vc_button":
+				commands.HandleExecuteTempVCSetup(s, i)
 			}
 		case discordgo.InteractionModalSubmit:
 			customID := i.ModalSubmitData().CustomID
@@ -53,11 +59,15 @@ func main() {
 				commands.HandleExecuteBan(s, i, parts)
 			case "moderate_timeout_confirm":
 				commands.HandleExecuteTimeout(s, i, parts)
+			case "config_ticket_modal":
+				commands.HandleSaveTicketConfig(s, i)
+			case "config_log_modal":
+				commands.HandleSaveLogConfig(s, i)
 			}
 		}
 	})
 
-	// --- 各機能のイベントハンドラ ---
+	// --- 各機能のイベントハンドラを登録 ---
 	dg.AddHandler(commands.HandleGuildBanAdd)
 	dg.AddHandler(commands.HandleGuildMemberRemove)
 	dg.AddHandler(commands.HandleGuildMemberUpdate)

@@ -20,6 +20,7 @@ func init() {
 		logger.Fatal.Fatalf("Failed to initialize config store: %v", err)
 	}
 }
+
 func int64Ptr(i int64) *int64 {
 	return &i
 }
