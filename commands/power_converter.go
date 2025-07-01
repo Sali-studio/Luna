@@ -2,121 +2,96 @@ package commands
 
 import (
 	"fmt"
-	"luna/logger"
+	"math"
+	"strconv"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-// 各電力単位のRF/FEに対するレート
-// 基準: 1 RF/FE = X 他の単位
-var powerConversionRates = map[string]float64{
-	"rf": 1.0,
-	"fe": 1.0,
-	"eu": 0.25,
-	"mj": 0.1,
-	"if": 1.0,
-	"ae": 0.5,
-	"j":  2.5,
-}
+type PowerConverterCommand struct{}
 
-// 単位の正式名称
-var powerUnitFullName = map[string]string{
-	"rf": "Redstone Flux",
-	"fe": "Forge Energy",
-	"eu": "Energy Unit (IndustrialCraft 2)",
-	"mj": "Minecraft Joules (BuildCraft)",
-	"if": "Industrial Foregoing",
-	"ae": "AE/t (Applied Energistics 2)",
-	"j":  "Joules (Mekanism)",
-}
-
-// 表示する単位の順番
-var unitDisplayOrder = []string{"rf", "fe", "j", "eu", "mj", "ae", "if"}
-
-func init() {
-	var unitChoices []*discordgo.ApplicationCommandOptionChoice
-	for _, key := range unitDisplayOrder {
-		unitChoices = append(unitChoices, &discordgo.ApplicationCommandOptionChoice{
-			Name:  fmt.Sprintf("%s (%s)", strings.ToUpper(key), powerUnitFullName[key]),
-			Value: key,
-		})
-	}
-
-	cmd := &discordgo.ApplicationCommand{
-		Name:        "convert-power",
-		Description: "Minecraft工業MODの電力単位を一覧に変換します。",
+func (c *PowerConverterCommand) GetCommandDef() *discordgo.ApplicationCommand {
+	return &discordgo.ApplicationCommand{
+		Name:        "power",
+		Description: "電力・電圧・電流を計算します",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
-				Type:        discordgo.ApplicationCommandOptionNumber,
-				Name:        "amount",
-				Description: "変換したい数値",
-				Required:    true,
-			},
-			{
 				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "from",
-				Description: "元の単位",
+				Name:        "values",
+				Description: "2つの値をカンマ区切りで入力 (例: 100V,15A や 1500W,100V)",
 				Required:    true,
-				Choices:     unitChoices,
 			},
 		},
 	}
+}
 
-	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		logger.Info.Println("convert-power command received")
-
-		options := i.ApplicationCommandData().Options
-		optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
-		for _, opt := range options {
-			optionMap[opt.Name] = opt
-		}
-
-		amount := optionMap["amount"].FloatValue()
-		fromUnit := optionMap["from"].StringValue()
-
-		// 1. 元の単位を基準単位(RF/FE)に変換
-		amountInRF := amount / powerConversionRates[fromUnit]
-
-		// 2. 結果を表示するためのEmbedフィールドを生成
-		var fields []*discordgo.MessageEmbedField
-		for _, unitKey := range unitDisplayOrder {
-			// 基準値から各単位へ変換
-			convertedAmount := amountInRF * powerConversionRates[unitKey]
-
-			// 元の単位と同じ場合はスキップせず、太字で表示する
-			fieldName := fmt.Sprintf("%s (%s)", strings.ToUpper(unitKey), powerUnitFullName[unitKey])
-			fieldValue := fmt.Sprintf("`%.2f`", convertedAmount)
-
-			if unitKey == fromUnit {
-				fieldValue = fmt.Sprintf("**`%.2f`**", convertedAmount)
-			}
-
-			fields = append(fields, &discordgo.MessageEmbedField{
-				Name:   fieldName,
-				Value:  fieldValue,
-				Inline: true,
-			})
-		}
-
-		// 結果表示用のEmbedを作成
-		embed := &discordgo.MessageEmbed{
-			Author: &discordgo.MessageEmbedAuthor{
-				Name:    fmt.Sprintf("⚡ %.2f %s の変換結果", amount, strings.ToUpper(fromUnit)),
-				IconURL: "https://cdn.discordapp.com/emojis/995772399329759242.png", // MODアイコンなど
-			},
-			Color:  0xFEE75C, // 黄色
-			Fields: fields,
-		}
-
+func (c *PowerConverterCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	input := i.ApplicationCommandData().Options[0].StringValue()
+	parts := strings.Split(input, ",")
+	if len(parts) != 2 {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{embed},
-			},
+			Data: &discordgo.InteractionResponseData{Content: "値を2つ、カンマ区切りで入力してください。", Flags: discordgo.MessageFlagsEphemeral},
 		})
+		return
 	}
 
-	Commands = append(Commands, cmd)
-	CommandHandlers[cmd.Name] = handler
+	var w, v, a float64
+	var err error
+
+	for _, part := range parts {
+		part = strings.TrimSpace(strings.ToUpper(part))
+		if strings.HasSuffix(part, "W") {
+			w, err = strconv.ParseFloat(strings.TrimSuffix(part, "W"), 64)
+		} else if strings.HasSuffix(part, "V") {
+			v, err = strconv.ParseFloat(strings.TrimSuffix(part, "V"), 64)
+		} else if strings.HasSuffix(part, "A") {
+			a, err = strconv.ParseFloat(strings.TrimSuffix(part, "A"), 64)
+		}
+		if err != nil { /* エラー処理 */
+			return
+		}
+	}
+
+	var resultEmbed *discordgo.MessageEmbed
+
+	if w != 0 && v != 0 { // 電流を計算
+		a = w / v
+		resultEmbed = c.createEmbed(w, v, a)
+	} else if w != 0 && a != 0 { // 電圧を計算
+		v = w / a
+		resultEmbed = c.createEmbed(w, v, a)
+	} else if v != 0 && a != 0 { // 電力を計算
+		w = v * a
+		resultEmbed = c.createEmbed(w, v, a)
+	} else {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: "W, V, A のうち、2種類の値を正しく入力してください。", Flags: discordgo.MessageFlagsEphemeral},
+		})
+		return
+	}
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{resultEmbed}},
+	})
 }
+
+func (c *PowerConverterCommand) createEmbed(w, v, a float64) *discordgo.MessageEmbed {
+	return &discordgo.MessageEmbed{
+		Title: "電力計算結果",
+		Color: 0xFFFF00, // Yellow
+		Fields: []*discordgo.MessageEmbedField{
+			{Name: "電力 (W)", Value: fmt.Sprintf("%.2f W", math.Abs(w)), Inline: true},
+			{Name: "電圧 (V)", Value: fmt.Sprintf("%.2f V", math.Abs(v)), Inline: true},
+			{Name: "電流 (A)", Value: fmt.Sprintf("%.2f A", math.Abs(a)), Inline: true},
+		},
+	}
+}
+
+func (c *PowerConverterCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
+}
+func (c *PowerConverterCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {}
+func (c *PowerConverterCommand) GetComponentIDs() []string                                        { return []string{} }

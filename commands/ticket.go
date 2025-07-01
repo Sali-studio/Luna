@@ -49,7 +49,7 @@ func (c *TicketCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{{Title: "サポートチケット", Description: "下のボタンを押してサポートチケットを作成してください。", Color: 0x5865F2}},
 			Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-				discordgo.Button{Label: "チケットを作成", Style: discordgo.PrimaryButton, CustomID: CreateTicketButtonID, Emoji: discordgo.ComponentEmoji{Name: "🎫"}},
+				discordgo.Button{Label: "チケットを作成", Style: discordgo.PrimaryButton, CustomID: CreateTicketButtonID, Emoji: &discordgo.ComponentEmoji{Name: "🎫"}},
 			}}},
 		},
 	})
@@ -95,7 +95,7 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 	s.ChannelMessageSendComplex(ch.ID, &discordgo.MessageSend{
 		Content: fmt.Sprintf("ようこそ <@%s> さん！ <@&%s> が対応しますので、ご用件をお書きください。", i.Member.User.ID, config.Ticket.StaffRoleID),
 		Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-			discordgo.Button{Label: "チケットを閉じる", Style: discordgo.DangerButton, CustomID: CloseTicketButtonID, Emoji: discordgo.ComponentEmoji{Name: "🔒"}},
+			discordgo.Button{Label: "チケットを閉じる", Style: discordgo.DangerButton, CustomID: CloseTicketButtonID, Emoji: &discordgo.ComponentEmoji{Name: "🔒"}},
 		}}},
 	})
 

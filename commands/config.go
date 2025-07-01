@@ -65,20 +65,22 @@ func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {
 }
 
 func (c *ConfigCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	subCommand := i.ApplicationCommandData().Options[0]
-	switch subCommand.Name {
+	// サブコマンドのオプションを取得
+	options := i.ApplicationCommandData().Options[0].Options
+	switch i.ApplicationCommandData().Options[0].Name {
 	case "ticket":
-		c.handleTicketConfig(s, i, subCommand.Options)
+		c.handleTicketConfig(s, i, options)
 	case "logging":
-		c.handleLoggingConfig(s, i, subCommand.Options)
+		c.handleLoggingConfig(s, i, options)
 	case "temp-vc":
-		c.handleTempVCConfig(s, i, subCommand.Options)
+		c.handleTempVCConfig(s, i, options)
 	case "bump-reminder":
-		c.handleBumpConfig(s, i, subCommand.Options)
+		c.handleBumpConfig(s, i, options)
 	}
 }
 
-func (c *ConfigCommand) handleTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandOption) {
+// 関数の引数の型を修正
+func (c *ConfigCommand) handleTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
 	panelChannelID := options[0].ChannelValue(s).ID
 	categoryID := options[1].ChannelValue(s).ID
 	staffRoleID := options[2].RoleValue(s, i.GuildID).ID
@@ -100,7 +102,8 @@ func (c *ConfigCommand) handleTicketConfig(s *discordgo.Session, i *discordgo.In
 	})
 }
 
-func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandOption) {
+// 関数の引数の型を修正
+func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
 	channelID := options[0].ChannelValue(s).ID
 
 	config := c.Store.GetGuildConfig(i.GuildID)
@@ -114,7 +117,8 @@ func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.I
 	})
 }
 
-func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandOption) {
+// 関数の引数の型を修正
+func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
 	lobbyID := options[0].ChannelValue(s).ID
 	categoryID := options[1].ChannelValue(s).ID
 
@@ -130,7 +134,8 @@ func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.In
 	})
 }
 
-func (c *ConfigCommand) handleBumpConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandOption) {
+// 関数の引数の型を修正
+func (c *ConfigCommand) handleBumpConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
 	enable := options[0].BoolValue()
 	channelID := options[1].ChannelValue(s).ID
 	roleID := options[2].RoleValue(s, i.GuildID).ID

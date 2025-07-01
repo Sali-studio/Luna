@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"luna/logger"
 	"luna/storage"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/robfig/cron/v3"
@@ -31,7 +32,8 @@ func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 	})
 	if err != nil {
 		logger.Error.Printf("ダッシュボードの初期送信に失敗: %v", err)
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &"❌ ダッシュボードの作成に失敗しました。"})
+		content := "❌ ダッシュボードの作成に失敗しました。"
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
 
@@ -40,12 +42,11 @@ func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 	config.Dashboard.MessageID = msg.ID
 	c.Store.Save()
 
-	// 5分ごとに更新するタスクを登録
 	c.Scheduler.AddFunc("@every 5m", func() { c.updateDashboard(s, i.GuildID) })
-	// すぐに一度更新
 	c.updateDashboard(s, i.GuildID)
 
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &"✅ ダッシュボードを作成し、5分ごとの自動更新をセットしました。"})
+	content := "✅ ダッシュボードを作成し、5分ごとの自動更新をセットしました。"
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 }
 
 func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string) {
@@ -77,9 +78,9 @@ func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string)
 			{Name: "オンライン", Value: fmt.Sprintf("%d人", onlineMembers), Inline: true},
 			{Name: "ブースト", Value: fmt.Sprintf("Level %d (%d Boosts)", guild.PremiumTier, guild.PremiumSubscriptionCount), Inline: true},
 		},
-		Thumbnail: &discordgo.MessageEmbedThumbnail{URL: guild.IconURL()},
+		Thumbnail: &discordgo.MessageEmbedThumbnail{URL: guild.IconURL("")},
 		Footer:    &discordgo.MessageEmbedFooter{Text: "最終更新"},
-		Timestamp: discordgo.NowTimestamp(),
+		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
 	s.ChannelMessageEditEmbed(config.Dashboard.ChannelID, config.Dashboard.MessageID, embed)

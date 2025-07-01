@@ -145,7 +145,7 @@ func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo
 	}
 
 	// 古いチャンネルが一時VCで、誰もいなくなったかチェック
-	if e.BeforeUpdate != nil && e.BeforeUpdate.ChannelID != config.TempVC.LobbyID {
+	if e.BeforeUpdate != nil && e.BeforeUpdate.ChannelID != "" && e.BeforeUpdate.ChannelID != config.TempVC.LobbyID {
 		oldChannel, err := s.Channel(e.BeforeUpdate.ChannelID)
 		if err != nil {
 			return
@@ -153,8 +153,21 @@ func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo
 
 		// カテゴリで一時VCか判断
 		if oldChannel.ParentID == config.TempVC.CategoryID {
-			members, _ := s.State.VoiceState(e.GuildID, oldChannel.ID)
-			if members == nil || len(members.Members) == 0 {
+			// チャンネルに誰もいなくなったか確認
+			guild, err := s.State.Guild(e.GuildID)
+			if err != nil {
+				return
+			}
+
+			found := false
+			for _, vs := range guild.VoiceStates {
+				if vs.ChannelID == oldChannel.ID {
+					found = true
+					break
+				}
+			}
+
+			if !found {
 				_, err := s.ChannelDelete(oldChannel.ID)
 				if err != nil {
 					logger.Error.Printf("一時VCの削除に失敗: %v", err)
