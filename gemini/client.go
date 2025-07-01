@@ -37,7 +37,7 @@ type geminiResponse struct {
 
 func NewClient(apiKey string) (*Client, error) {
 	if apiKey == "" {
-		return nil, errors.New("Gemini APIキーが提供されていません")
+		return nil, errors.New("gemini APIキーが提供されていません")
 	}
 	return &Client{
 		apiKey:     apiKey,
