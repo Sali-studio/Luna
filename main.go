@@ -109,7 +109,7 @@ func main() {
 		logger.Fatal.Printf("コマンドの登録に失敗しました: %v", err)
 	}
 
-	logger.Info.Println("Bot is now running. Press CTRL-C to exit.")
+	logger.Info.Println("Botは起動中です、Ctrl+Cで終了します。")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
