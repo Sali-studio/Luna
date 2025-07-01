@@ -22,6 +22,7 @@ func main() {
 
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentGuildModeration
 
+	// --- スラッシュコマンドとコンポーネントのイベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
@@ -31,6 +32,7 @@ func main() {
 		case discordgo.InteractionMessageComponent:
 			customID := i.MessageComponentData().CustomID
 			switch customID {
+			// チケット作成フロー
 			case "open_ticket_modal":
 				commands.HandleOpenTicketModal(s, i)
 			case "close_ticket_button":
@@ -42,10 +44,12 @@ func main() {
 			modalType := parts[0]
 
 			switch modalType {
+			// チケット・Embed作成フロー
 			case "ticket_creation_modal":
 				commands.HandleTicketCreation(s, i)
 			case "embed_creation_modal":
 				commands.HandleEmbedCreation(s, i)
+			// モデレーション確認フロー
 			case "moderate_kick_confirm":
 				commands.HandleExecuteKick(s, i, parts)
 			case "moderate_ban_confirm":
@@ -76,6 +80,7 @@ func main() {
 	}
 	defer dg.Close()
 
+	// ダッシュボードの自動更新ループを開始
 	commands.StartDashboardUpdater(dg)
 
 	logger.Info.Println("Botが起動しました。スラッシュコマンドを登録します。")
