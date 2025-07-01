@@ -70,14 +70,11 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 
 	config := c.Store.GetGuildConfig(i.GuildID)
 
-	// ★★★ ここからが改善点 ★★★
-	// 設定がされているか事前にチェック
 	if config.Ticket.CategoryID == "" || config.Ticket.StaffRoleID == "" {
 		content := "❌ チケット機能がまだ管理者によって設定されていません。サーバーの管理者に連絡してください。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
-	// ★★★ ここまで ★★★
 
 	config.Ticket.Counter++
 	c.Store.Save()
