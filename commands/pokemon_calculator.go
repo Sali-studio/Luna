@@ -7,9 +7,11 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
-// 計算用の共有マップ
+// --- 計算用の共有マップ ---
 var natureMultipliers = map[string]float64{
 	"up": 1.1, "neutral": 1.0, "down": 0.9,
 }
@@ -37,6 +39,98 @@ var typeChart = map[string]map[string]float64{
 	"steel":    {"fire": 0.5, "water": 0.5, "electric": 0.5, "ice": 2, "rock": 2, "dragon": 1, "steel": 0.5},
 }
 var typeNames = []string{"normal", "fire", "water", "electric", "grass", "ice", "fighting", "poison", "ground", "flying", "psychic", "bug", "rock", "ghost", "dragon", "dark", "steel"}
+
+// init はコマンドを初期化します
+func init() {
+	var typeChoices []*discordgo.ApplicationCommandOptionChoice
+	for _, t := range typeNames {
+		typeChoices = append(typeChoices, &discordgo.ApplicationCommandOptionChoice{Name: t, Value: t})
+	}
+
+	cmd := &discordgo.ApplicationCommand{
+		Name:        "calc-pokemon",
+		Description: "ポケモンの各種数値を計算します。",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Name:        "stats",
+				Description: "ポケモンの実数値を計算します。",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Options: []*discordgo.ApplicationCommandOption{
+					{Type: discordgo.ApplicationCommandOptionInteger, Name: "base_stat", Description: "計算したいステータスの種族値", Required: true},
+					{
+						Type: discordgo.ApplicationCommandOptionString, Name: "stat_type", Description: "ステータスの種類", Required: true,
+						Choices: []*discordgo.ApplicationCommandOptionChoice{
+							{Name: "HP", Value: "hp"}, {Name: "こうげき (Attack)", Value: "attack"}, {Name: "ぼうぎょ (Defense)", Value: "defense"},
+							{Name: "とくこう (Sp. Atk)", Value: "sp_attack"}, {Name: "とくぼう (Sp. Def)", Value: "sp_defense"}, {Name: "すばやさ (Speed)", Value: "speed"},
+						},
+					},
+					{Type: discordgo.ApplicationCommandOptionInteger, Name: "level", Description: "レベル (デフォルト: 50)", Required: false},
+					{Type: discordgo.ApplicationCommandOptionInteger, Name: "iv", Description: "個体値 (0-31, デフォルト: 31)", Required: false},
+					{Type: discordgo.ApplicationCommandOptionInteger, Name: "ev", Description: "努力値 (0-252, デフォルト: 0)", Required: false},
+					{
+						Type: discordgo.ApplicationCommandOptionString, Name: "nature", Description: "性格補正 (デフォルト: 補正なし)", Required: false,
+						Choices: []*discordgo.ApplicationCommandOptionChoice{
+							{Name: "⬆️ 上昇補正 (1.1倍)", Value: "up"}, {Name: "補正なし (1.0倍)", Value: "neutral"}, {Name: "⬇️ 下降補正 (0.9倍)", Value: "down"},
+						},
+					},
+					{
+						Type: discordgo.ApplicationCommandOptionInteger, Name: "rank", Description: "能力ランク (-6 ~ +6, デフォルト: 0)",
+						MinValue: func(f float64) *float64 { return &f }(-6.0), MaxValue: 6, Required: false,
+					},
+					{
+						Type: discordgo.ApplicationCommandOptionString, Name: "item", Description: "ステータスや威力に補正のある持ち物", Required: false,
+						Choices: []*discordgo.ApplicationCommandOptionChoice{
+							{Name: "こだわりハチマキ (Choice Band)", Value: "choice_band"}, {Name: "こだわりメガネ (Choice Specs)", Value: "choice_specs"},
+							{Name: "こだわりスカーフ (Choice Scarf)", Value: "choice_scarf"}, {Name: "いのちのたま (Life Orb)", Value: "life_orb"},
+							{Name: "たつじんのおび (Expert Belt)", Value: "expert_belt"}, {Name: "各種プレート (Plates)", Value: "plate"},
+						},
+					},
+				},
+			},
+			{
+				Name:        "damage",
+				Description: "ダメージ計算を行います。",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Options: []*discordgo.ApplicationCommandOption{
+					{Type: discordgo.ApplicationCommandOptionInteger, Name: "level", Description: "攻撃側ポケモンのレベル", Required: true},
+					{Type: discordgo.ApplicationCommandOptionInteger, Name: "power", Description: "使用する技の威力", Required: true},
+					{Type: discordgo.ApplicationCommandOptionInteger, Name: "attack_stat", Description: "攻撃側の こうげき / とくこう の実数値", Required: true},
+					{Type: discordgo.ApplicationCommandOptionInteger, Name: "defense_stat", Description: "防御側の ぼうぎょ / とくぼう の実数値", Required: true},
+					{Type: discordgo.ApplicationCommandOptionNumber, Name: "multiplier", Description: "タイプ相性や天候などの補正倍率 (例: 2倍なら2.0, 半減なら0.5)", Required: false},
+				},
+			},
+			{
+				Name:        "type",
+				Description: "タイプ相性を表示します。",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type: discordgo.ApplicationCommandOptionString, Name: "type1", Description: "ポケモンのタイプ1",
+						Required: true, Choices: typeChoices,
+					},
+					{
+						Type: discordgo.ApplicationCommandOptionString, Name: "type2", Description: "ポケモンのタイプ2 (任意)",
+						Required: false, Choices: typeChoices,
+					},
+				},
+			},
+		},
+	}
+
+	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		switch i.ApplicationCommandData().Options[0].Name {
+		case "stats":
+			handleStatsCalc(s, i)
+		case "damage":
+			handleDamageCalc(s, i)
+		case "type":
+			handleTypeCalc(s, i)
+		}
+	}
+
+	Commands = append(Commands, cmd)
+	CommandHandlers[cmd.Name] = handler
+}
 
 // handleStatsCalc は実数値計算の処理を行います
 func handleStatsCalc(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -229,10 +323,12 @@ func handleTypeCalc(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		}
 	}
 
-	title := strings.Title(type1)
+	caser := cases.Title(language.English)
+	title := caser.String(type1)
 	if type2 != "" {
-		title += " / " + strings.Title(type2)
+		title += " / " + caser.String(type2)
 	}
+
 	embed := &discordgo.MessageEmbed{
 		Title: fmt.Sprintf("タイプ相性: %s", title),
 		Color: 0x95A5A6,
@@ -240,7 +336,11 @@ func handleTypeCalc(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	addFieldIfNotEmpty := func(name string, types []string) {
 		if len(types) > 0 {
-			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{Name: name, Value: strings.Join(types, ", ")})
+			var capitalizedTypes []string
+			for _, t := range types {
+				capitalizedTypes = append(capitalizedTypes, caser.String(t))
+			}
+			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{Name: name, Value: strings.Join(capitalizedTypes, ", ")})
 		}
 	}
 
@@ -254,95 +354,4 @@ func handleTypeCalc(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}},
 	})
-}
-
-func init() {
-	var typeChoices []*discordgo.ApplicationCommandOptionChoice
-	for _, t := range typeNames {
-		typeChoices = append(typeChoices, &discordgo.ApplicationCommandOptionChoice{Name: t, Value: t})
-	}
-
-	cmd := &discordgo.ApplicationCommand{
-		Name:        "calc-pokemon",
-		Description: "ポケモンの各種数値を計算します。",
-		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Name:        "stats",
-				Description: "ポケモンの実数値を計算します。",
-				Type:        discordgo.ApplicationCommandOptionSubCommand,
-				Options: []*discordgo.ApplicationCommandOption{
-					{Type: discordgo.ApplicationCommandOptionInteger, Name: "base_stat", Description: "計算したいステータスの種族値", Required: true},
-					{
-						Type: discordgo.ApplicationCommandOptionString, Name: "stat_type", Description: "ステータスの種類", Required: true,
-						Choices: []*discordgo.ApplicationCommandOptionChoice{
-							{Name: "HP", Value: "hp"}, {Name: "こうげき (Attack)", Value: "attack"}, {Name: "ぼうぎょ (Defense)", Value: "defense"},
-							{Name: "とくこう (Sp. Atk)", Value: "sp_attack"}, {Name: "とくぼう (Sp. Def)", Value: "sp_defense"}, {Name: "すばやさ (Speed)", Value: "speed"},
-						},
-					},
-					{Type: discordgo.ApplicationCommandOptionInteger, Name: "level", Description: "レベル (デフォルト: 50)", Required: false},
-					{Type: discordgo.ApplicationCommandOptionInteger, Name: "iv", Description: "個体値 (0-31, デフォルト: 31)", Required: false},
-					{Type: discordgo.ApplicationCommandOptionInteger, Name: "ev", Description: "努力値 (0-252, デフォルト: 0)", Required: false},
-					{
-						Type: discordgo.ApplicationCommandOptionString, Name: "nature", Description: "性格補正 (デフォルト: 補正なし)", Required: false,
-						Choices: []*discordgo.ApplicationCommandOptionChoice{
-							{Name: "⬆️ 上昇補正 (1.1倍)", Value: "up"}, {Name: "補正なし (1.0倍)", Value: "neutral"}, {Name: "⬇️ 下降補正 (0.9倍)", Value: "down"},
-						},
-					},
-					{
-						Type: discordgo.ApplicationCommandOptionInteger, Name: "rank", Description: "能力ランク (-6 ~ +6, デフォルト: 0)",
-						MinValue: func(f float64) *float64 { return &f }(-6.0), MaxValue: 6, Required: false,
-					},
-					{
-						Type: discordgo.ApplicationCommandOptionString, Name: "item", Description: "ステータスや威力に補正のある持ち物", Required: false,
-						Choices: []*discordgo.ApplicationCommandOptionChoice{
-							{Name: "こだわりハチマキ (Choice Band)", Value: "choice_band"}, {Name: "こだわりメガネ (Choice Specs)", Value: "choice_specs"},
-							{Name: "こだわりスカーフ (Choice Scarf)", Value: "choice_scarf"}, {Name: "いのちのたま (Life Orb)", Value: "life_orb"},
-							{Name: "たつじんのおび (Expert Belt)", Value: "expert_belt"}, {Name: "各種プレート (Plates)", Value: "plate"},
-						},
-					},
-				},
-			},
-			{
-				Name:        "damage",
-				Description: "ダメージ計算を行います。",
-				Type:        discordgo.ApplicationCommandOptionSubCommand,
-				Options: []*discordgo.ApplicationCommandOption{
-					{Type: discordgo.ApplicationCommandOptionInteger, Name: "level", Description: "攻撃側ポケモンのレベル", Required: true},
-					{Type: discordgo.ApplicationCommandOptionInteger, Name: "power", Description: "使用する技の威力", Required: true},
-					{Type: discordgo.ApplicationCommandOptionInteger, Name: "attack_stat", Description: "攻撃側の こうげき / とくこう の実数値", Required: true},
-					{Type: discordgo.ApplicationCommandOptionInteger, Name: "defense_stat", Description: "防御側の ぼうぎょ / とくぼう の実数値", Required: true},
-					{Type: discordgo.ApplicationCommandOptionNumber, Name: "multiplier", Description: "タイプ相性や天候などの補正倍率 (例: 2倍なら2.0, 半減なら0.5)", Required: false},
-				},
-			},
-			{
-				Name:        "type",
-				Description: "タイプ相性を表示します。",
-				Type:        discordgo.ApplicationCommandOptionSubCommand,
-				Options: []*discordgo.ApplicationCommandOption{
-					{
-						Type: discordgo.ApplicationCommandOptionString, Name: "type1", Description: "ポケモンのタイプ1",
-						Required: true, Choices: typeChoices,
-					},
-					{
-						Type: discordgo.ApplicationCommandOptionString, Name: "type2", Description: "ポケモンのタイプ2 (任意)",
-						Required: false, Choices: typeChoices,
-					},
-				},
-			},
-		},
-	}
-
-	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		switch i.ApplicationCommandData().Options[0].Name {
-		case "stats":
-			handleStatsCalc(s, i)
-		case "damage":
-			handleDamageCalc(s, i)
-		case "type":
-			handleTypeCalc(s, i)
-		}
-	}
-
-	Commands = append(Commands, cmd)
-	CommandHandlers[cmd.Name] = handler
 }
