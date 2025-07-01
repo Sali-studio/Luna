@@ -34,13 +34,11 @@ func main() {
 				commands.HandleOpenTicketModal(s, i)
 			case "close_ticket_button":
 				commands.HandleTicketClose(s, i)
-			// --- 設定ダッシュボードのボタン処理 ---
 			case "config_ticket_button":
 				commands.HandleShowTicketConfigModal(s, i)
 			case "config_log_button":
 				commands.HandleShowLogConfigModal(s, i)
-			// ★★★ 一時VC設定ボタンの処理を追加 ★★★
-			case "config_temp_vc_setup":
+			case "execute_temp_vc_setup":
 				commands.HandleExecuteTempVCSetup(s, i)
 			}
 		case discordgo.InteractionModalSubmit:
@@ -50,7 +48,6 @@ func main() {
 				commands.HandleTicketCreation(s, i)
 			case "embed_creation_modal":
 				commands.HandleEmbedCreation(s, i)
-			// --- 設定モーダルの保存処理 ---
 			case "config_ticket_modal":
 				commands.HandleSaveTicketConfig(s, i)
 			case "config_log_modal":
@@ -59,7 +56,7 @@ func main() {
 		}
 	})
 
-	// --- 各機能のイベントハンドラを登録 ---
+	// --- 各機能のイベントハンドラ ---
 	dg.AddHandler(commands.HandleGuildBanAdd)
 	dg.AddHandler(commands.HandleGuildMemberRemove)
 	dg.AddHandler(commands.HandleGuildMemberUpdate)
