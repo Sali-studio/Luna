@@ -6,42 +6,33 @@ import (
 	"sync"
 )
 
-// --- 各機能の設定をまとめる構造体 ---
 type TicketConfig struct {
 	PanelChannelID string `json:"panel_channel_id"`
 	CategoryID     string `json:"category_id"`
 	StaffRoleID    string `json:"staff_role_id"`
 	Counter        int    `json:"counter"`
 }
-
 type LogConfig struct {
 	ChannelID string `json:"channel_id"`
 }
-
 type TempVCConfig struct {
 	LobbyID    string `json:"lobby_id"`
 	CategoryID string `json:"category_id"`
 }
-
 type DashboardConfig struct {
-	GuildID   string `json:"guild_id"`
 	ChannelID string `json:"channel_id"`
 	MessageID string `json:"message_id"`
 }
-
-// 1つのサーバーの全設定をまとめる構造体
 type GuildConfig struct {
 	Ticket    TicketConfig    `json:"ticket"`
 	Log       LogConfig       `json:"log"`
 	TempVC    TempVCConfig    `json:"temp_vc"`
 	Dashboard DashboardConfig `json:"dashboard"`
 }
-
-// --- 設定をファイルに保存/読み込みするための構造体 ---
 type ConfigStore struct {
 	mu      sync.Mutex
 	path    string
-	Configs map[string]*GuildConfig // Key: GuildID
+	Configs map[string]*GuildConfig
 }
 
 func NewConfigStore(path string) (*ConfigStore, error) {
@@ -54,7 +45,6 @@ func NewConfigStore(path string) (*ConfigStore, error) {
 	}
 	return store, nil
 }
-
 func (s *ConfigStore) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -64,7 +54,6 @@ func (s *ConfigStore) load() error {
 	}
 	return json.Unmarshal(file, &s.Configs)
 }
-
 func (s *ConfigStore) save() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -74,12 +63,9 @@ func (s *ConfigStore) save() error {
 	}
 	return os.WriteFile(s.path, data, 0644)
 }
-
-// GetGuildConfig はサーバーの設定を取得します。
 func (s *ConfigStore) GetGuildConfig(guildID string) *GuildConfig {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	config, ok := s.Configs[guildID]
 	if !ok {
 		config = &GuildConfig{}
@@ -87,9 +73,9 @@ func (s *ConfigStore) GetGuildConfig(guildID string) *GuildConfig {
 	}
 	return config
 }
-
-// SaveGuildConfig はサーバーの設定を保存します
 func (s *ConfigStore) SaveGuildConfig(guildID string, config *GuildConfig) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.Configs[guildID] = config
 	return s.save()
 }

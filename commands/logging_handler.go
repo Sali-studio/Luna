@@ -9,8 +9,9 @@ import (
 )
 
 func HandleGuildBanAdd(s *discordgo.Session, e *discordgo.GuildBanAdd) {
-	logChannel, ok := logChannelID[e.GuildID]
-	if !ok {
+	config := Config.GetGuildConfig(e.GuildID)
+	logChannel := config.Log.ChannelID
+	if logChannel == "" {
 		return
 	}
 
@@ -48,8 +49,9 @@ func HandleGuildBanAdd(s *discordgo.Session, e *discordgo.GuildBanAdd) {
 }
 
 func HandleGuildMemberRemove(s *discordgo.Session, e *discordgo.GuildMemberRemove) {
-	logChannel, ok := logChannelID[e.GuildID]
-	if !ok {
+	config := Config.GetGuildConfig(e.GuildID)
+	logChannel := config.Log.ChannelID
+	if logChannel == "" {
 		return
 	}
 
@@ -94,8 +96,9 @@ func HandleGuildMemberRemove(s *discordgo.Session, e *discordgo.GuildMemberRemov
 }
 
 func HandleGuildMemberUpdate(s *discordgo.Session, e *discordgo.GuildMemberUpdate) {
-	logChannel, ok := logChannelID[e.GuildID]
-	if !ok {
+	config := Config.GetGuildConfig(e.GuildID)
+	logChannel := config.Log.ChannelID
+	if logChannel == "" {
 		return
 	}
 
@@ -138,8 +141,9 @@ func HandleGuildMemberUpdate(s *discordgo.Session, e *discordgo.GuildMemberUpdat
 }
 
 func HandleChannelCreate(s *discordgo.Session, e *discordgo.ChannelCreate) {
-	logChannel, ok := logChannelID[e.GuildID]
-	if !ok {
+	config := Config.GetGuildConfig(e.GuildID)
+	logChannel := config.Log.ChannelID
+	if logChannel == "" {
 		return
 	}
 
@@ -164,8 +168,9 @@ func HandleChannelCreate(s *discordgo.Session, e *discordgo.ChannelCreate) {
 }
 
 func HandleChannelDelete(s *discordgo.Session, e *discordgo.ChannelDelete) {
-	logChannel, ok := logChannelID[e.GuildID]
-	if !ok {
+	config := Config.GetGuildConfig(e.GuildID)
+	logChannel := config.Log.ChannelID
+	if logChannel == "" {
 		return
 	}
 
@@ -191,8 +196,9 @@ func HandleChannelDelete(s *discordgo.Session, e *discordgo.ChannelDelete) {
 
 // HandleGuildMemberAddLog はユーザーがサーバーに参加したときのイベントを処理します
 func HandleGuildMemberAddLog(s *discordgo.Session, e *discordgo.GuildMemberAdd) {
-	logChannel, ok := logChannelID[e.GuildID]
-	if !ok {
+	config := Config.GetGuildConfig(e.GuildID)
+	logChannel := config.Log.ChannelID
+	if logChannel == "" {
 		return
 	}
 
@@ -219,8 +225,9 @@ func HandleGuildMemberAddLog(s *discordgo.Session, e *discordgo.GuildMemberAdd) 
 
 // HandleMessageDelete はメッセージが削除されたときのイベントを処理します
 func HandleMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
-	logChannel, ok := logChannelID[e.GuildID]
-	if !ok {
+	config := Config.GetGuildConfig(e.GuildID)
+	logChannel := config.Log.ChannelID
+	if logChannel == "" {
 		return
 	}
 
@@ -251,8 +258,9 @@ func HandleMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
 
 // HandleWebhooksUpdate はWebhookが作成・更新・削除されたときのイベントを処理します
 func HandleWebhooksUpdate(s *discordgo.Session, e *discordgo.WebhooksUpdate) {
-	logChannel, ok := logChannelID[e.GuildID]
-	if !ok {
+	config := Config.GetGuildConfig(e.GuildID)
+	logChannel := config.Log.ChannelID
+	if logChannel == "" {
 		return
 	}
 

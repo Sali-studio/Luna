@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"luna/commands"
@@ -21,6 +22,7 @@ func main() {
 
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMembers | discordgo.IntentsGuildVoiceStates | discordgo.IntentGuildModeration
 
+	// --- スラッシュコマンドとコンポーネントのイベントハンドラ ---
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
@@ -34,27 +36,28 @@ func main() {
 				commands.HandleOpenTicketModal(s, i)
 			case "close_ticket_button":
 				commands.HandleTicketClose(s, i)
-			case "config_ticket_button":
-				commands.HandleShowTicketConfigModal(s, i)
-			case "config_log_button":
-				commands.HandleShowLogConfigModal(s, i)
 			}
 		case discordgo.InteractionModalSubmit:
 			customID := i.ModalSubmitData().CustomID
-			switch customID {
+			parts := strings.Split(customID, ":")
+			modalType := parts[0]
+
+			switch modalType {
 			case "ticket_creation_modal":
 				commands.HandleTicketCreation(s, i)
 			case "embed_creation_modal":
 				commands.HandleEmbedCreation(s, i)
-			case "config_ticket_modal":
-				commands.HandleSaveTicketConfig(s, i)
-			case "config_log_modal":
-				commands.HandleSaveLogConfig(s, i)
+			case "moderate_kick_confirm":
+				commands.HandleExecuteKick(s, i, parts)
+			case "moderate_ban_confirm":
+				commands.HandleExecuteBan(s, i, parts)
+			case "moderate_timeout_confirm":
+				commands.HandleExecuteTimeout(s, i, parts)
 			}
 		}
 	})
 
-	// --- 各機能のイベントハンドラ ---
+	// --- 各機能のイベントハンドラを登録 ---
 	dg.AddHandler(commands.HandleGuildBanAdd)
 	dg.AddHandler(commands.HandleGuildMemberRemove)
 	dg.AddHandler(commands.HandleGuildMemberUpdate)
@@ -73,6 +76,8 @@ func main() {
 		logger.Fatal.Printf("Discordへの接続中にエラーが発生しました: %v", err)
 	}
 	defer dg.Close()
+
+	commands.StartDashboardUpdater(dg)
 
 	logger.Info.Println("Botが起動しました。スラッシュコマンドを登録します。")
 	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", commands.Commands)
