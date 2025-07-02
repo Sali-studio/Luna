@@ -14,36 +14,29 @@ type TicketConfig struct {
 	PanelChannelID string `json:"panel_channel_id"`
 	CategoryID     string `json:"category_id"`
 	StaffRoleID    string `json:"staff_role_id"`
-	Counter        int    `json:"counter"`
 }
-
 type LogConfig struct {
 	ChannelID string `json:"channel_id"`
 }
-
 type TempVCConfig struct {
 	LobbyID    string `json:"lobby_id"`
 	CategoryID string `json:"category_id"`
 }
-
 type DashboardConfig struct {
 	ChannelID string `json:"channel_id"`
 	MessageID string `json:"message_id"`
 }
-
 type BumpConfig struct {
 	ChannelID string `json:"channel_id"`
 	RoleID    string `json:"role_id"`
 	Reminder  bool   `json:"reminder"`
 }
-
 type ReactionRole struct {
 	MessageID string
 	EmojiID   string
 	GuildID   string
 	RoleID    string
 }
-
 type Schedule struct {
 	ID        int
 	GuildID   string
@@ -83,7 +76,14 @@ func (s *DBStore) initTables() error {
 			log_config TEXT DEFAULT '{}',
 			temp_vc_config TEXT DEFAULT '{}',
 			dashboard_config TEXT DEFAULT '{}',
-			bump_config TEXT DEFAULT '{}'
+			bump_config TEXT DEFAULT '{}',
+			ticket_counter INTEGER DEFAULT 0
+		);`,
+		`CREATE TABLE IF NOT EXISTS tickets (
+			channel_id TEXT PRIMARY KEY,
+			guild_id TEXT,
+			user_id TEXT,
+			status TEXT
 		);`,
 		`CREATE TABLE IF NOT EXISTS reaction_roles (
 			message_id TEXT, emoji_id TEXT, guild_id TEXT, role_id TEXT,
@@ -116,12 +116,19 @@ func (s *DBStore) upsertGuild(tx *sql.Tx, guildID string) error {
 func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
 	query := fmt.Sprintf("SELECT %s FROM guilds WHERE guild_id = ?", configName)
 	var configJSON sql.NullString
 	err := s.db.QueryRow(query, guildID).Scan(&configJSON)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			// 新規サーバーの場合、一度行を作成しておく
+			s.mu.RUnlock() // RLockを一度解除して書き込みロックを取得
+			s.mu.Lock()
+			tx, _ := s.db.Begin()
+			s.upsertGuild(tx, guildID)
+			tx.Commit()
+			s.mu.Unlock()
+			s.mu.RLock() // 再度RLock
 			return nil
 		}
 		return err
@@ -135,28 +142,65 @@ func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}
 func (s *DBStore) SaveConfig(guildID, configName string, configStruct interface{}) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-
 	if err := s.upsertGuild(tx, guildID); err != nil {
 		return err
 	}
-
 	data, err := json.Marshal(configStruct)
 	if err != nil {
 		return err
 	}
-
 	query := fmt.Sprintf("UPDATE guilds SET %s = ? WHERE guild_id = ?", configName)
 	_, err = tx.Exec(query, string(data), guildID)
 	if err != nil {
 		return err
 	}
 	return tx.Commit()
+}
+
+// --- チケット専用関数 ---
+func (s *DBStore) GetNextTicketCounter(guildID string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	if err := s.upsertGuild(tx, guildID); err != nil {
+		return 0, err
+	}
+
+	var counter int
+	err = tx.QueryRow("SELECT ticket_counter FROM guilds WHERE guild_id = ?", guildID).Scan(&counter)
+	if err != nil {
+		return 0, err
+	}
+
+	counter++
+	_, err = tx.Exec("UPDATE guilds SET ticket_counter = ? WHERE guild_id = ?", counter, guildID)
+	if err != nil {
+		return 0, err
+	}
+	return counter, tx.Commit()
+}
+
+func (s *DBStore) CreateTicketRecord(channelID, guildID, userID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, err := s.db.Exec("INSERT INTO tickets (channel_id, guild_id, user_id, status) VALUES (?, ?, ?, 'open')", channelID, guildID, userID)
+	return err
+}
+
+func (s *DBStore) CloseTicketRecord(channelID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, err := s.db.Exec("UPDATE tickets SET status = 'closed' WHERE channel_id = ?", channelID)
+	return err
 }
 
 // --- リアクションロールとスケジュールのための専用関数 ---
@@ -191,7 +235,6 @@ func (s *DBStore) GetAllSchedules() ([]Schedule, error) {
 		return nil, err
 	}
 	defer rows.Close()
-
 	var schedules []Schedule
 	for rows.Next() {
 		var sc Schedule
