@@ -3,83 +3,84 @@ package commands
 import (
 	"fmt"
 	"luna/logger"
+	"luna/storage"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-var StartTime time.Time
-
 type PingCommand struct {
-	// main.goから起動時刻を受け取る
 	StartTime time.Time
+	Store     *storage.DBStore
 }
 
 func (c *PingCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:        "ping",
-		Description: "ボットのレイテンシと稼働時間を測定します",
+		Description: "ボットのパフォーマンスと稼働時間を測定します",
 	}
 }
 
 func (c *PingCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// 1. API応答時間を測定開始
-	beforeAPICall := time.Now()
-
-	// 2. 「測定中...」という一時的なメッセージを送信
+	// 1. API応答時間を測定するため、最初のメッセージを送信
+	apiStart := time.Now()
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{
-				{
-					Title: "🏓 Pong!",
-					Color: 0x7289da, // Discord Blue
-					Fields: []*discordgo.MessageEmbedField{
-						{Name: "ゲートウェイ", Value: "測定中...", Inline: true},
-						{Name: "API応答", Value: "測定中...", Inline: true},
-						{Name: "稼働時間", Value: "測定中...", Inline: true},
-					},
-				},
-			},
+			Content: "測定中...",
 		},
 	})
+	apiLatency := time.Since(apiStart)
 	if err != nil {
 		logger.Error("pingコマンドの初期応答に失敗", "error", err)
 		return
 	}
 
-	// 3. API応答時間を計算
-	apiLatency := time.Since(beforeAPICall)
+	// 2. データベースの応答時間を測定
+	dbStart := time.Now()
+	err = c.Store.PingDB()
+	dbLatency := time.Since(dbStart)
+	dbStatus := "✅ 正常"
+	if err != nil {
+		dbStatus = "❌ 異常"
+		dbLatency = 0 // エラー時は0
+	}
 
-	// 4. ゲートウェイの応答時間を取得
+	// 3. ゲートウェイの応答時間を取得
 	gatewayLatency := s.HeartbeatLatency()
 
-	// 5. 稼働時間を計算
+	// 4. 稼働時間を計算
 	uptime := time.Since(c.StartTime)
 	uptimeStr := formatUptime(uptime)
 
-	// 6. 結果を埋め込みメッセージで編集して表示
+	// 5. 結果をEmbedにまとめて表示
 	latencyColor := 0x43b581 // Green
-	if gatewayLatency.Milliseconds() > 200 {
+	if gatewayLatency.Milliseconds() > 150 || apiLatency.Milliseconds() > 300 {
 		latencyColor = 0xfaa61a // Yellow
 	}
-	if gatewayLatency.Milliseconds() > 500 {
+	if gatewayLatency.Milliseconds() > 400 || apiLatency.Milliseconds() > 600 {
+		latencyColor = 0xf04747 // Red
+	}
+	if dbStatus == "❌ 異常" {
 		latencyColor = 0xf04747 // Red
 	}
 
 	embed := &discordgo.MessageEmbed{
-		Title: "🏓 Pong!",
-		Color: latencyColor, // レイテンシに応じて色が変わる
+		Title: "🏓 Pong! - ヘルスチェック",
+		Color: latencyColor,
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "ゲートウェイ", Value: fmt.Sprintf("```%s```", gatewayLatency.String()), Inline: true},
 			{Name: "API応答", Value: fmt.Sprintf("```%s```", apiLatency.String()), Inline: true},
-			{Name: "稼働時間", Value: fmt.Sprintf("```%s```", uptimeStr), Inline: true},
+			{Name: "データベース", Value: fmt.Sprintf("```%s (%s)```", dbStatus, dbLatency.String()), Inline: true},
+			{Name: "稼働時間", Value: fmt.Sprintf("```%s```", uptimeStr), Inline: false},
 		},
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
+	// 最初に送信した「測定中...」メッセージを編集
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-		Embeds: &[]*discordgo.MessageEmbed{embed},
+		Content: &[]string{""}[0], // メッセージ内容は空にする
+		Embeds:  &[]*discordgo.MessageEmbed{embed},
 	})
 }
 

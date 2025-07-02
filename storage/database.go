@@ -9,7 +9,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// --- 各機能ごとの設定用Struct ---
 type TicketConfig struct {
 	PanelChannelID string `json:"panel_channel_id"`
 	CategoryID     string `json:"category_id"`
@@ -45,13 +44,11 @@ type Schedule struct {
 	Message   string
 }
 
-// DBStore はデータベース接続と操作を管理します
 type DBStore struct {
 	db *sql.DB
 	mu sync.RWMutex
 }
 
-// NewDBStore は新しいDBStoreを初期化し、データベースに接続します
 func NewDBStore(dataSourceName string) (*DBStore, error) {
 	db, err := sql.Open("sqlite", dataSourceName)
 	if err != nil {
@@ -67,7 +64,6 @@ func NewDBStore(dataSourceName string) (*DBStore, error) {
 	return store, nil
 }
 
-// initTables は、必要なテーブルが存在しない場合に作成します
 func (s *DBStore) initTables() error {
 	tables := []string{
 		`CREATE TABLE IF NOT EXISTS guilds (
@@ -101,18 +97,20 @@ func (s *DBStore) initTables() error {
 	return nil
 }
 
-// Close はデータベース接続を安全に閉じます
 func (s *DBStore) Close() {
 	s.db.Close()
 }
 
-// upsertGuild はguildsテーブルにguildIDが存在することを保証します
+// ★ PingDB関数を追加 ★
+func (s *DBStore) PingDB() error {
+	return s.db.Ping()
+}
+
 func (s *DBStore) upsertGuild(tx *sql.Tx, guildID string) error {
 	_, err := tx.Exec("INSERT OR IGNORE INTO guilds (guild_id) VALUES (?)", guildID)
 	return err
 }
 
-// --- 汎用的な設定の読み書き関数 ---
 func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -121,14 +119,13 @@ func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}
 	err := s.db.QueryRow(query, guildID).Scan(&configJSON)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			// 新規サーバーの場合、一度行を作成しておく
-			s.mu.RUnlock() // RLockを一度解除して書き込みロックを取得
+			s.mu.RUnlock()
 			s.mu.Lock()
 			tx, _ := s.db.Begin()
 			s.upsertGuild(tx, guildID)
 			tx.Commit()
 			s.mu.Unlock()
-			s.mu.RLock() // 再度RLock
+			s.mu.RLock()
 			return nil
 		}
 		return err
@@ -162,7 +159,6 @@ func (s *DBStore) SaveConfig(guildID, configName string, configStruct interface{
 	return tx.Commit()
 }
 
-// --- チケット専用関数 ---
 func (s *DBStore) GetNextTicketCounter(guildID string) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -174,13 +170,11 @@ func (s *DBStore) GetNextTicketCounter(guildID string) (int, error) {
 	if err := s.upsertGuild(tx, guildID); err != nil {
 		return 0, err
 	}
-
 	var counter int
 	err = tx.QueryRow("SELECT ticket_counter FROM guilds WHERE guild_id = ?", guildID).Scan(&counter)
 	if err != nil {
 		return 0, err
 	}
-
 	counter++
 	_, err = tx.Exec("UPDATE guilds SET ticket_counter = ? WHERE guild_id = ?", counter, guildID)
 	if err != nil {
@@ -203,7 +197,6 @@ func (s *DBStore) CloseTicketRecord(channelID string) error {
 	return err
 }
 
-// --- リアクションロールとスケジュールのための専用関数 ---
 func (s *DBStore) GetReactionRole(guildID, messageID, emojiID string) (ReactionRole, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
