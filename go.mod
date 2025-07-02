@@ -6,9 +6,9 @@ require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/joho/godotenv v1.5.1
-	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/robfig/cron/v3 v3.0.1
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
+	modernc.org/sqlite v1.38.0
 )
 
 require (
@@ -24,5 +24,4 @@ require (
 	modernc.org/libc v1.65.10 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.38.0 // indirect
 )
