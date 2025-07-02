@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // --- 各機能ごとの設定用Struct ---
