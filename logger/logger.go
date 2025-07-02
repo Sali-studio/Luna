@@ -26,14 +26,11 @@ func Init() {
 		multiWriter = os.MultiWriter(os.Stdout, logFile)
 	}
 
-	// 新しい構造化ロガーを作成
 	logger = slog.New(slog.NewJSONHandler(multiWriter, &slog.HandlerOptions{
 		AddSource: true,            // ソースコードのファイル名と行番号を追加
 		Level:     slog.LevelDebug, // DEBUGレベル以上のログをすべて記録
 	}))
 }
-
-// --- 新しいログ出力関数 ---
 
 // Infoレベルのログを出力
 // 例: logger.Info("Botが起動しました", "version", "1.2.3")
