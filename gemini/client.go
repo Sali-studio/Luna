@@ -14,12 +14,18 @@ type Client struct {
 	httpClient *http.Client
 }
 
+// リクエスト構造体にSystemInstructionを追加
 type geminiRequest struct {
-	Contents []struct {
-		Parts []struct {
-			Text string `json:"text"`
-		} `json:"parts"`
-	} `json:"contents"`
+	Contents          []geminiContent `json:"contents"`
+	SystemInstruction *geminiContent  `json:"system_instruction,omitempty"`
+}
+
+type geminiContent struct {
+	Parts []geminiPart `json:"parts"`
+}
+
+type geminiPart struct {
+	Text string `json:"text"`
 }
 
 type geminiResponse struct {
@@ -37,7 +43,7 @@ type geminiResponse struct {
 
 func NewClient(apiKey string) (*Client, error) {
 	if apiKey == "" {
-		return nil, errors.New("luna Assistant APIキーが提供されていません")
+		return nil, errors.New("luna assistant apiキーが提供されていません")
 	}
 	return &Client{
 		apiKey:     apiKey,
@@ -45,24 +51,29 @@ func NewClient(apiKey string) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) GenerateContent(prompt string) (string, error) {
-	apiURL := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=" + c.apiKey
+// GenerateContent に systemInstruction パラメータを追加
+func (c *Client) GenerateContent(prompt, systemInstruction string) (string, error) {
+	apiURL := "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=" + c.apiKey
 
 	reqBody := geminiRequest{
-		Contents: []struct {
-			Parts []struct {
-				Text string `json:"text"`
-			} `json:"parts"`
-		}{
+		Contents: []geminiContent{
 			{
-				Parts: []struct {
-					Text string `json:"text"`
-				}{
+				Parts: []geminiPart{
 					{Text: prompt},
 				},
 			},
 		},
 	}
+
+	// systemInstruction が指定されていれば、リクエストに追加
+	if systemInstruction != "" {
+		reqBody.SystemInstruction = &geminiContent{
+			Parts: []geminiPart{
+				{Text: systemInstruction},
+			},
+		}
+	}
+
 	reqJSON, err := json.Marshal(reqBody)
 	if err != nil {
 		return "", fmt.Errorf("リクエストJSONの作成に失敗: %w", err)
@@ -70,13 +81,13 @@ func (c *Client) GenerateContent(prompt string) (string, error) {
 
 	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(reqJSON))
 	if err != nil {
-		return "", fmt.Errorf("HTTPリクエストの作成に失敗: %w", err)
+		return "", fmt.Errorf("httpリクエストの作成に失敗: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("luna Assistant APIへのリクエストに失敗: %w", err)
+		return "", fmt.Errorf("apiへのリクエストに失敗: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -90,10 +101,10 @@ func (c *Client) GenerateContent(prompt string) (string, error) {
 		return "", fmt.Errorf("レスポンスJSONのパースに失敗: %w", err)
 	}
 	if geminiResp.Error.Message != "" {
-		return "", fmt.Errorf("luna Assistant APIエラー: %s", geminiResp.Error.Message)
+		return "", fmt.Errorf("apiエラー: %s", geminiResp.Error.Message)
 	}
 	if len(geminiResp.Candidates) > 0 && len(geminiResp.Candidates[0].Content.Parts) > 0 {
 		return geminiResp.Candidates[0].Content.Parts[0].Text, nil
 	}
-	return "", errors.New("luna Assistant APIから有効な応答がありませんでした")
+	return "", errors.New("luna Assistantから有効な応答がありませんでした")
 }
