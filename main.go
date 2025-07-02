@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/joho/godotenv" // godotenvをインポート
 	"github.com/robfig/cron/v3"
 )
 
@@ -23,6 +24,13 @@ var (
 )
 
 func main() {
+	// .envファイルを読み込む
+	err := godotenv.Load()
+	if err != nil {
+		// .envファイルがなくてもエラーにしない（本番環境などを考慮）
+		logger.Info(".envファイルが見つかりません。環境変数から直接読み込みます。")
+	}
+
 	startTime = time.Now()
 	logger.Init()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
