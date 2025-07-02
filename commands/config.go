@@ -83,7 +83,6 @@ func (c *ConfigCommand) handleTicketConfig(s *discordgo.Session, i *discordgo.In
 		CategoryID:     options[1].ChannelValue(s).ID,
 		StaffRoleID:    options[2].RoleValue(s, i.GuildID).ID,
 	}
-
 	if err := c.Store.SaveConfig(i.GuildID, "ticket_config", config); err != nil {
 		logger.Error("チケット設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
@@ -134,3 +133,6 @@ func (c *ConfigCommand) handleBumpConfig(s *discordgo.Session, i *discordgo.Inte
 func (c *ConfigCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *ConfigCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *ConfigCommand) GetComponentIDs() []string                                            { return []string{} }
+func (c *ConfigCommand) GetCategory() string {
+	return "管理"
+}
