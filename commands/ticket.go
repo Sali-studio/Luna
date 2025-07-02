@@ -15,7 +15,7 @@ const (
 )
 
 type TicketCommand struct {
-	Store *storage.ConfigStore
+	Store *storage.DBStore
 }
 
 func (c *TicketCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -27,30 +27,25 @@ func (c *TicketCommand) GetCommandDef() *discordgo.ApplicationCommand {
 }
 
 func (c *TicketCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	config := c.Store.GetGuildConfig(i.GuildID)
-	if config.Ticket.PanelChannelID == "" || config.Ticket.CategoryID == "" || config.Ticket.StaffRoleID == "" {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: "チケット機能が完全に設定されていません。`/config ticket`で設定してください。", Flags: discordgo.MessageFlagsEphemeral},
-		})
+	var config storage.TicketConfig
+	if err := c.Store.GetConfig(i.GuildID, "ticket_config", &config); err != nil {
+		logger.Error("チケット設定の取得に失敗", "error", err, "guildID", i.GuildID)
 		return
 	}
-
-	if config.Ticket.PanelChannelID != i.ChannelID {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: fmt.Sprintf("このコマンドは設定されたパネルチャンネル <#%s> で実行する必要があります。", config.Ticket.PanelChannelID), Flags: discordgo.MessageFlagsEphemeral},
-		})
+	if config.PanelChannelID == "" || config.CategoryID == "" || config.StaffRoleID == "" {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "チケット機能が完全に設定されていません。", Flags: discordgo.MessageFlagsEphemeral}})
+		return
+	}
+	if config.PanelChannelID != i.ChannelID {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: fmt.Sprintf("このコマンドは <#%s> で実行してください。", config.PanelChannelID), Flags: discordgo.MessageFlagsEphemeral}})
 		return
 	}
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{{Title: "サポートチケット", Description: "下のボタンを押してサポートチケットを作成してください。", Color: 0x5865F2}},
-			Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-				discordgo.Button{Label: "チケットを作成", Style: discordgo.PrimaryButton, CustomID: CreateTicketButtonID, Emoji: &discordgo.ComponentEmoji{Name: "🎫"}},
-			}}},
+			Embeds:     []*discordgo.MessageEmbed{{Title: "サポートチケット", Description: "下のボタンを押してサポートチケットを作成してください。", Color: 0x5865F2}},
+			Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{discordgo.Button{Label: "チケットを作成", Style: discordgo.PrimaryButton, CustomID: CreateTicketButtonID, Emoji: &discordgo.ComponentEmoji{Name: "🎫"}}}}},
 		},
 	})
 }
@@ -67,38 +62,41 @@ func (c *TicketCommand) HandleComponent(s *discordgo.Session, i *discordgo.Inter
 func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}})
 
-	config := c.Store.GetGuildConfig(i.GuildID)
-	if config.Ticket.CategoryID == "" || config.Ticket.StaffRoleID == "" {
-		content := "❌ チケット機能がまだ管理者によって設定されていません。サーバーの管理者に連絡してください。"
+	var config storage.TicketConfig
+	if err := c.Store.GetConfig(i.GuildID, "ticket_config", &config); err != nil {
+		logger.Error("チケット設定の取得に失敗", "error", err, "guildID", i.GuildID)
+		return
+	}
+	if config.CategoryID == "" || config.StaffRoleID == "" {
+		content := "❌ チケット機能が管理者によって設定されていません。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
 
-	config.Ticket.Counter++
-	c.Store.Save()
+	config.Counter++
+	if err := c.Store.SaveConfig(i.GuildID, "ticket_config", config); err != nil {
+		logger.Error("チケットカウンターの更新に失敗", "error", err, "guildID", i.GuildID)
+		return
+	}
 
 	ch, err := s.GuildChannelCreateComplex(i.GuildID, discordgo.GuildChannelCreateData{
-		Name:     fmt.Sprintf("ticket-%04d", config.Ticket.Counter),
+		Name:     fmt.Sprintf("ticket-%04d", config.Counter),
 		Type:     discordgo.ChannelTypeGuildText,
-		ParentID: config.Ticket.CategoryID,
+		ParentID: config.CategoryID,
 		PermissionOverwrites: []*discordgo.PermissionOverwrite{
 			{ID: i.GuildID, Type: discordgo.PermissionOverwriteTypeRole, Deny: discordgo.PermissionViewChannel},
 			{ID: i.Member.User.ID, Type: discordgo.PermissionOverwriteTypeMember, Allow: discordgo.PermissionViewChannel},
-			{ID: config.Ticket.StaffRoleID, Type: discordgo.PermissionOverwriteTypeRole, Allow: discordgo.PermissionViewChannel},
+			{ID: config.StaffRoleID, Type: discordgo.PermissionOverwriteTypeRole, Allow: discordgo.PermissionViewChannel},
 		},
 	})
 	if err != nil {
 		logger.Error("チケットチャンネルの作成に失敗", "error", err, "guildID", i.GuildID)
-		content := "❌ チケットチャンネルの作成に失敗しました。BOTの権限が不足している可能性があります。"
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
 
 	s.ChannelMessageSendComplex(ch.ID, &discordgo.MessageSend{
-		Content: fmt.Sprintf("ようこそ <@%s> さん！ <@&%s> が対応しますので、ご用件をお書きください。", i.Member.User.ID, config.Ticket.StaffRoleID),
-		Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-			discordgo.Button{Label: "チケットを閉じる", Style: discordgo.DangerButton, CustomID: CloseTicketButtonID, Emoji: &discordgo.ComponentEmoji{Name: "🔒"}},
-		}}},
+		Content:    fmt.Sprintf("ようこそ <@%s> さん！ <@&%s> が対応しますので、ご用件をお書きください。", i.Member.User.ID, config.StaffRoleID),
+		Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{discordgo.Button{Label: "チケットを閉じる", Style: discordgo.DangerButton, CustomID: CloseTicketButtonID, Emoji: &discordgo.ComponentEmoji{Name: "🔒"}}}}},
 	})
 
 	content := fmt.Sprintf("✅ チケットを作成しました: <#%s>", ch.ID)
