@@ -92,3 +92,6 @@ func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string)
 func (c *DashboardCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *DashboardCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *DashboardCommand) GetComponentIDs() []string                                            { return []string{} }
+func (c *DashboardCommand) GetCategory() string {
+	return "管理"
+}
