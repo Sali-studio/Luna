@@ -27,3 +27,9 @@
 {"time":"2025-07-03T01:49:40.0797003+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"Botが起動しました。スラッシュコマンドを登録します..."}
 {"time":"2025-07-03T01:49:40.6263647+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"コマンドの登録が完了しました。Ctrl+Cで終了します。"}
 {"time":"2025-07-03T03:33:19.0051545+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"Botをシャットダウンします..."}
+{"time":"2025-07-03T05:01:34.3256038+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":31},"msg":".envファイルが見つかりません。環境変数から直接読み込みます。"}
+{"time":"2025-07-03T05:01:34.3434029+09:00","level":"ERROR","source":{"function":"luna/logger.Fatal","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":43},"msg":"環境変数 'DISCORD_BOT_TOKEN' が設定されていません。"}
+{"time":"2025-07-03T05:02:36.176374+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":31},"msg":"DBからスケジュールを登録しました","count":0}
+{"time":"2025-07-03T05:02:36.1990169+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":31},"msg":"Botが起動しました。コマンドを登録します..."}
+{"time":"2025-07-03T05:02:36.8845208+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":31},"msg":"コマンドの登録が完了しました。Ctrl+Cで終了します。"}
+{"time":"2025-07-03T05:07:33.1265077+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":31},"msg":"Botをシャットダウンします..."}
