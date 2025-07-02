@@ -16,14 +16,14 @@ func (c *AskCommand) GetCommandDef() *discordgo.ApplicationCommand {
 		Name:        "ask",
 		Description: "Luna Assistant AIに質問します",
 		Options: []*discordgo.ApplicationCommandOption{
-			{Type: discordgo.ApplicationCommandOptionString, Name: "prompt", Description: "Luna Assistantへの質問内容", Required: true},
+			{Type: discordgo.ApplicationCommandOptionString, Name: "prompt", Description: "質問内容", Required: true},
 		},
 	}
 }
 
 func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if c.Gemini == nil {
-		logger.Warn("Luna Assistant APIが設定されていないため、askコマンドが実行されましたが処理を中断しました。")
+		logger.Warn("Luna Assistantが設定されていないため、askコマンドが実行されましたが処理を中断しました。")
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: "❌ このコマンドは現在、管理者によって無効化されています。", Flags: discordgo.MessageFlagsEphemeral},
@@ -31,11 +31,17 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 		return
 	}
 	prompt := i.ApplicationCommandData().Options[0].StringValue()
+
+	persona := "あなたは「Luna Assistant」という名前の、高性能で親切なAIアシスタントです。穏やかで、知的で、少し神秘的な雰囲気を持っています。常にユーザーに寄り添い、丁寧な言葉遣いで回答してください。一人称は「私」を使ってください。"
+
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource})
-	responseContent, err := c.Gemini.GenerateContent(prompt)
+
+	// Geminiにペルソナを渡して回答を生成させる
+	responseContent, err := c.Gemini.GenerateContent(prompt, persona)
+
 	if err != nil {
-		logger.Error("Luna Assistant APIからの応答取得に失敗", "error", err, "prompt", prompt)
-		content := "❌ Luna APIへの接続または応答の取得中にエラーが発生しました。"
+		logger.Error("Geminiからの応答取得に失敗", "error", err, "prompt", prompt)
+		content := "❌ Luna Assistantへの接続または応答の取得中にエラーが発生しました。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
