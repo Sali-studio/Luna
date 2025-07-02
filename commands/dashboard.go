@@ -31,7 +31,7 @@ func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		Description: "統計情報を更新中...",
 	})
 	if err != nil {
-		logger.Error.Printf("ダッシュボードの初期送信に失敗: %v", err)
+		logger.Error("ダッシュボードの初期送信に失敗", "error", err)
 		content := "❌ ダッシュボードの作成に失敗しました。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
@@ -59,7 +59,7 @@ func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string)
 	if err != nil {
 		guild, err = s.Guild(guildID)
 		if err != nil {
-			logger.Error.Printf("ダッシュボード更新用のサーバー情報取得に失敗: %v", err)
+			logger.Error("ダッシュボード更新用のサーバー情報取得に失敗", "error", err, "guildID", guildID)
 			return
 		}
 	}
