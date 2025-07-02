@@ -41,7 +41,7 @@ func (c *EmbedCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 		},
 	})
 	if err != nil {
-		logger.Error.Printf("Embedモーダルの表示に失敗: %v", err)
+		logger.Error("Embedモーダルの表示に失敗", "error", err)
 	}
 }
 
