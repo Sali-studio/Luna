@@ -18,7 +18,6 @@ func (c *HelpCommand) GetCommandDef() *discordgo.ApplicationCommand {
 }
 
 func (c *HelpCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// 本来はmain.goから全コマンドのリストを受け取り動的に生成するのが理想
 	commandsList := []struct{ Name, Description string }{
 		{"/ping", "Botの応答速度をテストします。"},
 		{"/help", "このヘルプメッセージを表示します。"},
@@ -58,7 +57,7 @@ func (c *HelpCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		},
 	})
 	if err != nil {
-		logger.Error.Printf("helpコマンドへの応答中にエラー: %v", err)
+		logger.Error("helpコマンドへの応答中にエラー", "error", err)
 	}
 }
 
