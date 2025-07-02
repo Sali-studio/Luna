@@ -42,15 +42,15 @@ func (c *ScheduleCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 
 	entryID, err := c.Scheduler.AddFunc(cronSpec, func() {
 		if _, err := s.ChannelMessageSend(channel.ID, message); err != nil {
-			logger.Error.Printf("予約メッセージの送信に失敗 (Channel: %s): %v", channel.ID, err)
+			logger.Error("予約メッセージの送信に失敗", "error", err, "channelID", channel.ID)
 		}
 	})
 	if err != nil {
-		logger.Error.Printf("スケジューラへのタスク追加に失敗: %v", err)
+		logger.Error("スケジューラへのタスク追加に失敗", "error", err)
 		return
 	}
 
-	logger.Info.Printf("新しいタスクをスケジュールしました (ID: %d, Spec: '%s')", entryID, cronSpec)
+	logger.Info("新しいタスクをスケジュールしました", "entryID", entryID, "spec", cronSpec, "channelID", channel.ID)
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{Content: fmt.Sprintf("✅ メッセージを予約しました。\n- **時間:** `%s`\n- **チャンネル:** <#%s>", cronSpec, channel.ID), Flags: discordgo.MessageFlagsEphemeral},
