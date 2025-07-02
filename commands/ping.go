@@ -26,7 +26,7 @@ func (c *PingCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		},
 	})
 	if err != nil {
-		logger.Error.Printf("pingコマンドへの応答中にエラー: %v", err)
+		logger.Error("pingコマンドへの応答中にエラー", "error", err)
 	}
 }
 
