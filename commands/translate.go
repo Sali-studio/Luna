@@ -19,7 +19,7 @@ type TranslateCommand struct {
 func (c *TranslateCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:        "translate",
-		Description: "テキストをLuna Assistant Translatorを使って翻訳します",
+		Description: "テキストをLuna Assistant Translator Moduleを使って翻訳します",
 	}
 }
 
@@ -61,16 +61,16 @@ func (c *TranslateCommand) HandleModal(s *discordgo.Session, i *discordgo.Intera
 
 	prompt := fmt.Sprintf("以下のテキストを %s に翻訳してください:\n\n---\n%s", lang, text)
 
-	translatedText, err := c.Gemini.GenerateContent(prompt)
+	translatedText, err := c.Gemini.GenerateContent(prompt, "")
 	if err != nil {
-		logger.Error("Luna Assistant APIからの翻訳応答取得に失敗", "error", err, "prompt", prompt)
+		logger.Error("Geminiからの翻訳応答取得に失敗", "error", err, "prompt", prompt)
 		content := "❌ 翻訳中にエラーが発生しました。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
 
 	embed := &discordgo.MessageEmbed{
-		Title: "翻訳結果 (by Luna Assistant Translator)",
+		Title: "翻訳結果 (by Luna Translator)",
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "原文", Value: text},
 			{Name: fmt.Sprintf("翻訳文 (%s)", lang), Value: translatedText},
