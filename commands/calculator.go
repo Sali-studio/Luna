@@ -30,9 +30,7 @@ func (c *CalculatorCommand) GetCommandDef() *discordgo.ApplicationCommand {
 func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	expressionStr := i.ApplicationCommandData().Options[0].StringValue()
 
-	// 利用可能な数学関数を定義します
 	functions := map[string]govaluate.ExpressionFunction{
-		// 三角関数
 		"sin": func(args ...interface{}) (interface{}, error) {
 			if len(args) != 1 {
 				return nil, errors.New("引数は1つ必要です")
@@ -51,7 +49,6 @@ func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.Interactio
 			}
 			return math.Tan(args[0].(float64)), nil
 		},
-		// 対数関数
 		"log": func(args ...interface{}) (interface{}, error) {
 			if len(args) != 1 {
 				return nil, errors.New("引数は1つ必要です")
@@ -64,7 +61,6 @@ func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.Interactio
 			}
 			return math.Log10(args[0].(float64)), nil
 		},
-		// 指数・平方根
 		"sqrt": func(args ...interface{}) (interface{}, error) {
 			if len(args) != 1 {
 				return nil, errors.New("引数は1つ必要です")
@@ -79,24 +75,23 @@ func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.Interactio
 		},
 	}
 
-	// 定数も定義できます
 	parameters := make(map[string]interface{}, 8)
 	parameters["pi"] = math.Pi
 	parameters["e"] = math.E
 
-	// 新しく定義した関数を使って数式を評価する準備
 	expression, err := govaluate.NewEvaluableExpressionWithFunctions(expressionStr, functions)
 	if err != nil {
-		logger.Error.Printf("数式の解析に失敗: %v", err)
+		// ★★★ ここを修正 ★★★
+		logger.Error("数式の解析に失敗", "error", err, "expression", expressionStr)
 		errorMessage := fmt.Sprintf("❌ 無効な数式です: `%s`\n**エラー:** `%v`", expressionStr, err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: errorMessage, Flags: discordgo.MessageFlagsEphemeral}})
 		return
 	}
 
-	result, err := expression.Evaluate(parameters) // 定数を渡す
-
+	result, err := expression.Evaluate(parameters)
 	if err != nil {
-		logger.Error.Printf("数式の計算に失敗: %v", err)
+		// ★★★ ここを修正 ★★★
+		logger.Error("数式の計算に失敗", "error", err, "expression", expressionStr)
 		errorMessage := fmt.Sprintf("❌ 数式の計算中にエラーが発生しました: `%s`\n**エラー:** `%v`", expressionStr, err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: errorMessage, Flags: discordgo.MessageFlagsEphemeral}})
 		return
