@@ -11,7 +11,7 @@ import (
 )
 
 type DashboardCommand struct {
-	Store     *storage.ConfigStore
+	Store     *storage.DBStore
 	Scheduler *cron.Cron
 }
 
@@ -37,10 +37,13 @@ func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-	config := c.Store.GetGuildConfig(i.GuildID)
-	config.Dashboard.ChannelID = msg.ChannelID
-	config.Dashboard.MessageID = msg.ID
-	c.Store.Save()
+	var config storage.DashboardConfig
+	config.ChannelID = msg.ChannelID
+	config.MessageID = msg.ID
+	if err := c.Store.SaveConfig(i.GuildID, "dashboard_config", config); err != nil {
+		logger.Error("ダッシュボード設定の保存に失敗", "error", err, "guildID", i.GuildID)
+		return
+	}
 
 	c.Scheduler.AddFunc("@every 5m", func() { c.updateDashboard(s, i.GuildID) })
 	c.updateDashboard(s, i.GuildID)
@@ -50,8 +53,8 @@ func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 }
 
 func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string) {
-	config := c.Store.GetGuildConfig(guildID)
-	if config.Dashboard.ChannelID == "" || config.Dashboard.MessageID == "" {
+	var config storage.DashboardConfig
+	if err := c.Store.GetConfig(guildID, "dashboard_config", &config); err != nil || config.ChannelID == "" || config.MessageID == "" {
 		return
 	}
 
@@ -83,7 +86,7 @@ func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string)
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
-	s.ChannelMessageEditEmbed(config.Dashboard.ChannelID, config.Dashboard.MessageID, embed)
+	s.ChannelMessageEditEmbed(config.ChannelID, config.MessageID, embed)
 }
 
 func (c *DashboardCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

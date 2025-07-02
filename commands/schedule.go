@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"luna/logger"
+	"luna/storage"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/robfig/cron/v3"
@@ -10,6 +11,7 @@ import (
 
 type ScheduleCommand struct {
 	Scheduler *cron.Cron
+	Store     *storage.DBStore
 }
 
 func (c *ScheduleCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -31,8 +33,7 @@ func (c *ScheduleCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	channel := options[1].ChannelValue(s)
 	message := options[2].StringValue()
 
-	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	if _, err := specParser.Parse(cronSpec); err != nil {
+	if _, err := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow).Parse(cronSpec); err != nil {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: fmt.Sprintf("❌ 無効なCron形式です: `%v`", err), Flags: discordgo.MessageFlagsEphemeral},
@@ -40,21 +41,43 @@ func (c *ScheduleCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 		return
 	}
 
-	entryID, err := c.Scheduler.AddFunc(cronSpec, func() {
+	schedule := storage.Schedule{
+		GuildID:   i.GuildID,
+		ChannelID: channel.ID,
+		CronSpec:  cronSpec,
+		Message:   message,
+	}
+	if err := c.Store.SaveSchedule(schedule); err != nil {
+		logger.Error("スケジュールのDB保存に失敗", "error", err)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "スケジュールの保存に失敗しました。", Flags: discordgo.MessageFlagsEphemeral}})
+		return
+	}
+
+	c.Scheduler.AddFunc(cronSpec, func() {
 		if _, err := s.ChannelMessageSend(channel.ID, message); err != nil {
 			logger.Error("予約メッセージの送信に失敗", "error", err, "channelID", channel.ID)
 		}
 	})
-	if err != nil {
-		logger.Error("スケジューラへのタスク追加に失敗", "error", err)
-		return
-	}
 
-	logger.Info("新しいタスクをスケジュールしました", "entryID", entryID, "spec", cronSpec, "channelID", channel.ID)
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{Content: fmt.Sprintf("✅ メッセージを予約しました。\n- **時間:** `%s`\n- **チャンネル:** <#%s>", cronSpec, channel.ID), Flags: discordgo.MessageFlagsEphemeral},
 	})
+}
+
+func (c *ScheduleCommand) LoadAndRegisterSchedules(s *discordgo.Session) {
+	schedules, err := c.Store.GetAllSchedules()
+	if err != nil {
+		logger.Error("DBからのスケジュール読み込みに失敗", "error", err)
+		return
+	}
+	for _, sc := range schedules {
+		currentSchedule := sc
+		c.Scheduler.AddFunc(currentSchedule.CronSpec, func() {
+			s.ChannelMessageSend(currentSchedule.ChannelID, currentSchedule.Message)
+		})
+	}
+	logger.Info("DBからスケジュールを登録しました", "count", len(schedules))
 }
 
 func (c *ScheduleCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
