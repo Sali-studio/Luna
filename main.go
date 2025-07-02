@@ -62,7 +62,7 @@ func main() {
 	registerCommand(&commands.DashboardCommand{Store: dbStore, Scheduler: scheduler})
 	registerCommand(&commands.ReactionRoleCommand{Store: dbStore})
 	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler, Store: dbStore})
-	registerCommand(&commands.TicketCommand{Store: dbStore})
+	registerCommand(&commands.TicketCommand{Store: dbStore, Gemini: geminiClient})
 	registerCommand(&commands.AskCommand{Gemini: geminiClient})
 	registerCommand(&commands.AvatarCommand{})
 	registerCommand(&commands.CalculatorCommand{})
