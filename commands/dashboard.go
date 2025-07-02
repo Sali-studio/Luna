@@ -50,7 +50,6 @@ func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-	// 1時間ごとに更新
 	c.Scheduler.AddFunc("@hourly", func() { c.updateDashboard(s, i.GuildID) })
 	c.updateDashboard(s, i.GuildID)
 
@@ -124,14 +123,16 @@ func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string)
 		},
 	}
 
-	// 埋め込みメッセージのスライスへのポインタを渡すように修正
-	embeds := []*discordgo.MessageEmbed{embed}
-	_, err = s.ChannelMessageEditComplex(&discordgo.MessageEdit{
+	// MessageEdit構造体のEmbedsフィールドは、[]*discordgo.MessageEmbed 型を期待します。
+	// ポインタではなく、スライスそのものを渡します。
+	editData := &discordgo.MessageEdit{
 		Channel:    config.ChannelID,
 		ID:         config.MessageID,
-		Embeds:     embeds,
+		Embeds:     []*discordgo.MessageEmbed{embed}, // ポインタではなくスライスを渡す
 		Components: &components,
-	})
+	}
+	_, err = s.ChannelMessageEditComplex(editData)
+
 	if err != nil {
 		logger.Error("ダッシュボードの更新に失敗", "error", err)
 	}
@@ -149,7 +150,6 @@ func (c *DashboardCommand) HandleComponent(s *discordgo.Session, i *discordgo.In
 func (c *DashboardCommand) showServerInfo(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	guild, _ := s.State.Guild(i.GuildID)
 
-	// []discordgo.GuildFeature を []string に変換
 	featureStrings := make([]string, len(guild.Features))
 	for i, f := range guild.Features {
 		featureStrings[i] = string(f)
@@ -164,7 +164,6 @@ func (c *DashboardCommand) showServerInfo(s *discordgo.Session, i *discordgo.Int
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "サーバーID", Value: guild.ID},
 			{Name: "オーナー", Value: fmt.Sprintf("<@%s>", guild.OwnerID)},
-			// ヘルパー関数を呼び出すように修正
 			{Name: "認証レベル", Value: verificationLevelToString(guild.VerificationLevel)},
 			{Name: "サーバー機能", Value: fmt.Sprintf("```\n%s\n```", features)},
 		},
@@ -197,7 +196,6 @@ func (c *DashboardCommand) showRolesList(s *discordgo.Session, i *discordgo.Inte
 	})
 }
 
-// 認証レベルを文字列に変換するヘルパー関数
 func verificationLevelToString(level discordgo.VerificationLevel) string {
 	switch level {
 	case discordgo.VerificationLevelNone:
