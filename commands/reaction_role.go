@@ -19,7 +19,6 @@ func (c *ReactionRoleCommand) GetCommandDef() *discordgo.ApplicationCommand {
 		Description:              "指定したメッセージにリアクションロールを設定します",
 		DefaultMemberPermissions: int64Ptr(discordgo.PermissionManageRoles),
 		Options: []*discordgo.ApplicationCommandOption{
-
 			{
 				Type:         discordgo.ApplicationCommandOptionChannel,
 				Name:         "channel",
@@ -27,7 +26,6 @@ func (c *ReactionRoleCommand) GetCommandDef() *discordgo.ApplicationCommand {
 				Required:     true,
 				ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText},
 			},
-
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "message_id",
@@ -57,10 +55,9 @@ func (c *ReactionRoleCommand) Handle(s *discordgo.Session, i *discordgo.Interact
 	emojiInput := options[2].StringValue()
 	role := options[3].RoleValue(s, i.GuildID)
 
-	// Botが対象のメッセージにアクセスできるか確認
 	_, err := s.ChannelMessage(channel.ID, messageID)
 	if err != nil {
-		logger.Error.Printf("リアクションロール設定でメッセージの取得に失敗: %v", err)
+		logger.Error("リアクションロール設定でメッセージの取得に失敗", "error", err, "channelID", channel.ID, "messageID", messageID)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -71,7 +68,6 @@ func (c *ReactionRoleCommand) Handle(s *discordgo.Session, i *discordgo.Interact
 		return
 	}
 
-	// カスタム絵文字のIDを抽出
 	emojiID := emojiInput
 	if strings.HasPrefix(emojiInput, "<:") && strings.HasSuffix(emojiInput, ">") {
 		parts := strings.Split(strings.Trim(emojiInput, "<>"), ":")
@@ -85,7 +81,7 @@ func (c *ReactionRoleCommand) Handle(s *discordgo.Session, i *discordgo.Interact
 	config.ReactionRoles[key] = role.ID
 
 	if err := c.Store.Save(); err != nil {
-		logger.Error.Printf("リアクションロール設定の保存に失敗: %v", err)
+		logger.Error("リアクションロール設定の保存に失敗", "error", err)
 		return
 	}
 
