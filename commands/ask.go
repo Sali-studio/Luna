@@ -32,16 +32,15 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 	}
 	prompt := i.ApplicationCommandData().Options[0].StringValue()
 
-	persona := "あなたは「Luna Assistant」という名前の、高性能で親切なAIアシスタントです。穏やかで、知的で、少し神秘的な雰囲気を持っています。常にユーザーに寄り添い、丁寧な言葉遣いで回答してください。一人称は「私」を使ってください。"
+	persona := "あなたは「Luna Assistant」という名前の、高性能で親切なAIアシスタントです。穏やかで、知的で、常にユーザーに寄り添い、丁寧な言葉遣いで回答してください。一人称は「私」を使ってください。"
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource})
 
-	// Geminiにペルソナを渡して回答を生成させる
 	responseContent, err := c.Gemini.GenerateContent(prompt, persona)
 
 	if err != nil {
 		logger.Error("Geminiからの応答取得に失敗", "error", err, "prompt", prompt)
-		content := "❌ Luna Assistantへの接続または応答の取得中にエラーが発生しました。"
+		content := "❌ AIへの接続または応答の取得中にエラーが発生しました。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
@@ -52,4 +51,7 @@ func (c *AskCommand) HandleComponent(s *discordgo.Session, i *discordgo.Interact
 func (c *AskCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *AskCommand) GetComponentIDs() []string {
 	return []string{}
+}
+func (c *AskCommand) GetCategory() string {
+	return "AI"
 }

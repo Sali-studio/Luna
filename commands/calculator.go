@@ -110,3 +110,6 @@ func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.Interactio
 func (c *CalculatorCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *CalculatorCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *CalculatorCommand) GetComponentIDs() []string                                            { return []string{} }
+func (c *CalculatorCommand) GetCategory() string {
+	return "ユーティリティ"
+}

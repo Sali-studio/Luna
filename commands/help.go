@@ -2,13 +2,17 @@ package commands
 
 import (
 	"fmt"
-	"luna/logger"
+	"luna/handlers"
+	"sort"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-type HelpCommand struct{}
+type HelpCommand struct {
+	// Botに登録されている全てのコマンドを保持するためのマップ
+	AllCommands map[string]handlers.CommandHandler
+}
 
 func (c *HelpCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
@@ -18,49 +22,49 @@ func (c *HelpCommand) GetCommandDef() *discordgo.ApplicationCommand {
 }
 
 func (c *HelpCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	commandsList := []struct{ Name, Description string }{
-		{"/ping", "Botの応答速度をテストします。"},
-		{"/help", "このヘルプメッセージを表示します。"},
-		{"/ask", "AIに質問します。"},
-		{"/config", "サーバーの各種設定を行います。"},
-		{"/dashboard-setup", "統計情報ダッシュボードを設置します。"},
-		{"/ticket-setup", "チケットパネルを設置します。"},
-		{"/reaction-role-setup", "リアクションロールを設定します。"},
-		{"/moderate", "ユーザーの追放、BAN、タイムアウトを行います。"},
-		{"/user-info", "ユーザーの情報を表示します。"},
-		{"/poll", "投票を作成します。"},
-		{"/embed", "埋め込みメッセージを作成します。"},
-		{"/schedule", "メッセージを予約投稿します。"},
-		{"/calc", "数式を計算します。"},
-		{"/calc-pokemon", "ポケモンのステータスを計算します。"},
-		{"/weather", "指定都市の天気を表示します。"},
-		{"/translate", "テキストを翻訳します。"},
+	// カテゴリごとにコマンドを分類
+	categorizedCommands := make(map[string][]string)
+	for _, cmdHandler := range c.AllCommands {
+		def := cmdHandler.GetCommandDef()
+		category := cmdHandler.GetCategory()
+		if category == "" {
+			category = "その他" // カテゴリ未設定のコマンド
+		}
+		commandInfo := fmt.Sprintf("`/%s` - %s", def.Name, def.Description)
+		categorizedCommands[category] = append(categorizedCommands[category], commandInfo)
 	}
 
-	var builder strings.Builder
-	builder.WriteString("## 🌙 Luna Bot コマンド一覧\n\n")
-	for _, cmd := range commandsList {
-		builder.WriteString(fmt.Sprintf("**`%s`**\n%s\n\n", cmd.Name, cmd.Description))
+	// カテゴリ名をソートして、表示順を固定
+	categories := make([]string, 0, len(categorizedCommands))
+	for k := range categorizedCommands {
+		categories = append(categories, k)
 	}
+	sort.Strings(categories)
 
+	// Embedを作成
 	embed := &discordgo.MessageEmbed{
-		Title:       "ヘルプ",
-		Description: builder.String(),
+		Title:       "Luna Bot コマンド一覧",
+		Description: "利用可能なコマンドは以下の通りです。",
 		Color:       0x7289da,
-		Footer:      &discordgo.MessageEmbedFooter{Text: "Luna Bot"},
+		Fields:      []*discordgo.MessageEmbedField{},
 	}
 
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	for _, category := range categories {
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+			Name:  fmt.Sprintf("📂 %s", category),
+			Value: strings.Join(categorizedCommands[category], "\n"),
+		})
+	}
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
 		},
 	})
-	if err != nil {
-		logger.Error("helpコマンドへの応答中にエラー", "error", err)
-	}
 }
 
 func (c *HelpCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *HelpCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *HelpCommand) GetComponentIDs() []string                                            { return []string{} }
+func (c *HelpCommand) GetCategory() string                                                  { return "ユーティリティ" }

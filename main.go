@@ -57,25 +57,26 @@ func main() {
 	commandHandlers = make(map[string]handlers.CommandHandler)
 	componentHandlers = make(map[string]handlers.CommandHandler)
 
-	// コマンド登録
-	registerCommand(&commands.ConfigCommand{Store: dbStore})
-	registerCommand(&commands.DashboardCommand{Store: dbStore, Scheduler: scheduler})
-	registerCommand(&commands.ReactionRoleCommand{Store: dbStore})
-	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler, Store: dbStore})
-	registerCommand(&commands.PingCommand{StartTime: startTime, Store: dbStore})
-	registerCommand(&commands.TicketCommand{Store: dbStore, Gemini: geminiClient})
+	// --- 全てのコマンドを登録 ---
 	registerCommand(&commands.AskCommand{Gemini: geminiClient})
 	registerCommand(&commands.AvatarCommand{})
 	registerCommand(&commands.CalculatorCommand{})
+	registerCommand(&commands.ConfigCommand{Store: dbStore})
+	registerCommand(&commands.DashboardCommand{Store: dbStore, Scheduler: scheduler})
 	registerCommand(&commands.EmbedCommand{})
-	registerCommand(&commands.HelpCommand{})
 	registerCommand(&commands.ModerateCommand{})
+	registerCommand(&commands.PingCommand{StartTime: startTime, Store: dbStore})
 	registerCommand(&commands.PokemonCalculatorCommand{})
 	registerCommand(&commands.PollCommand{})
 	registerCommand(&commands.PowerConverterCommand{})
+	registerCommand(&commands.ReactionRoleCommand{Store: dbStore})
+	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler, Store: dbStore})
+	registerCommand(&commands.TicketCommand{Store: dbStore, Gemini: geminiClient})
 	registerCommand(&commands.TranslateCommand{Gemini: geminiClient})
 	registerCommand(&commands.UserInfoCommand{})
 	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
+	// 最後にヘルプコマンドを登録
+	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
 
 	eventHandler := handlers.NewEventHandler(dbStore)
 	eventHandler.RegisterAllHandlers(dg)
@@ -93,7 +94,7 @@ func main() {
 		scheduleCmd.LoadAndRegisterSchedules(dg)
 	}
 
-	logger.Info("Botが起動しました。スラッシュコマンドを登録します...")
+	logger.Info("Botが起動しました。コマンドを登録します...")
 	registeredCommands := make([]*discordgo.ApplicationCommand, 0, len(commandHandlers))
 	for _, handler := range commandHandlers {
 		registeredCommands = append(registeredCommands, handler.GetCommandDef())
