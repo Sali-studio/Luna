@@ -112,7 +112,7 @@ func (s *DBStore) upsertGuild(tx *sql.Tx, guildID string) error {
 	return err
 }
 
-// GetConfig は汎用的な設定取得関数です
+// --- 汎用的な設定の読み書き関数 ---
 func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -121,7 +121,7 @@ func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}
 	var configJSON sql.NullString
 	err := s.db.QueryRow(query, guildID).Scan(&configJSON)
 	if err != nil {
-		if err == sql.ErrNoRows { // 行がなければデフォルト構造体が使われる
+		if err == sql.ErrNoRows {
 			return nil
 		}
 		return err
@@ -132,7 +132,6 @@ func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}
 	return nil
 }
 
-// SaveConfig は汎用的な設定保存関数です
 func (s *DBStore) SaveConfig(guildID, configName string, configStruct interface{}) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -157,11 +156,10 @@ func (s *DBStore) SaveConfig(guildID, configName string, configStruct interface{
 	if err != nil {
 		return err
 	}
-
 	return tx.Commit()
 }
 
-// GetReactionRole はリアクションロール設定を取得します
+// --- リアクションロールとスケジュールのための専用関数 ---
 func (s *DBStore) GetReactionRole(guildID, messageID, emojiID string) (ReactionRole, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -171,7 +169,6 @@ func (s *DBStore) GetReactionRole(guildID, messageID, emojiID string) (ReactionR
 	return rr, err
 }
 
-// SaveReactionRole はリアクションロール設定を保存します
 func (s *DBStore) SaveReactionRole(rr ReactionRole) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -179,7 +176,6 @@ func (s *DBStore) SaveReactionRole(rr ReactionRole) error {
 	return err
 }
 
-// SaveSchedule はスケジュールを保存します
 func (s *DBStore) SaveSchedule(schedule Schedule) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -187,7 +183,6 @@ func (s *DBStore) SaveSchedule(schedule Schedule) error {
 	return err
 }
 
-// GetAllSchedules はすべてのスケジュールを取得します
 func (s *DBStore) GetAllSchedules() ([]Schedule, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
