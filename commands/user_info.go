@@ -33,20 +33,18 @@ func (c *UserInfoCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	if err != nil {
 		member, err = s.GuildMember(i.GuildID, user.ID)
 		if err != nil {
-			logger.Error.Printf("メンバー情報の取得に失敗 (User: %s): %v", user.ID, err)
+			logger.Error("メンバー情報の取得に失敗", "error", err, "userID", user.ID)
 			return
 		}
 	}
 
-	// サーバー参加日時を取得
-	// エラーメッセージに基づき、.Parse() を削除
 	joinedAt := member.JoinedAt
+	fmt.Println(joinedAt.Format(time.RFC3339))
+	fmt.Println(joinedAt.Unix())
 
-	// アカウント作成日時を取得
-	// エラーメッセージに基づき、戻り値を2つ受け取るように修正
 	createdAt, err := discordgo.SnowflakeTimestamp(user.ID)
 	if err != nil {
-		logger.Error.Printf("アカウント作成日時の取得に失敗: %v", err)
+		logger.Error("アカウント作成日時の取得に失敗", "error", err, "userID", user.ID)
 		return
 	}
 
