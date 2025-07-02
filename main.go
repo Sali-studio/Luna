@@ -19,23 +19,15 @@ import (
 var (
 	commandHandlers   map[string]handlers.CommandHandler
 	componentHandlers map[string]handlers.CommandHandler
-	// Botの起動時刻を保持する変数
-	startTime time.Time
+	startTime         time.Time
 )
 
 func main() {
-	// Bot起動時に現在時刻を記録
 	startTime = time.Now()
-
-	// 1. 初期化
 	logger.Init()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
-	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
-	weatherAPIKey := os.Getenv("WEATHER_API_KEY")
-
 	if token == "" {
 		logger.Fatal("環境変数 'DISCORD_BOT_TOKEN' が設定されていません。")
-		return
 	}
 
 	dg, err := discordgo.New("Bot " + token)
@@ -43,29 +35,32 @@ func main() {
 		logger.Fatal("Discordセッションの作成中にエラー", "error", err)
 	}
 
-	// 2. 依存関係のセットアップ
-	configStore, err := storage.NewConfigStore("config.json")
+	dbStore, err := storage.NewDBStore("./luna.db")
 	if err != nil {
-		logger.Fatal("設定ストアの初期化に失敗", "error", err)
+		logger.Fatal("データベースの初期化に失敗", "error", err)
 	}
+	defer dbStore.Close()
 
-	geminiClient, err := gemini.NewClient(geminiAPIKey)
+	geminiClient, err := gemini.NewClient(os.Getenv("GEMINI_API_KEY"))
 	if err != nil {
-		logger.Warn("Geminiクライアントの初期化に失敗。askコマンドとtranslateコマンドは無効になります。", "error", err)
+		logger.Warn("Geminiクライアントの初期化に失敗", "error", err)
 	}
 
 	scheduler := cron.New()
 
-	// 3. ハンドラの登録
 	commandHandlers = make(map[string]handlers.CommandHandler)
 	componentHandlers = make(map[string]handlers.CommandHandler)
 
-	// --- 全てのコマンドを登録 ---
+	// DBStoreを注入
+	registerCommand(&commands.ConfigCommand{Store: dbStore})
+	registerCommand(&commands.DashboardCommand{Store: dbStore, Scheduler: scheduler})
+	registerCommand(&commands.ReactionRoleCommand{Store: dbStore})
+	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler, Store: dbStore})
+	registerCommand(&commands.TicketCommand{Store: dbStore})
+	// その他のコマンド
 	registerCommand(&commands.AskCommand{Gemini: geminiClient})
 	registerCommand(&commands.AvatarCommand{})
 	registerCommand(&commands.CalculatorCommand{})
-	registerCommand(&commands.ConfigCommand{Store: configStore})
-	registerCommand(&commands.DashboardCommand{Store: configStore, Scheduler: scheduler})
 	registerCommand(&commands.EmbedCommand{})
 	registerCommand(&commands.HelpCommand{})
 	registerCommand(&commands.ModerateCommand{})
@@ -73,21 +68,15 @@ func main() {
 	registerCommand(&commands.PokemonCalculatorCommand{})
 	registerCommand(&commands.PollCommand{})
 	registerCommand(&commands.PowerConverterCommand{})
-	registerCommand(&commands.ReactionRoleCommand{Store: configStore})
-	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler})
-	registerCommand(&commands.TicketCommand{Store: configStore})
 	registerCommand(&commands.TranslateCommand{Gemini: geminiClient})
 	registerCommand(&commands.UserInfoCommand{})
-	registerCommand(&commands.WeatherCommand{APIKey: weatherAPIKey})
+	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
 
-	// 4. イベントハンドラの登録
-	dg.AddHandler(interactionCreate)
-	eventHandler := handlers.NewEventHandler(configStore)
+	eventHandler := handlers.NewEventHandler(dbStore)
 	eventHandler.RegisterAllHandlers(dg)
+	dg.AddHandler(interactionCreate)
 
-	// 5. Botの起動
-	err = dg.Open()
-	if err != nil {
+	if err = dg.Open(); err != nil {
 		logger.Fatal("Discordへの接続中にエラー", "error", err)
 	}
 	defer dg.Close()
@@ -95,21 +84,21 @@ func main() {
 	scheduler.Start()
 	defer scheduler.Stop()
 
-	logger.Info("Botが起動しました。スラッシュコマンドを登録します...")
+	// DBからスケジュールを再登録
+	if scheduleCmd, ok := commandHandlers["schedule"].(*commands.ScheduleCommand); ok {
+		scheduleCmd.LoadAndRegisterSchedules(dg)
+	}
 
+	logger.Info("Botが起動しました。コマンドを登録します...")
 	registeredCommands := make([]*discordgo.ApplicationCommand, 0, len(commandHandlers))
 	for _, handler := range commandHandlers {
 		registeredCommands = append(registeredCommands, handler.GetCommandDef())
 	}
-
-	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", registeredCommands)
-	if err != nil {
+	if _, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", registeredCommands); err != nil {
 		logger.Fatal("コマンドの登録に失敗しました", "error", err)
 	}
-
 	logger.Info("コマンドの登録が完了しました。Ctrl+Cで終了します。")
 
-	// 6. 終了シグナルを待機
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc

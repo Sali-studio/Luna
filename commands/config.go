@@ -8,13 +8,12 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// int64Ptr は int64 のポインタを返すヘルパー関数です
 func int64Ptr(v int64) *int64 {
 	return &v
 }
 
 type ConfigCommand struct {
-	Store *storage.ConfigStore
+	Store *storage.DBStore
 }
 
 func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -79,73 +78,53 @@ func (c *ConfigCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 }
 
 func (c *ConfigCommand) handleTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	panelChannelID := options[0].ChannelValue(s).ID
-	categoryID := options[1].ChannelValue(s).ID
-	staffRoleID := options[2].RoleValue(s, i.GuildID).ID
+	var config storage.TicketConfig
+	config.PanelChannelID = options[0].ChannelValue(s).ID
+	config.CategoryID = options[1].ChannelValue(s).ID
+	config.StaffRoleID = options[2].RoleValue(s, i.GuildID).ID
 
-	config := c.Store.GetGuildConfig(i.GuildID)
-	config.Ticket.PanelChannelID = panelChannelID
-	config.Ticket.CategoryID = categoryID
-	config.Ticket.StaffRoleID = staffRoleID
-
-	if err := c.Store.Save(); err != nil {
-		logger.Error("設定ファイルの書き込みに失敗", "error", err, "guildID", i.GuildID)
+	if err := c.Store.SaveConfig(i.GuildID, "ticket_config", config); err != nil {
+		logger.Error("チケット設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
 	}
-
-	content := fmt.Sprintf("✅ チケット設定を更新しました。\n- パネルチャンネル: <#%s>\n- カテゴリ: <#%s>\n- スタッフロール: <@&%s>", panelChannelID, categoryID, staffRoleID)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral},
-	})
+	content := fmt.Sprintf("✅ チケット設定を更新しました。\n- パネルチャンネル: <#%s>\n- カテゴリ: <#%s>\n- スタッフロール: <@&%s>", config.PanelChannelID, config.CategoryID, config.StaffRoleID)
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}})
 }
 
 func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	channelID := options[0].ChannelValue(s).ID
-
-	config := c.Store.GetGuildConfig(i.GuildID)
-	config.Log.ChannelID = channelID
-	c.Store.Save()
-
-	content := fmt.Sprintf("✅ ログチャンネルを <#%s> に設定しました。", channelID)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral},
-	})
+	var config storage.LogConfig
+	config.ChannelID = options[0].ChannelValue(s).ID
+	if err := c.Store.SaveConfig(i.GuildID, "log_config", config); err != nil {
+		logger.Error("ログ設定の保存に失敗", "error", err, "guildID", i.GuildID)
+		return
+	}
+	content := fmt.Sprintf("✅ ログチャンネルを <#%s> に設定しました。", config.ChannelID)
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}})
 }
 
 func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	lobbyID := options[0].ChannelValue(s).ID
-	categoryID := options[1].ChannelValue(s).ID
-
-	config := c.Store.GetGuildConfig(i.GuildID)
-	config.TempVC.LobbyID = lobbyID
-	config.TempVC.CategoryID = categoryID
-	c.Store.Save()
-
-	content := fmt.Sprintf("✅ 一時VC設定を更新しました。\n- ロビーチャンネル: <#%s>\n- 作成先カテゴリ: <#%s>", lobbyID, categoryID)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral},
-	})
+	var config storage.TempVCConfig
+	config.LobbyID = options[0].ChannelValue(s).ID
+	config.CategoryID = options[1].ChannelValue(s).ID
+	if err := c.Store.SaveConfig(i.GuildID, "temp_vc_config", config); err != nil {
+		logger.Error("一時VC設定の保存に失敗", "error", err, "guildID", i.GuildID)
+		return
+	}
+	content := fmt.Sprintf("✅ 一時VC設定を更新しました。\n- ロビーチャンネル: <#%s>\n- 作成先カテゴリ: <#%s>", config.LobbyID, config.CategoryID)
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}})
 }
 
 func (c *ConfigCommand) handleBumpConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	enable := options[0].BoolValue()
-	channelID := options[1].ChannelValue(s).ID
-	roleID := options[2].RoleValue(s, i.GuildID).ID
-
-	config := c.Store.GetGuildConfig(i.GuildID)
-	config.Bump.Reminder = enable
-	config.Bump.ChannelID = channelID
-	config.Bump.RoleID = roleID
-	c.Store.Save()
-
-	content := fmt.Sprintf("✅ BUMPリマインダー設定を更新しました。\n- 有効: `%v`\n- チャンネル: <#%s>\n- ロール: <@&%s>", enable, channelID, roleID)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral},
-	})
+	var config storage.BumpConfig
+	config.Reminder = options[0].BoolValue()
+	config.ChannelID = options[1].ChannelValue(s).ID
+	config.RoleID = options[2].RoleValue(s, i.GuildID).ID
+	if err := c.Store.SaveConfig(i.GuildID, "bump_config", config); err != nil {
+		logger.Error("BUMPリマインダー設定の保存に失敗", "error", err, "guildID", i.GuildID)
+		return
+	}
+	content := fmt.Sprintf("✅ BUMPリマインダー設定を更新しました。\n- 有効: `%v`\n- チャンネル: <#%s>\n- ロール: <@&%s>", config.Reminder, config.ChannelID, config.RoleID)
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}})
 }
 
 func (c *ConfigCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
