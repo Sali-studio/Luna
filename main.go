@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/joho/godotenv" // godotenvをインポート
+	"github.com/joho/godotenv"
 	"github.com/robfig/cron/v3"
 )
 
@@ -24,10 +24,8 @@ var (
 )
 
 func main() {
-	// .envファイルを読み込む
 	err := godotenv.Load()
 	if err != nil {
-		// .envファイルがなくてもエラーにしない（本番環境などを考慮）
 		logger.Info(".envファイルが見つかりません。環境変数から直接読み込みます。")
 	}
 
@@ -59,13 +57,12 @@ func main() {
 	commandHandlers = make(map[string]handlers.CommandHandler)
 	componentHandlers = make(map[string]handlers.CommandHandler)
 
-	// DBStoreを注入
+	// コマンド登録
 	registerCommand(&commands.ConfigCommand{Store: dbStore})
 	registerCommand(&commands.DashboardCommand{Store: dbStore, Scheduler: scheduler})
 	registerCommand(&commands.ReactionRoleCommand{Store: dbStore})
 	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler, Store: dbStore})
 	registerCommand(&commands.TicketCommand{Store: dbStore})
-	// その他のコマンド
 	registerCommand(&commands.AskCommand{Gemini: geminiClient})
 	registerCommand(&commands.AvatarCommand{})
 	registerCommand(&commands.CalculatorCommand{})
@@ -92,12 +89,11 @@ func main() {
 	scheduler.Start()
 	defer scheduler.Stop()
 
-	// DBからスケジュールを再登録
 	if scheduleCmd, ok := commandHandlers["schedule"].(*commands.ScheduleCommand); ok {
 		scheduleCmd.LoadAndRegisterSchedules(dg)
 	}
 
-	logger.Info("Botが起動しました。コマンドを登録します...")
+	logger.Info("Botが起動しました。スラッシュコマンドを登録します...")
 	registeredCommands := make([]*discordgo.ApplicationCommand, 0, len(commandHandlers))
 	for _, handler := range commandHandlers {
 		registeredCommands = append(registeredCommands, handler.GetCommandDef())

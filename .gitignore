@@ -1,2 +1,15 @@
 # Environment variables
 .env
+
+# Go binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Log files
+*.log
+
+# Database file
+*.db
