@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	CreateTicketButtonID  = "create_ticket_button"  // パネルのボタン
-	SubmitTicketModalID   = "submit_ticket_modal"   // モーダルのID
-	CloseTicketButtonID   = "close_ticket_button"   // チケット内のボタン
-	ArchiveTicketButtonID = "archive_ticket_button" // 確認用のボタン
+	CreateTicketButtonID  = "create_ticket_button"
+	SubmitTicketModalID   = "submit_ticket_modal"
+	CloseTicketButtonID   = "close_ticket_button"
+	ArchiveTicketButtonID = "archive_ticket_button"
 )
 
 type TicketCommand struct {
@@ -33,7 +33,6 @@ func (c *TicketCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	}
 }
 
-// Handle は /ticket-setup コマンドが実行されたときの処理
 func (c *TicketCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	categoryID := i.ApplicationCommandData().Options[0].ChannelValue(s).ID
 	staffRoleID := i.ApplicationCommandData().Options[1].RoleValue(s, i.GuildID).ID
@@ -65,7 +64,6 @@ func (c *TicketCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 	})
 }
 
-// HandleComponent はボタンが押されたときの処理
 func (c *TicketCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	customID := i.MessageComponentData().CustomID
 	switch customID {
@@ -78,7 +76,6 @@ func (c *TicketCommand) HandleComponent(s *discordgo.Session, i *discordgo.Inter
 	}
 }
 
-// HandleModal はモーダルが送信されたときの処理
 func (c *TicketCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if i.ModalSubmitData().CustomID == SubmitTicketModalID {
 		c.createTicket(s, i)
@@ -163,16 +160,17 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 		go func() {
 			s.ChannelTyping(ch.ID)
 			prompt := fmt.Sprintf("以下のユーザーからのサポートリクエストに対して、考えられる解決策や次に確認すべきことを、サポート担当者のように簡潔に回答してください。\n\n件名: %s\n詳細: %s", subject, details)
-			aiResponse, err := c.Gemini.GenerateContent(prompt)
+			// 第2引数に空の文字列を渡し、役割設定なしで呼び出す
+			aiResponse, err := c.Gemini.GenerateContent(prompt, "")
 			if err != nil {
-				logger.Error("Luna Assistantによる一次回答の生成に失敗", "error", err)
+				logger.Error("Geminiによる一次回答の生成に失敗", "error", err)
 				return
 			}
 			aiEmbed := &discordgo.MessageEmbed{
-				Author:      &discordgo.MessageEmbedAuthor{Name: "Luna Assistantによる一次回答", IconURL: s.State.User.AvatarURL("")},
+				Author:      &discordgo.MessageEmbedAuthor{Name: "AIによる一次回答", IconURL: s.State.User.AvatarURL("")},
 				Description: aiResponse,
 				Color:       0x4a8cf7,
-				Footer:      &discordgo.MessageEmbedFooter{Text: "これはLuna Assistant AIによる自動生成の回答です。問題が解決しない場合は、スタッフの対応をお待ちください。"},
+				Footer:      &discordgo.MessageEmbedFooter{Text: "これはAIによる自動生成の回答です。問題が解決しない場合は、スタッフの対応をお待ちください。"},
 			}
 			s.ChannelMessageSendEmbed(ch.ID, aiEmbed)
 		}()
@@ -198,24 +196,27 @@ func (c *TicketCommand) confirmCloseTicket(s *discordgo.Session, i *discordgo.In
 }
 
 func (c *TicketCommand) archiveTicket(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource})
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}})
 	if err != nil {
 		return
 	}
 
-	// チケット作成者とスタッフロール以外から書き込み権限を剥奪
-	_, err = s.ChannelEditComplex(i.ChannelID, &discordgo.ChannelEdit{
-		Archived: &[]bool{true}[0], // チャンネルをアーカイブ状態にする
-		Locked:   &[]bool{true}[0], // スレッドをロック
-	})
+	// アーカイブ処理のロジックを修正
+	edit := &discordgo.ChannelEdit{
+		Archived: &[]bool{true}[0],
+	}
+	_, err = s.ChannelEditComplex(i.ChannelID, edit)
+
 	if err != nil {
 		logger.Error("チケットのアーカイブに失敗", "error", err, "channelID", i.ChannelID)
+		content := "❌ アーカイブに失敗しました。BOTの権限が不足している可能性があります。"
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
 
 	c.Store.CloseTicketRecord(i.ChannelID)
 	content := "チケットはアーカイブされました。"
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content, Components: &[]discordgo.MessageComponent{}})
 }
 
 func (c *TicketCommand) GetComponentIDs() []string {
