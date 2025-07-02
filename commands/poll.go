@@ -57,13 +57,13 @@ func (c *PollCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}},
 	})
 	if err != nil {
-		logger.Error.Printf("投票の送信に失敗: %v", err)
+		logger.Error("投票の送信に失敗", "error", err)
 		return
 	}
 
 	msg, err := s.InteractionResponse(i.Interaction)
 	if err != nil {
-		logger.Error.Printf("投票メッセージの取得に失敗: %v", err)
+		logger.Error("投票メッセージの取得に失敗", "error", err)
 		return
 	}
 
