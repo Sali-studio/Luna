@@ -78,10 +78,11 @@ func (c *ConfigCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 }
 
 func (c *ConfigCommand) handleTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	var config storage.TicketConfig
-	config.PanelChannelID = options[0].ChannelValue(s).ID
-	config.CategoryID = options[1].ChannelValue(s).ID
-	config.StaffRoleID = options[2].RoleValue(s, i.GuildID).ID
+	config := storage.TicketConfig{
+		PanelChannelID: options[0].ChannelValue(s).ID,
+		CategoryID:     options[1].ChannelValue(s).ID,
+		StaffRoleID:    options[2].RoleValue(s, i.GuildID).ID,
+	}
 
 	if err := c.Store.SaveConfig(i.GuildID, "ticket_config", config); err != nil {
 		logger.Error("チケット設定の保存に失敗", "error", err, "guildID", i.GuildID)
@@ -92,8 +93,9 @@ func (c *ConfigCommand) handleTicketConfig(s *discordgo.Session, i *discordgo.In
 }
 
 func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	var config storage.LogConfig
-	config.ChannelID = options[0].ChannelValue(s).ID
+	config := storage.LogConfig{
+		ChannelID: options[0].ChannelValue(s).ID,
+	}
 	if err := c.Store.SaveConfig(i.GuildID, "log_config", config); err != nil {
 		logger.Error("ログ設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
@@ -103,9 +105,10 @@ func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.I
 }
 
 func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	var config storage.TempVCConfig
-	config.LobbyID = options[0].ChannelValue(s).ID
-	config.CategoryID = options[1].ChannelValue(s).ID
+	config := storage.TempVCConfig{
+		LobbyID:    options[0].ChannelValue(s).ID,
+		CategoryID: options[1].ChannelValue(s).ID,
+	}
 	if err := c.Store.SaveConfig(i.GuildID, "temp_vc_config", config); err != nil {
 		logger.Error("一時VC設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
@@ -115,10 +118,11 @@ func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.In
 }
 
 func (c *ConfigCommand) handleBumpConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	var config storage.BumpConfig
-	config.Reminder = options[0].BoolValue()
-	config.ChannelID = options[1].ChannelValue(s).ID
-	config.RoleID = options[2].RoleValue(s, i.GuildID).ID
+	config := storage.BumpConfig{
+		Reminder:  options[0].BoolValue(),
+		ChannelID: options[1].ChannelValue(s).ID,
+		RoleID:    options[2].RoleValue(s, i.GuildID).ID,
+	}
 	if err := c.Store.SaveConfig(i.GuildID, "bump_config", config); err != nil {
 		logger.Error("BUMPリマインダー設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
