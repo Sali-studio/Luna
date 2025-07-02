@@ -60,7 +60,7 @@ type DBStore struct {
 
 // NewDBStore は新しいDBStoreを初期化し、データベースに接続します
 func NewDBStore(dataSourceName string) (*DBStore, error) {
-	db, err := sql.Open("sqlite3", dataSourceName)
+	db, err := sql.Open("sqlite", dataSourceName)
 	if err != nil {
 		return nil, err
 	}
