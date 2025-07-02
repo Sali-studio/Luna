@@ -159,15 +159,22 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 	if c.Gemini != nil {
 		go func() {
 			s.ChannelTyping(ch.ID)
-			prompt := fmt.Sprintf("以下のユーザーからのサポートリクエストに対して、考えられる解決策や次に確認すべきことを、サポート担当者のように簡潔に回答してください。\n\n件名: %s\n詳細: %s", subject, details)
-			// 第2引数に空の文字列を渡し、役割設定なしで呼び出す
-			aiResponse, err := c.Gemini.GenerateContent(prompt, "")
+
+			// チケット機能専用のペルソナと役割を設定
+			ticketPersona := `あなたは「Luna Assistant」という名前の、高性能なAIアシスタントです。ここはDiscordサーバーで、ユーザーからのサポートリクエストを受け付ける「チケット」チャンネルです。
+あなたの役割は、ユーザーの問題報告に対して、人間のスタッフが対応する前に、考えられる解決策や、次に確認すべき情報（ログファイル、スクリーンショット、詳しい手順など）を提示し、問題解決の第一歩を手助けすることです。
+常にユーザーに寄り添い、丁寧かつ簡潔な言葉遣いで回答してください。一人称は「私」を使ってください。`
+
+			prompt := fmt.Sprintf("以下のユーザーからのサポートリクエストに対して、あなたの役割（システムインストラクション）に従って回答してください。\n\n件名: %s\n詳細: %s", subject, details)
+
+			// 第2引数にペルソナを渡す
+			aiResponse, err := c.Gemini.GenerateContent(prompt, ticketPersona)
 			if err != nil {
 				logger.Error("Geminiによる一次回答の生成に失敗", "error", err)
 				return
 			}
 			aiEmbed := &discordgo.MessageEmbed{
-				Author:      &discordgo.MessageEmbedAuthor{Name: "AIによる一次回答", IconURL: s.State.User.AvatarURL("")},
+				Author:      &discordgo.MessageEmbedAuthor{Name: "Luna Assistantによる一次回答", IconURL: s.State.User.AvatarURL("")},
 				Description: aiResponse,
 				Color:       0x4a8cf7,
 				Footer:      &discordgo.MessageEmbedFooter{Text: "これはAIによる自動生成の回答です。問題が解決しない場合は、スタッフの対応をお待ちください。"},
@@ -201,7 +208,6 @@ func (c *TicketCommand) archiveTicket(s *discordgo.Session, i *discordgo.Interac
 		return
 	}
 
-	// アーカイブ処理のロジックを修正
 	edit := &discordgo.ChannelEdit{
 		Archived: &[]bool{true}[0],
 	}
