@@ -9,6 +9,10 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+const (
+	ReactionRoleSelectMenuID = "reaction_role_select:"
+)
+
 type ReactionRoleCommand struct {
 	Store *storage.DBStore
 }
@@ -16,13 +20,28 @@ type ReactionRoleCommand struct {
 func (c *ReactionRoleCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:                     "reaction-role-setup",
-		Description:              "指定したメッセージにリアクションロールを設定します",
+		Description:              "選択したメッセージにリアクションロールを設定します",
 		DefaultMemberPermissions: int64Ptr(discordgo.PermissionManageRoles),
 		Options: []*discordgo.ApplicationCommandOption{
-			{Type: discordgo.ApplicationCommandOptionChannel, Name: "channel", Description: "対象のメッセージがあるチャンネル", Required: true, ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText}},
-			{Type: discordgo.ApplicationCommandOptionString, Name: "message_id", Description: "対象メッセージのID", Required: true},
-			{Type: discordgo.ApplicationCommandOptionString, Name: "emoji", Description: "対象の絵文字 (例: 👍 またはカスタム絵文字)", Required: true},
-			{Type: discordgo.ApplicationCommandOptionRole, Name: "role", Description: "付与するロール", Required: true},
+			{
+				Type:         discordgo.ApplicationCommandOptionChannel,
+				Name:         "channel",
+				Description:  "対象のメッセージがあるチャンネル",
+				Required:     true,
+				ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText},
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "emoji",
+				Description: "対象の絵文字 (例: 👍 またはカスタム絵文字)",
+				Required:    true,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionRole,
+				Name:        "role",
+				Description: "付与するロール",
+				Required:    true,
+			},
 		},
 	}
 }
@@ -30,45 +49,121 @@ func (c *ReactionRoleCommand) GetCommandDef() *discordgo.ApplicationCommand {
 func (c *ReactionRoleCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	options := i.ApplicationCommandData().Options
 	channel := options[0].ChannelValue(s)
-	messageID := options[1].StringValue()
-	emojiInput := options[2].StringValue()
-	role := options[3].RoleValue(s, i.GuildID)
+	emojiInput := options[1].StringValue()
+	role := options[2].RoleValue(s, i.GuildID)
 
-	if _, err := s.ChannelMessage(channel.ID, messageID); err != nil {
-		logger.Error("リアクションロール設定でメッセージの取得に失敗", "error", err, "channelID", channel.ID, "messageID", messageID)
+	messages, err := s.ChannelMessages(channel.ID, 25, "", "", "")
+	if err != nil {
+		logger.Error("リアクションロール用のメッセージ取得に失敗", "error", err, "channelID", channel.ID)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: fmt.Sprintf("❌ <#%s> でメッセージID `%s` が見つかりませんでした。", channel.ID, messageID), Flags: discordgo.MessageFlagsEphemeral},
+			Data: &discordgo.InteractionResponseData{Content: "❌ メッセージの取得に失敗しました。", Flags: discordgo.MessageFlagsEphemeral},
 		})
 		return
 	}
 
-	emojiID := emojiInput
-	if strings.HasPrefix(emojiInput, "<:") && strings.HasSuffix(emojiInput, ">") {
-		parts := strings.Split(strings.Trim(emojiInput, "<>"), ":")
-		if len(parts) == 3 {
-			emojiID = parts[2]
-		}
+	if len(messages) == 0 {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: "❌ そのチャンネルにはメッセージが見つかりませんでした。", Flags: discordgo.MessageFlagsEphemeral},
+		})
+		return
 	}
 
+	selectOptions := make([]discordgo.SelectMenuOption, 0, len(messages))
+	for _, msg := range messages {
+		content := msg.Content
+		if len(content) > 50 {
+			content = string([]rune(content)[:47]) + "..."
+		}
+		if content == "" && len(msg.Embeds) > 0 {
+			content = fmt.Sprintf("Embed: %s", msg.Embeds[0].Title)
+		}
+
+		selectOptions = append(selectOptions, discordgo.SelectMenuOption{
+			Label:       fmt.Sprintf("%s: %s", msg.Author.Username, content),
+			Description: fmt.Sprintf("ID: %s", msg.ID),
+			Value:       msg.ID,
+		})
+	}
+
+	customID := fmt.Sprintf("%s%s:%s", ReactionRoleSelectMenuID, role.ID, emojiInput)
+
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "どのメッセージにリアクションロールを設定しますか？",
+			Flags:   discordgo.MessageFlagsEphemeral,
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.SelectMenu{
+							CustomID:    customID,
+							Placeholder: "メッセージを選択してください",
+							Options:     selectOptions,
+						},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		logger.Error("メッセージ選択メニューの送信に失敗", "error", err)
+	}
+}
+
+func (c *ReactionRoleCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	customID := i.MessageComponentData().CustomID
+
+	if !strings.HasPrefix(customID, ReactionRoleSelectMenuID) {
+		return
+	}
+
+	parts := strings.Split(strings.TrimPrefix(customID, ReactionRoleSelectMenuID), ":")
+	if len(parts) < 2 {
+		return
+	}
+	roleID := parts[0]
+	emojiInput := strings.Join(parts[1:], ":")
+
+	messageID := i.MessageComponentData().Values[0]
+
+	emojiToSave := emojiInput
+	if strings.HasPrefix(emojiInput, "<:") && strings.HasSuffix(emojiInput, ">") {
+		emojiParts := strings.Split(strings.Trim(emojiInput, "<>"), ":")
+		if len(emojiParts) == 3 {
+			emojiToSave = emojiParts[2]
+		}
+	}
 	rr := storage.ReactionRole{
 		MessageID: messageID,
-		EmojiID:   emojiID,
+		EmojiID:   emojiToSave,
 		GuildID:   i.GuildID,
-		RoleID:    role.ID,
+		RoleID:    roleID,
 	}
 	if err := c.Store.SaveReactionRole(rr); err != nil {
 		logger.Error("リアクションロール設定の保存に失敗", "error", err)
 		return
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{Content: fmt.Sprintf("✅ 設定完了！メッセージ `%s` の絵文字 `%s` にロール <@&%s> を紐付けました。", messageID, emojiInput, role.ID), Flags: discordgo.MessageFlagsEphemeral},
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseUpdateMessage,
+		Data: &discordgo.InteractionResponseData{
+			Content:    fmt.Sprintf("✅ 設定完了！メッセージ `%s` の絵文字 `%s` にロール <@&%s> を紐付けました。", messageID, emojiInput, roleID),
+			Components: []discordgo.MessageComponent{},
+		},
 	})
-	s.MessageReactionAdd(channel.ID, messageID, emojiInput)
+	if err != nil {
+		logger.Error("リアクションロール設定完了メッセージの編集に失敗", "error", err)
+	}
+
+	s.MessageReactionAdd(i.ChannelID, messageID, emojiInput)
 }
 
-func (c *ReactionRoleCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
-func (c *ReactionRoleCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
-func (c *ReactionRoleCommand) GetComponentIDs() []string                                            { return []string{} }
+func (c *ReactionRoleCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {}
+func (c *ReactionRoleCommand) GetComponentIDs() []string {
+	return []string{ReactionRoleSelectMenuID}
+}
+func (c *ReactionRoleCommand) GetCategory() string {
+	return "管理"
+}
