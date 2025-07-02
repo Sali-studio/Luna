@@ -37,7 +37,7 @@ type geminiResponse struct {
 
 func NewClient(apiKey string) (*Client, error) {
 	if apiKey == "" {
-		return nil, errors.New("Luna Assistant APIキーが提供されていません")
+		return nil, errors.New("luna Assistant APIキーが提供されていません")
 	}
 	return &Client{
 		apiKey:     apiKey,
@@ -76,7 +76,7 @@ func (c *Client) GenerateContent(prompt string) (string, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("Luna Assistant APIへのリクエストに失敗: %w", err)
+		return "", fmt.Errorf("luna Assistant APIへのリクエストに失敗: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -90,10 +90,10 @@ func (c *Client) GenerateContent(prompt string) (string, error) {
 		return "", fmt.Errorf("レスポンスJSONのパースに失敗: %w", err)
 	}
 	if geminiResp.Error.Message != "" {
-		return "", fmt.Errorf("Luna Assistant APIエラー: %s", geminiResp.Error.Message)
+		return "", fmt.Errorf("luna Assistant APIエラー: %s", geminiResp.Error.Message)
 	}
 	if len(geminiResp.Candidates) > 0 && len(geminiResp.Candidates[0].Content.Parts) > 0 {
 		return geminiResp.Candidates[0].Content.Parts[0].Text, nil
 	}
-	return "", errors.New("Luna Assistant APIから有効な応答がありませんでした")
+	return "", errors.New("luna Assistant APIから有効な応答がありませんでした")
 }
