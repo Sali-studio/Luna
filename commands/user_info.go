@@ -34,7 +34,6 @@ func (c *UserInfoCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	if err != nil {
 		member, err = s.GuildMember(i.GuildID, targetUser.ID)
 		if err != nil {
-			// エラー1: `user`が未定義だったのを`targetUser`に修正
 			logger.Error("メンバー情報の取得に失敗", "error", err, "userID", targetUser.ID)
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -47,7 +46,6 @@ func (c *UserInfoCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	// --- 情報の整形 ---
 
 	// 1. 日時
-	// エラー2: .Parse()は不要なので削除
 	joinedAt := member.JoinedAt
 	createdAt, _ := discordgo.SnowflakeTimestamp(targetUser.ID)
 
@@ -83,7 +81,6 @@ func (c *UserInfoCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 
 		if len(presence.Activities) > 0 {
 			activity := presence.Activities[0]
-			// エラー3&4: メソッドではなくヘルパー関数を呼び出すように修正
 			activityStr = fmt.Sprintf("%s: %s", activityTypeToString(activity.Type), activity.Name)
 		}
 	}
@@ -113,7 +110,6 @@ func (c *UserInfoCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	})
 }
 
-// エラー3&4の解決策: 外部パッケージの型にメソッドは定義できないため、独立したヘルパー関数を作成
 func activityTypeToString(at discordgo.ActivityType) string {
 	switch at {
 	case discordgo.ActivityTypeGame:
@@ -136,3 +132,6 @@ func activityTypeToString(at discordgo.ActivityType) string {
 func (c *UserInfoCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *UserInfoCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *UserInfoCommand) GetComponentIDs() []string                                            { return []string{} }
+func (c *UserInfoCommand) GetCategory() string {
+	return "ユーティリティ"
+}
