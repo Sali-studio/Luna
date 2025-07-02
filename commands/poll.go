@@ -75,3 +75,6 @@ func (c *PollCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 func (c *PollCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *PollCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *PollCommand) GetComponentIDs() []string                                            { return []string{} }
+func (c *PollCommand) GetCategory() string {
+	return "ユーティリティ"
+}
