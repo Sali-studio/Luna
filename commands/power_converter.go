@@ -55,10 +55,8 @@ func (c *PowerConverterCommand) Handle(s *discordgo.Session, i *discordgo.Intera
 	value := options[0].FloatValue()
 	fromUnit := options[1].StringValue()
 
-	// 基準となるRFに一度変換する
 	rfPerUnit, ok := conversionRatesToRF[fromUnit]
 	if !ok {
-		// このエラーは通常発生しないはず
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: "❌ 不明な単位です。", Flags: discordgo.MessageFlagsEphemeral},
@@ -67,9 +65,8 @@ func (c *PowerConverterCommand) Handle(s *discordgo.Session, i *discordgo.Intera
 	}
 	valueInRF := value / rfPerUnit
 
-	// 各単位へ換算
 	euValue := valueInRF * conversionRatesToRF["eu"]
-	rfValue := valueInRF // RFとFE、IFは等価
+	rfValue := valueInRF
 	jValue := valueInRF / conversionRatesToRF["j"]
 	mjValue := valueInRF * conversionRatesToRF["mj"]
 	aeValue := valueInRF * conversionRatesToRF["ae"]
@@ -77,7 +74,7 @@ func (c *PowerConverterCommand) Handle(s *discordgo.Session, i *discordgo.Intera
 	embed := &discordgo.MessageEmbed{
 		Title:       "⚡ エネルギー単位 相互変換結果",
 		Description: fmt.Sprintf("入力値: **`%.2f %s/t`**", value, strings.ToUpper(fromUnit)),
-		Color:       0xFFC300, // Yellow
+		Color:       0xFFC300,
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "EU (IC2)", Value: fmt.Sprintf("```%.2f EU/t```", euValue), Inline: true},
 			{Name: "RF/FE/IF", Value: fmt.Sprintf("```%.2f RF/t```", rfValue), Inline: true},
@@ -93,3 +90,6 @@ func (c *PowerConverterCommand) HandleComponent(s *discordgo.Session, i *discord
 }
 func (c *PowerConverterCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *PowerConverterCommand) GetComponentIDs() []string                                        { return []string{} }
+func (c *PowerConverterCommand) GetCategory() string {
+	return "ツール"
+}
