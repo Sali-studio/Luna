@@ -36,14 +36,14 @@ Lunaは、あなたのDiscordサーバーをより良くするための多彩な
 | **【管理・設定】** | |
 | `/config` | チケット、ログ、一時VCなど、サーバーの各種機能を設定します。 |
 | `/moderate` | ユーザーのKick、BAN、タイムアウトを実行します。 |
-| `/ticket-setup` | チケット作成パネルを設置します。 |
+| `/ticket-setup` | Luna Assistantが内蔵されたチケット作成パネルを設置します。 |
 | `/reaction-role-setup` | リアクションロールを設定します。 |
 | `/dashboard-setup` | サーバー統計ダッシュボードを設置します。 |
 | **【ユーティリティ】** | |
-| `/ask` | AI(Gemini)に質問します。 |
+| `/ask` | Luna Assistant(AI)に質問します。 |
 | `/calc` | 関数電卓を呼び出します。（`sin(pi/2)`のように入力） |
 | `/calc-pokemon` | ポケモンのステータス、ダメージ、タイプ相性を計算します。 |
-| `/translate` | テキストを翻訳します。 |
+| `/translate` | テキストをLuna Assistant Translatorが翻訳します。 |
 | `/weather` | 指定した都市の天気を表示します。 |
 | **【一般】** | |
 | `/help` | このBotのコマンド一覧を表示します。 |

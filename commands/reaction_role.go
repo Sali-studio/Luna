@@ -19,7 +19,7 @@ func (c *ReactionRoleCommand) GetCommandDef() *discordgo.ApplicationCommand {
 		Description:              "指定したメッセージにリアクションロールを設定します",
 		DefaultMemberPermissions: int64Ptr(discordgo.PermissionManageRoles),
 		Options: []*discordgo.ApplicationCommandOption{
-			// ★★★ ここからが改善点 ★★★
+
 			{
 				Type:         discordgo.ApplicationCommandOptionChannel,
 				Name:         "channel",
@@ -27,7 +27,7 @@ func (c *ReactionRoleCommand) GetCommandDef() *discordgo.ApplicationCommand {
 				Required:     true,
 				ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText},
 			},
-			// ★★★ ここまで ★★★
+
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "message_id",
