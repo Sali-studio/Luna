@@ -85,3 +85,6 @@ func (c *WeatherCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 func (c *WeatherCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *WeatherCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *WeatherCommand) GetComponentIDs() []string                                            { return []string{} }
+func (c *WeatherCommand) GetCategory() string {
+	return "ユーティリティ"
+}
