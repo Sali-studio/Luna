@@ -26,3 +26,4 @@
 {"time":"2025-07-03T01:49:40.0453438+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"DBからスケジュールを登録しました","count":0}
 {"time":"2025-07-03T01:49:40.0797003+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"Botが起動しました。スラッシュコマンドを登録します..."}
 {"time":"2025-07-03T01:49:40.6263647+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"コマンドの登録が完了しました。Ctrl+Cで終了します。"}
+{"time":"2025-07-03T03:33:19.0051545+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"Botをシャットダウンします..."}
