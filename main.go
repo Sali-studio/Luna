@@ -57,29 +57,35 @@ func main() {
 	commandHandlers = make(map[string]handlers.CommandHandler)
 	componentHandlers = make(map[string]handlers.CommandHandler)
 
-	// --- 全てのコマンドを登録 ---
-	registerCommand(&commands.AskCommand{Gemini: geminiClient})
-	registerCommand(&commands.AvatarCommand{})
-	registerCommand(&commands.CalculatorCommand{})
+	// DBStore, Gemini, StartTimeを各コマンドに注入
 	registerCommand(&commands.ConfigCommand{Store: dbStore})
 	registerCommand(&commands.DashboardCommand{Store: dbStore, Scheduler: scheduler})
-	registerCommand(&commands.EmbedCommand{})
-	registerCommand(&commands.ModerateCommand{})
-	registerCommand(&commands.PingCommand{StartTime: startTime, Store: dbStore})
-	registerCommand(&commands.PokemonCalculatorCommand{})
-	registerCommand(&commands.PollCommand{})
-	registerCommand(&commands.PowerConverterCommand{})
 	registerCommand(&commands.ReactionRoleCommand{Store: dbStore})
 	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler, Store: dbStore})
 	registerCommand(&commands.TicketCommand{Store: dbStore, Gemini: geminiClient})
+	registerCommand(&commands.PingCommand{StartTime: startTime, Store: dbStore})
+	registerCommand(&commands.AskCommand{Gemini: geminiClient})
+	registerCommand(&commands.AvatarCommand{})
+	registerCommand(&commands.CalculatorCommand{})
+	registerCommand(&commands.EmbedCommand{})
+	registerCommand(&commands.ModerateCommand{})
+	registerCommand(&commands.PokemonCalculatorCommand{})
+	registerCommand(&commands.PollCommand{})
+	registerCommand(&commands.PowerConverterCommand{})
 	registerCommand(&commands.TranslateCommand{Gemini: geminiClient})
 	registerCommand(&commands.UserInfoCommand{})
 	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
-	// 最後にヘルプコマンドを登録
 	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
 
-	eventHandler := handlers.NewEventHandler(dbStore)
+	// 1. EventHandlerにGeminiクライアントを渡す
+	eventHandler := handlers.NewEventHandler(dbStore, geminiClient)
 	eventHandler.RegisterAllHandlers(dg)
+
+	// 2. メッセージ作成イベント用のハンドラを追加
+	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
+		eventHandler.HandleMessageCreate(s, m)
+	})
+
 	dg.AddHandler(interactionCreate)
 
 	if err = dg.Open(); err != nil {
