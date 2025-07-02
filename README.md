@@ -1,60 +1,48 @@
-# Luna 1.18.1
+# 🌙 Luna 1.18.1
 
-サーバー管理、AIとの対話、そして多彩なユーティリティ機能を提供する、次世代の多機能Discordボットです。
-直感的なUI/UXと、管理者・メンバー双方にとって便利な機能で、あなたのサーバー体験を向上させます。
+<p align="center">
+  <em>あなたのサーバー運営を、力強くサポートする多機能Bot。</em>
+</p>
 
-[![Go Version](https://img.shields.io/badge/Go-1.18%2B-blue.svg)](https://golang.org/)
-[![DiscordGo](https://img.shields.io/badge/lib-DiscordGo-blue.svg)](https://github.com/bwmarrin/discordgo)
-[![License](https://img.shields.io/badge/License-LGPL--3.0-blue.svg)](LICENSE)
-
----
-
-## ✨ 機能
-
-Lunaは、あなたのDiscordサーバーをより良くするための多彩な機能を搭載しています。
-
-* **🎫 チケットシステム**: ボタン一つでプライベートなサポートチャンネルを作成。Luna Assistant AI内臓で問い合わせ対応を効率化します。
-* **✅ リアクションロール**: ユーザーがリアクションを押すだけで、自動的にロールを付与・剥奪します。
-* **⚙️ 柔軟な設定機能**: 各機能の細かい設定を、分かりやすいスラッシュコマンドで一元管理できます。
-* **✍️ イベントログ**: メッセージの削除やメンバーの参加など、サーバー内の動きを特定のチャンネルに記録します。
-* **⏱️ 自動更新ダッシュボード**: サーバーのメンバー数やブーストレベルなどを、リアルタイムで美しく表示・更新します。
-* **🗣️ 一時ボイスチャンネル**: 特定のチャンネルに入室すると、その人専用のボイスチャンネルが自動で作成・削除されます。
-* **🧠 AIチャット (Gemini)**: Googleの強力なAI、Geminiと自由におしゃべりできます。
-* **🧮 高機能計算機**: 四則演算はもちろん、`sin`, `cos`, `log`, `sqrt`などの数学関数にも対応した関数電卓です。
-* **👾 ポケモン計算機**: ポケモンのステータス実数値、ダメージ計算、タイプ相性を簡単に計算できます。
-* **🌐 翻訳機能**: 入力したテキストを、Luna Translator AIで指定した言語に翻訳します。
-* **📊 投票機能**: 質問と選択肢を入力するだけで、簡単に投票を作成できます。**
-* **🎨 Embedメーカー**: `/embed`コマンドから、リッチな埋め込みメッセージを簡単操作で作成・投稿できます。
-* **👤 ユーザー情報**: 指定したユーザーのサーバー参加日やアカウント作成日などを詳しく表示します。
+<p align="center">
+    <a href="#"><img src="https://img.shields.io/badge/Go-1.18%2B-00ADD8?style=for-the-badge&logo=go" alt="Go Version"></a>
+    <a href="#"><img src="https://img.shields.io/badge/Discord.go-v0.27.1-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.go Version"></a>
+    <a href="https://github.com/pepeyukke/Luna/blob/main/COPYING"><img src="https://img.shields.io/badge/License-LGPL_v3-blue.svg?style=for-the-badge" alt="License"></a>
+    <a href="#"><img src="https://img.shields.io/badge/Status-開発中-brightgreen?style=for-the-badge" alt="Status"></a>
+</p>
 
 ---
 
-## 📋 コマンドリスト
+Lunaは、サーバー管理の効率化、メンバーとのコミュニケーション活性化、そしてAIによる新しい体験を提供する、オールインワンの多機能Discord Botです。
+洗練されたUI/UXと、かゆいところに手が届く機能で、あなたのDiscordサーバーを次のレベルへと導きます。
+
+## 📚 コマンド一覧
 
 | コマンド | 説明 |
 | :--- | :--- |
-| **【管理・設定】** | |
+| **【👑 管理・設定】** | |
 | `/config` | チケット、ログ、一時VCなど、サーバーの各種機能を設定します。 |
 | `/moderate` | ユーザーのKick、BAN、タイムアウトを実行します。 |
 | `/ticket-setup` | Luna Assistantが内蔵されたチケット作成パネルを設置します。 |
 | `/reaction-role-setup` | リアクションロールを設定します。 |
 | `/dashboard-setup` | サーバー統計ダッシュボードを設置します。 |
-| **【ユーティリティ】** | |
+| `/schedule` | メッセージを予約投稿します。 |
+| **【🤖 AI機能】** | |
 | `/ask` | Luna Assistant(AI)に質問します。 |
-| `/calc` | 関数電卓を呼び出します。（`sin(pi/2)`のように入力） |
-| `/calc-pokemon` | ポケモンのステータス、ダメージ、タイプ相性を計算します。 |
-| `/translate` | テキストをLuna Assistant Translatorが翻訳します。 |
+| `/translate` | テキストをLuna Assistantが翻訳します。（モーダルが開きます） |
+| **【🔧 ユーティリティ】** | |
+| `/user-info` | ユーザーの詳細情報を表示します。 |
+| `/avatar` | アバターやバナー画像を表示します。 |
+| `/ping` | Botのパフォーマンスと稼働状態を確認します。 |
+| `/poll` | サーバーで投票を作成します。 |
+| `/embed` | カスタム埋め込みメッセージを作成します。（モーダルが開きます） |
+| **【🎮 ツール & 計算機】** | |
+| `/calc-pokemon` | ポケモンのステータス、ダメージ、タイプ相性などを計算します。 |
+| `/calc` | 三角関数なども使える高機能な電卓です。 |
+| `/power-converter` | Minecraft工業MODのエネルギー単位を相互変換します。 |
 | `/weather` | 指定した都市の天気を表示します。 |
-| **【一般】** | |
-| `/help` | このBotのコマンド一覧を表示します。 |
-| `/ping` | Botの応答速度を測定します。 |
-| `/user-info` | ユーザーの情報を表示します。 |
-| `/avatar` | ユーザーのアバター画像を表示します。 |
-| `/poll` | 投票を作成します。 |
-| `/embed` | カスタム埋め込みメッセージを作成します。 |
-| `/schedule` | メッセージを指定した時間に予約投稿します。 |
 
 ---
-
-## 💰ライセンス
-このプロジェクトは [LGPL-3.0](LICENSE) の下で公開されています。
+<p align="center">
+  <em>バグ報告や機能提案は、GitHubのIssuesまでお気軽にどうぞ！</em>
+</p>
