@@ -65,7 +65,6 @@ func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {
 }
 
 func (c *ConfigCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// サブコマンドのオプションを取得
 	options := i.ApplicationCommandData().Options[0].Options
 	switch i.ApplicationCommandData().Options[0].Name {
 	case "ticket":
@@ -79,7 +78,6 @@ func (c *ConfigCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 	}
 }
 
-// 関数の引数の型を修正
 func (c *ConfigCommand) handleTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
 	panelChannelID := options[0].ChannelValue(s).ID
 	categoryID := options[1].ChannelValue(s).ID
@@ -91,7 +89,7 @@ func (c *ConfigCommand) handleTicketConfig(s *discordgo.Session, i *discordgo.In
 	config.Ticket.StaffRoleID = staffRoleID
 
 	if err := c.Store.Save(); err != nil {
-		logger.Error.Printf("設定ファイルの書き込みに失敗 (Guild: %s): %v", i.GuildID, err)
+		logger.Error("設定ファイルの書き込みに失敗", "error", err, "guildID", i.GuildID)
 		return
 	}
 
@@ -102,7 +100,6 @@ func (c *ConfigCommand) handleTicketConfig(s *discordgo.Session, i *discordgo.In
 	})
 }
 
-// 関数の引数の型を修正
 func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
 	channelID := options[0].ChannelValue(s).ID
 
@@ -117,7 +114,6 @@ func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.I
 	})
 }
 
-// 関数の引数の型を修正
 func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
 	lobbyID := options[0].ChannelValue(s).ID
 	categoryID := options[1].ChannelValue(s).ID
@@ -134,7 +130,6 @@ func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.In
 	})
 }
 
-// 関数の引数の型を修正
 func (c *ConfigCommand) handleBumpConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
 	enable := options[0].BoolValue()
 	channelID := options[1].ChannelValue(s).ID

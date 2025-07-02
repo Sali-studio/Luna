@@ -81,7 +81,6 @@ func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.Interactio
 
 	expression, err := govaluate.NewEvaluableExpressionWithFunctions(expressionStr, functions)
 	if err != nil {
-		// ★★★ ここを修正 ★★★
 		logger.Error("数式の解析に失敗", "error", err, "expression", expressionStr)
 		errorMessage := fmt.Sprintf("❌ 無効な数式です: `%s`\n**エラー:** `%v`", expressionStr, err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: errorMessage, Flags: discordgo.MessageFlagsEphemeral}})
@@ -90,7 +89,6 @@ func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.Interactio
 
 	result, err := expression.Evaluate(parameters)
 	if err != nil {
-		// ★★★ ここを修正 ★★★
 		logger.Error("数式の計算に失敗", "error", err, "expression", expressionStr)
 		errorMessage := fmt.Sprintf("❌ 数式の計算中にエラーが発生しました: `%s`\n**エラー:** `%v`", expressionStr, err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: errorMessage, Flags: discordgo.MessageFlagsEphemeral}})
