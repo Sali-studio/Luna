@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"fmt"
+	"luna/gemini"
 	"luna/logger"
 	"luna/storage"
 	"time"
@@ -11,11 +12,12 @@ import (
 )
 
 type EventHandler struct {
-	Store *storage.DBStore
+	Store  *storage.DBStore
+	Gemini *gemini.Client
 }
 
-func NewEventHandler(store *storage.DBStore) *EventHandler {
-	return &EventHandler{Store: store}
+func NewEventHandler(store *storage.DBStore, gemini *gemini.Client) *EventHandler {
+	return &EventHandler{Store: store, Gemini: gemini}
 }
 
 func (h *EventHandler) RegisterAllHandlers(s *discordgo.Session) {
@@ -26,11 +28,13 @@ func (h *EventHandler) RegisterAllHandlers(s *discordgo.Session) {
 	s.AddHandler(h.handleVoiceStateUpdate)
 	s.AddHandler(h.handleReactionAdd)
 	s.AddHandler(h.handleReactionRemove)
+	// メッセージ作成イベントはmain.goで直接処理するため、ここには含めない
 }
 
 func (h *EventHandler) logEvent(s *discordgo.Session, guildID string, embed *discordgo.MessageEmbed) {
 	var logConfig storage.LogConfig
 	if err := h.Store.GetConfig(guildID, "log_config", &logConfig); err != nil {
+		// エラーログは出すが、ここで処理は中断しない
 		logger.Error("ログ設定の取得に失敗", "error", err, "guildID", guildID)
 		return
 	}
@@ -44,7 +48,7 @@ func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.Me
 	embed := &discordgo.MessageEmbed{
 		Title:       "メッセージ削除",
 		Description: fmt.Sprintf("メッセージが削除されました。\n**チャンネル:** <#%s>", e.ChannelID),
-		Color:       0xffa500,
+		Color:       0xffa500, // Orange
 		Timestamp:   time.Now().Format(time.RFC3339),
 	}
 	h.logEvent(s, e.GuildID, embed)
@@ -54,7 +58,7 @@ func (h *EventHandler) handleGuildBanAdd(s *discordgo.Session, e *discordgo.Guil
 	embed := &discordgo.MessageEmbed{
 		Title:       "ユーザーがBANされました",
 		Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID),
-		Color:       0xff0000,
+		Color:       0xff0000, // Red
 		Timestamp:   time.Now().Format(time.RFC3339),
 	}
 	h.logEvent(s, e.GuildID, embed)
@@ -64,7 +68,7 @@ func (h *EventHandler) handleGuildMemberAdd(s *discordgo.Session, e *discordgo.G
 	embed := &discordgo.MessageEmbed{
 		Title:       "メンバー参加",
 		Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID),
-		Color:       0x00ff00,
+		Color:       0x00ff00, // Green
 		Timestamp:   time.Now().Format(time.RFC3339),
 	}
 	h.logEvent(s, e.GuildID, embed)
@@ -74,7 +78,7 @@ func (h *EventHandler) handleGuildMemberRemove(s *discordgo.Session, e *discordg
 	embed := &discordgo.MessageEmbed{
 		Title:       "メンバー退出",
 		Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID),
-		Color:       0xaaaaaa,
+		Color:       0xaaaaaa, // Grey
 		Timestamp:   time.Now().Format(time.RFC3339),
 	}
 	h.logEvent(s, e.GuildID, embed)
@@ -166,4 +170,50 @@ func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo
 			}
 		}
 	}
+}
+
+func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	if h.Gemini == nil {
+		return
+	}
+
+	isMentioned := false
+	for _, user := range m.Mentions {
+		if user.ID == s.State.User.ID {
+			isMentioned = true
+			break
+		}
+	}
+
+	if !isMentioned || m.Author.ID == s.State.User.ID {
+		return
+	}
+
+	s.MessageReactionAdd(m.ChannelID, m.ID, "🤔")
+
+	messages, err := s.ChannelMessages(m.ChannelID, 10, m.ID, "", "")
+	if err != nil {
+		logger.Error("会話履歴の取得に失敗", "error", err, "channelID", m.ChannelID)
+		return
+	}
+
+	var history string
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg := messages[i]
+		history += fmt.Sprintf("%s: %s\n", msg.Author.Username, msg.Content)
+	}
+	history += fmt.Sprintf("%s: %s\n", m.Author.Username, m.Content)
+
+	persona := "あなたは「Luna Assistant」という名前の、高性能で親切なAIアシスタントです。過去の会話の文脈を理解し、自然な対話を行ってください。一人称は「私」を使い、常にフレンドリーで丁寧な言葉遣いを心がけてください。"
+	prompt := fmt.Sprintf("以下の会話履歴の続きとして、あなたの次の発言を生成してください。\n\n[会話履歴]\n%s\nLuna Assistant:", history)
+
+	response, err := h.Gemini.GenerateContent(prompt, persona)
+	if err != nil {
+		logger.Error("Geminiからの会話応答生成に失敗", "error", err)
+		s.ChannelMessageSend(m.ChannelID, "すみません、少し調子が悪いようです…")
+	} else {
+		s.ChannelMessageSend(m.ChannelID, response)
+	}
+
+	s.MessageReactionRemove(m.ChannelID, m.ID, "🤔", s.State.User.ID)
 }
