@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" // Pure Goのドライバをプログラムに登録
 )
 
 // --- 各機能ごとの設定用Struct ---
@@ -60,6 +60,7 @@ type DBStore struct {
 
 // NewDBStore は新しいDBStoreを初期化し、データベースに接続します
 func NewDBStore(dataSourceName string) (*DBStore, error) {
+	// ここで "sqlite3" が使われますが、これは import したドライバが登録した名前です
 	db, err := sql.Open("sqlite3", dataSourceName)
 	if err != nil {
 		return nil, err
