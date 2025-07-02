@@ -33,3 +33,7 @@
 {"time":"2025-07-03T05:02:36.1990169+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":31},"msg":"Botが起動しました。コマンドを登録します..."}
 {"time":"2025-07-03T05:02:36.8845208+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":31},"msg":"コマンドの登録が完了しました。Ctrl+Cで終了します。"}
 {"time":"2025-07-03T05:07:33.1265077+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":31},"msg":"Botをシャットダウンします..."}
+{"time":"2025-07-03T05:08:58.9520039+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":31},"msg":"DBからスケジュールを登録しました","count":0}
+{"time":"2025-07-03T05:08:59.0006669+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":31},"msg":"Botが起動しました。コマンドを登録します..."}
+{"time":"2025-07-03T05:08:59.5389689+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":31},"msg":"コマンドの登録が完了しました。Ctrl+Cで終了します。"}
+{"time":"2025-07-03T06:27:13.2832001+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/GitHub/Luna/Luna/logger/logger.go","line":31},"msg":"Botをシャットダウンします..."}
