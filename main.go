@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/robfig/cron/v3"
@@ -18,9 +19,14 @@ import (
 var (
 	commandHandlers   map[string]handlers.CommandHandler
 	componentHandlers map[string]handlers.CommandHandler
+	// Botの起動時刻を保持する変数
+	startTime time.Time
 )
 
 func main() {
+	// Bot起動時に現在時刻を記録
+	startTime = time.Now()
+
 	// 1. 初期化
 	logger.Init()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
@@ -45,7 +51,7 @@ func main() {
 
 	geminiClient, err := gemini.NewClient(geminiAPIKey)
 	if err != nil {
-		logger.Warn("Geminiクライアントの初期化に失敗。askコマンドは無効になります。", "error", err)
+		logger.Warn("Geminiクライアントの初期化に失敗。askコマンドとtranslateコマンドは無効になります。", "error", err)
 	}
 
 	scheduler := cron.New()
@@ -54,16 +60,16 @@ func main() {
 	commandHandlers = make(map[string]handlers.CommandHandler)
 	componentHandlers = make(map[string]handlers.CommandHandler)
 
+	// --- 全てのコマンドを登録 ---
 	registerCommand(&commands.AskCommand{Gemini: geminiClient})
 	registerCommand(&commands.AvatarCommand{})
-	// registerCommand(&commands.BumpCommand{Store: configStore, Scheduler: scheduler})
 	registerCommand(&commands.CalculatorCommand{})
 	registerCommand(&commands.ConfigCommand{Store: configStore})
 	registerCommand(&commands.DashboardCommand{Store: configStore, Scheduler: scheduler})
 	registerCommand(&commands.EmbedCommand{})
 	registerCommand(&commands.HelpCommand{})
 	registerCommand(&commands.ModerateCommand{})
-	registerCommand(&commands.PingCommand{})
+	registerCommand(&commands.PingCommand{StartTime: startTime})
 	registerCommand(&commands.PokemonCalculatorCommand{})
 	registerCommand(&commands.PollCommand{})
 	registerCommand(&commands.PowerConverterCommand{})
