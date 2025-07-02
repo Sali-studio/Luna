@@ -75,3 +75,6 @@ func (c *EmbedCommand) HandleModal(s *discordgo.Session, i *discordgo.Interactio
 
 func (c *EmbedCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *EmbedCommand) GetComponentIDs() []string                                            { return []string{EmbedModalCustomID} }
+func (c *EmbedCommand) GetCategory() string {
+	return "ユーティリティ"
+}
