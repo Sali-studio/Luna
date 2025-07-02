@@ -83,3 +83,6 @@ func (c *ScheduleCommand) LoadAndRegisterSchedules(s *discordgo.Session) {
 func (c *ScheduleCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *ScheduleCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *ScheduleCommand) GetComponentIDs() []string                                            { return []string{} }
+func (c *ScheduleCommand) GetCategory() string {
+	return "管理"
+}
