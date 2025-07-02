@@ -24,13 +24,18 @@ var (
 )
 
 func main() {
+	// ★★★ ここを修正 ★★★
+	// 1. まずロガーを初期化する
+	logger.Init()
+
+	// 2. 次に.envファイルを読み込む
 	err := godotenv.Load()
 	if err != nil {
 		logger.Info(".envファイルが見つかりません。環境変数から直接読み込みます。")
 	}
+	// ★★★ ここまで ★★★
 
 	startTime = time.Now()
-	logger.Init()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
 	if token == "" {
 		logger.Fatal("環境変数 'DISCORD_BOT_TOKEN' が設定されていません。")
@@ -77,15 +82,14 @@ func main() {
 	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
 	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
 
-	// 1. EventHandlerにGeminiクライアントを渡す
 	eventHandler := handlers.NewEventHandler(dbStore, geminiClient)
 	eventHandler.RegisterAllHandlers(dg)
-
-	// 2. メッセージ作成イベント用のハンドラを追加
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
+		if m.Author.ID == s.State.User.ID {
+			return
+		}
 		eventHandler.HandleMessageCreate(s, m)
 	})
-
 	dg.AddHandler(interactionCreate)
 
 	if err = dg.Open(); err != nil {

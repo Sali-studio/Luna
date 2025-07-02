@@ -22,16 +22,7 @@ func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {
 		Description:              "サーバー固有の設定を管理します",
 		DefaultMemberPermissions: int64Ptr(discordgo.PermissionManageGuild),
 		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Name:        "ticket",
-				Description: "チケット機能の設定",
-				Type:        discordgo.ApplicationCommandOptionSubCommand,
-				Options: []*discordgo.ApplicationCommandOption{
-					{Type: discordgo.ApplicationCommandOptionChannel, Name: "panel_channel", Description: "チケットパネルを設置するチャンネル", Required: true, ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText}},
-					{Type: discordgo.ApplicationCommandOptionChannel, Name: "category", Description: "チケットが作成されるカテゴリ", ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildCategory}, Required: true},
-					{Type: discordgo.ApplicationCommandOptionRole, Name: "staff_role", Description: "チケットに対応するスタッフのロール", Required: true},
-				},
-			},
+			// ★★★ /config ticket の定義をここから削除 ★★★
 			{
 				Name:        "logging",
 				Description: "ログ出力チャンネルを設定します",
@@ -66,8 +57,7 @@ func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {
 func (c *ConfigCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	options := i.ApplicationCommandData().Options[0].Options
 	switch i.ApplicationCommandData().Options[0].Name {
-	case "ticket":
-		c.handleTicketConfig(s, i, options)
+	// ★★★ /config ticket の処理をここから削除 ★★★
 	case "logging":
 		c.handleLoggingConfig(s, i, options)
 	case "temp-vc":
@@ -77,24 +67,11 @@ func (c *ConfigCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 	}
 }
 
-func (c *ConfigCommand) handleTicketConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	config := storage.TicketConfig{
-		PanelChannelID: options[0].ChannelValue(s).ID,
-		CategoryID:     options[1].ChannelValue(s).ID,
-		StaffRoleID:    options[2].RoleValue(s, i.GuildID).ID,
-	}
-	if err := c.Store.SaveConfig(i.GuildID, "ticket_config", config); err != nil {
-		logger.Error("チケット設定の保存に失敗", "error", err, "guildID", i.GuildID)
-		return
-	}
-	content := fmt.Sprintf("✅ チケット設定を更新しました。\n- パネルチャンネル: <#%s>\n- カテゴリ: <#%s>\n- スタッフロール: <@&%s>", config.PanelChannelID, config.CategoryID, config.StaffRoleID)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}})
-}
+// ★★★ handleTicketConfig 関数全体を削除 ★★★
 
 func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	config := storage.LogConfig{
-		ChannelID: options[0].ChannelValue(s).ID,
-	}
+	var config storage.LogConfig
+	config.ChannelID = options[0].ChannelValue(s).ID
 	if err := c.Store.SaveConfig(i.GuildID, "log_config", config); err != nil {
 		logger.Error("ログ設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
@@ -104,10 +81,9 @@ func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.I
 }
 
 func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	config := storage.TempVCConfig{
-		LobbyID:    options[0].ChannelValue(s).ID,
-		CategoryID: options[1].ChannelValue(s).ID,
-	}
+	var config storage.TempVCConfig
+	config.LobbyID = options[0].ChannelValue(s).ID
+	config.CategoryID = options[1].ChannelValue(s).ID
 	if err := c.Store.SaveConfig(i.GuildID, "temp_vc_config", config); err != nil {
 		logger.Error("一時VC設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
@@ -117,11 +93,10 @@ func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.In
 }
 
 func (c *ConfigCommand) handleBumpConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	config := storage.BumpConfig{
-		Reminder:  options[0].BoolValue(),
-		ChannelID: options[1].ChannelValue(s).ID,
-		RoleID:    options[2].RoleValue(s, i.GuildID).ID,
-	}
+	var config storage.BumpConfig
+	config.Reminder = options[0].BoolValue()
+	config.ChannelID = options[1].ChannelValue(s).ID
+	config.RoleID = options[2].RoleValue(s, i.GuildID).ID
 	if err := c.Store.SaveConfig(i.GuildID, "bump_config", config); err != nil {
 		logger.Error("BUMPリマインダー設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
