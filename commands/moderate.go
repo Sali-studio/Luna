@@ -23,22 +23,19 @@ func (c *ModerateCommand) GetCommandDef() *discordgo.ApplicationCommand {
 		Description:              "ユーザーに対する管理操作を行います。",
 		DefaultMemberPermissions: int64Ptr(discordgo.PermissionKickMembers | discordgo.PermissionBanMembers | discordgo.PermissionModerateMembers),
 		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Name: "kick", Description: "ユーザーをサーバーから追放します。", Type: discordgo.ApplicationCommandOptionSubCommand,
+			{Name: "kick", Description: "ユーザーをサーバーから追放します。", Type: discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionUser, Name: "user", Description: "追放するユーザー", Required: true},
 					{Type: discordgo.ApplicationCommandOptionString, Name: "reason", Description: "追放する理由", Required: false},
 				},
 			},
-			{
-				Name: "ban", Description: "ユーザーをサーバーからBANします。", Type: discordgo.ApplicationCommandOptionSubCommand,
+			{Name: "ban", Description: "ユーザーをサーバーからBANします。", Type: discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionUser, Name: "user", Description: "BANするユーザー", Required: true},
 					{Type: discordgo.ApplicationCommandOptionString, Name: "reason", Description: "BANする理由", Required: false},
 				},
 			},
-			{
-				Name: "timeout", Description: "ユーザーをタイムアウトさせます。", Type: discordgo.ApplicationCommandOptionSubCommand,
+			{Name: "timeout", Description: "ユーザーをタイムアウトさせます。", Type: discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionUser, Name: "user", Description: "タイムアウトさせるユーザー", Required: true},
 					{Type: discordgo.ApplicationCommandOptionString, Name: "duration", Description: "期間 (例: 5m, 1h, 3d)", Required: true},
@@ -180,3 +177,4 @@ func (c *ModerateCommand) HandleComponent(s *discordgo.Session, i *discordgo.Int
 func (c *ModerateCommand) GetComponentIDs() []string {
 	return []string{modalKickPrefix, modalBanPrefix, modalTimeoutPrefix}
 }
+func (c *ModerateCommand) GetCategory() string { return "管理" }
