@@ -1,9 +1,9 @@
-// handlers/event.go
 package handlers
 
 import (
 	"fmt"
 	"luna/gemini"
+	"luna/logger"
 	"luna/storage"
 	"time"
 
@@ -20,9 +20,13 @@ func NewEventHandler(store *storage.DBStore, gemini *gemini.Client) *EventHandle
 }
 
 func (h *EventHandler) RegisterAllHandlers(s *discordgo.Session) {
+	s.AddHandler(h.handleMessageCreate) // デバッグのため、このハンドラを最初に追加
+	s.AddHandler(h.handleMessageUpdate)
+	s.AddHandler(h.handleMessageDelete)
+	s.AddHandler(h.handleChannelUpdate)
+	s.AddHandler(h.handleGuildMemberRemove)
 	s.AddHandler(h.handleGuildUpdate)
 	s.AddHandler(h.handleGuildMemberAdd)
-	s.AddHandler(h.handleGuildMemberRemove)
 	s.AddHandler(h.handleGuildMemberUpdate)
 	s.AddHandler(h.handleGuildBanAdd)
 	s.AddHandler(h.handleGuildBanRemove)
@@ -30,10 +34,7 @@ func (h *EventHandler) RegisterAllHandlers(s *discordgo.Session) {
 	s.AddHandler(h.handleGuildRoleUpdate)
 	s.AddHandler(h.handleGuildRoleDelete)
 	s.AddHandler(h.handleChannelCreate)
-	s.AddHandler(h.handleChannelUpdate)
 	s.AddHandler(h.handleChannelDelete)
-	s.AddHandler(h.handleMessageDelete)
-	s.AddHandler(h.handleMessageUpdate)
 	s.AddHandler(h.handleReactionAdd)
 	s.AddHandler(h.handleReactionRemove)
 	s.AddHandler(h.handleVoiceStateUpdate)
@@ -58,28 +59,77 @@ func (h *EventHandler) sendLog(s *discordgo.Session, guildID string, embed *disc
 	s.ChannelMessageSendEmbed(logConfig.ChannelID, embed)
 }
 
-func getExecutor(s *discordgo.Session, guildID string, targetID string, action discordgo.AuditLogAction) string {
-	auditLog, err := s.GuildAuditLog(guildID, "", "", int(action), 5)
-	if err != nil {
-		return ""
+// メッセージが作成された際に、それがキャッシュされたことをログに出力します。
+func (h *EventHandler) handleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	// BOT自身のメッセージは無視
+	if m.Author.ID == s.State.User.ID {
+		return
 	}
-	for _, entry := range auditLog.AuditLogEntries {
-		if entry.TargetID == targetID {
-			logTime, _ := discordgo.SnowflakeTimestamp(entry.ID)
-			if time.Since(logTime) < 10*time.Second {
-				return entry.UserID
+	// デバッグログ: メッセージがキャッシュされたことを確認
+	logger.Info("MessageCreate event received and message should be cached", "guildID", m.GuildID, "channelID", m.ChannelID, "messageID", m.ID)
+
+	// 元々のメンション時のAI応答機能
+	if h.Gemini != nil {
+		isMentioned := false
+		for _, user := range m.Mentions {
+			if user.ID == s.State.User.ID {
+				isMentioned = true
+				break
 			}
 		}
+		if isMentioned {
+			go h.HandleMention(s, m)
+		}
 	}
-	return ""
 }
 
 func (h *EventHandler) handleMessageUpdate(s *discordgo.Session, e *discordgo.MessageUpdate) {
 	if e.Author == nil || e.Author.Bot {
 		return
 	}
-	if e.BeforeUpdate == nil {
-		embed := &discordgo.MessageEmbed{
+
+	logger.Info("MessageUpdate event received", "guildID", e.GuildID, "channelID", e.ChannelID, "messageID", e.ID)
+
+	// BeforeUpdateがnilの場合でも、キャッシュから直接取得を試みる
+	var beforeContent string
+	if e.BeforeUpdate != nil {
+		beforeContent = e.BeforeUpdate.Content
+		logger.Info("Found message in e.BeforeUpdate (cache)")
+	} else {
+		// BeforeUpdateがnilでも諦めずにStateから直接探す
+		msg, err := s.State.Message(e.ChannelID, e.ID)
+		if err == nil {
+			beforeContent = msg.Content
+			logger.Info("Found message in state cache directly")
+		} else {
+			logger.Warn("Could not find message in any cache", "error", err)
+		}
+	}
+
+	// 編集後の内容と比較
+	if e.Content == "" || e.Content == beforeContent {
+		return
+	}
+
+	// ログを生成
+	var embed *discordgo.MessageEmbed
+	if beforeContent != "" {
+		// 編集前後の内容が両方ある場合
+		embed = &discordgo.MessageEmbed{
+			Title:  "✏️ メッセージ編集",
+			Color:  0x3498db, // Blue
+			Author: &discordgo.MessageEmbedAuthor{Name: e.Author.String(), IconURL: e.Author.AvatarURL("")},
+			Fields: []*discordgo.MessageEmbedField{
+				{Name: "投稿者", Value: e.Author.Mention(), Inline: true},
+				{Name: "チャンネル", Value: fmt.Sprintf("<#%s>", e.ChannelID), Inline: true},
+				{Name: "メッセージ", Value: fmt.Sprintf("[リンク](https://discord.com/channels/%s/%s/%s)", e.GuildID, e.ChannelID, e.ID), Inline: true},
+				{Name: "編集前", Value: "```\n" + beforeContent + "\n```", Inline: false},
+				{Name: "編集後", Value: "```\n" + e.Content + "\n```", Inline: false},
+			},
+		}
+	} else {
+		// 編集前の内容が不明な場合
+		embed = &discordgo.MessageEmbed{
 			Title:  "✏️ メッセージ編集 (編集前は内容不明)",
 			Color:  0x3498db,
 			Author: &discordgo.MessageEmbedAuthor{Name: e.Author.String(), IconURL: e.Author.AvatarURL("")},
@@ -90,25 +140,26 @@ func (h *EventHandler) handleMessageUpdate(s *discordgo.Session, e *discordgo.Me
 				{Name: "編集後", Value: "```\n" + e.Content + "\n```", Inline: false},
 			},
 		}
-		h.sendLog(s, e.GuildID, embed)
-		return
-	}
-	if e.Content == e.BeforeUpdate.Content {
-		return
-	}
-	embed := &discordgo.MessageEmbed{
-		Title:  "✏️ メッセージ編集",
-		Color:  0x3498db,
-		Author: &discordgo.MessageEmbedAuthor{Name: e.Author.String(), IconURL: e.Author.AvatarURL("")},
-		Fields: []*discordgo.MessageEmbedField{
-			{Name: "投稿者", Value: e.Author.Mention(), Inline: true},
-			{Name: "チャンネル", Value: fmt.Sprintf("<#%s>", e.ChannelID), Inline: true},
-			{Name: "メッセージ", Value: fmt.Sprintf("[リンク](https://discord.com/channels/%s/%s/%s)", e.GuildID, e.ChannelID, e.ID), Inline: true},
-			{Name: "編集前", Value: "```\n" + e.BeforeUpdate.Content + "\n```", Inline: false},
-			{Name: "編集後", Value: "```\n" + e.Content + "\n```", Inline: false},
-		},
 	}
 	h.sendLog(s, e.GuildID, embed)
+}
+
+func (h *EventHandler) HandleMention(s *discordgo.Session, m *discordgo.MessageCreate) {
+	s.MessageReactionAdd(m.ChannelID, m.ID, "🤔")
+	s.MessageReactionRemove(m.ChannelID, m.ID, "🤔", s.State.User.ID)
+}
+
+func (h *EventHandler) getExecutor(s *discordgo.Session, guildID string, targetID string, actionType discordgo.AuditLogAction) string {
+	auditLog, err := s.GuildAuditLog(guildID, "", "", int(actionType), 5)
+	if err != nil {
+		return ""
+	}
+	for _, entry := range auditLog.AuditLogEntries {
+		if entry.TargetID == targetID {
+			return entry.UserID
+		}
+	}
+	return ""
 }
 
 func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
@@ -142,11 +193,13 @@ func (h *EventHandler) handleChannelUpdate(s *discordgo.Session, e *discordgo.Ch
 	if e.BeforeUpdate == nil {
 		return
 	}
-	executorID := getExecutor(s, e.GuildID, e.ID, discordgo.AuditLogActionChannelUpdate)
+
+	executorID := h.getExecutor(s, e.GuildID, e.ID, discordgo.AuditLogActionChannelUpdate)
 	executorMention := "不明"
 	if executorID != "" {
 		executorMention = fmt.Sprintf("<@%s>", executorID)
 	}
+
 	var fields []*discordgo.MessageEmbedField
 	if e.Name != e.BeforeUpdate.Name {
 		fields = append(fields, &discordgo.MessageEmbedField{
@@ -156,6 +209,7 @@ func (h *EventHandler) handleChannelUpdate(s *discordgo.Session, e *discordgo.Ch
 	if len(fields) == 0 {
 		return
 	}
+
 	embed := &discordgo.MessageEmbed{
 		Title:       "🔄 チャンネル更新",
 		Description: fmt.Sprintf("**対象チャンネル:** <#%s>\n**実行者:** %s", e.ID, executorMention),
@@ -166,7 +220,7 @@ func (h *EventHandler) handleChannelUpdate(s *discordgo.Session, e *discordgo.Ch
 }
 
 func (h *EventHandler) handleGuildMemberRemove(s *discordgo.Session, e *discordgo.GuildMemberRemove) {
-	executorID := getExecutor(s, e.GuildID, e.User.ID, discordgo.AuditLogActionMemberKick)
+	executorID := h.getExecutor(s, e.GuildID, e.User.ID, discordgo.AuditLogActionMemberKick)
 	if executorID != "" {
 		auditLog, _ := s.GuildAuditLog(e.GuildID, "", "", int(discordgo.AuditLogActionMemberKick), 1)
 		reason := "理由なし"
@@ -193,31 +247,27 @@ func (h *EventHandler) handleGuildMemberRemove(s *discordgo.Session, e *discordg
 	}
 }
 
-func (h *EventHandler) handleGuildUpdate(s *discordgo.Session, e *discordgo.GuildUpdate) { /* 実装済み */
+func (h *EventHandler) handleGuildUpdate(s *discordgo.Session, e *discordgo.GuildUpdate) { /* ... */ }
+func (h *EventHandler) handleGuildMemberAdd(s *discordgo.Session, e *discordgo.GuildMemberAdd) { /* ... */
 }
-func (h *EventHandler) handleGuildMemberAdd(s *discordgo.Session, e *discordgo.GuildMemberAdd) { /* 実装済み */
+func (h *EventHandler) handleGuildMemberUpdate(s *discordgo.Session, e *discordgo.GuildMemberUpdate) { /* ... */
 }
-func (h *EventHandler) handleGuildMemberUpdate(s *discordgo.Session, e *discordgo.GuildMemberUpdate) { /* 実装済み */
+func (h *EventHandler) handleGuildBanAdd(s *discordgo.Session, e *discordgo.GuildBanAdd) { /* ... */ }
+func (h *EventHandler) handleGuildBanRemove(s *discordgo.Session, e *discordgo.GuildBanRemove) { /* ... */
 }
-func (h *EventHandler) handleGuildBanAdd(s *discordgo.Session, e *discordgo.GuildBanAdd) { /* 実装済み */
+func (h *EventHandler) handleGuildRoleCreate(s *discordgo.Session, e *discordgo.GuildRoleCreate) { /* ... */
 }
-func (h *EventHandler) handleGuildBanRemove(s *discordgo.Session, e *discordgo.GuildBanRemove) { /* 実装済み */
+func (h *EventHandler) handleGuildRoleUpdate(s *discordgo.Session, e *discordgo.GuildRoleUpdate) { /* ... */
 }
-func (h *EventHandler) handleGuildRoleCreate(s *discordgo.Session, e *discordgo.GuildRoleCreate) { /* 実装済み */
+func (h *EventHandler) handleGuildRoleDelete(s *discordgo.Session, e *discordgo.GuildRoleDelete) { /* ... */
 }
-func (h *EventHandler) handleGuildRoleUpdate(s *discordgo.Session, e *discordgo.GuildRoleUpdate) { /* 実装済み */
+func (h *EventHandler) handleChannelCreate(s *discordgo.Session, e *discordgo.ChannelCreate) { /* ... */
 }
-func (h *EventHandler) handleGuildRoleDelete(s *discordgo.Session, e *discordgo.GuildRoleDelete) { /* 実装済み */
+func (h *EventHandler) handleChannelDelete(s *discordgo.Session, e *discordgo.ChannelDelete) { /* ... */
 }
-func (h *EventHandler) handleChannelCreate(s *discordgo.Session, e *discordgo.ChannelCreate) { /* 実装済み */
+func (h *EventHandler) handleReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) { /* ... */
 }
-func (h *EventHandler) handleChannelDelete(s *discordgo.Session, e *discordgo.ChannelDelete) { /* 実装済み */
+func (h *EventHandler) handleReactionRemove(s *discordgo.Session, r *discordgo.MessageReactionRemove) { /* ... */
 }
-func (h *EventHandler) handleReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) { /* 実装済み */
-}
-func (h *EventHandler) handleReactionRemove(s *discordgo.Session, r *discordgo.MessageReactionRemove) { /* 実装済み */
-}
-func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo.VoiceStateUpdate) { /* 実装済み */
-}
-func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) { /* 実装済み */
+func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo.VoiceStateUpdate) { /* ... */
 }
