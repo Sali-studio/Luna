@@ -1,4 +1,3 @@
-// handlers/event.go
 package handlers
 
 import (
@@ -91,7 +90,6 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 			}
 		}
 		if isMentioned {
-			// AI応答ロジック (省略なし)
 			s.MessageReactionAdd(m.ChannelID, m.ID, "🤔")
 			messages, err := s.ChannelMessages(m.ChannelID, 10, m.ID, "", "")
 			if err != nil {
