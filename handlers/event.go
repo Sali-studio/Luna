@@ -49,12 +49,57 @@ func (h *EventHandler) sendLog(s *discordgo.Session, guildID string, embed *disc
 	s.ChannelMessageSendEmbed(logConfig.ChannelID, embed)
 }
 
+func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
+	if e.BeforeDelete == nil {
+		embed := &discordgo.MessageEmbed{
+			Title:       "メッセージ削除 (詳細不明)",
+			Description: fmt.Sprintf("キャッシュにない古いメッセージが <#%s> で削除されました。\n**メッセージID:** `%s`", e.ChannelID, e.ID),
+			Color:       0x99aab5,
+			Timestamp:   time.Now().Format(time.RFC3339),
+		}
+		h.sendLog(s, e.GuildID, embed)
+		return
+	}
+	if e.BeforeDelete.Author == nil || e.BeforeDelete.Author.Bot {
+		return
+	}
+	auditLog, err := s.GuildAuditLog(e.GuildID, "", "", int(discordgo.AuditLogActionMessageDelete), 1)
+	executor := "不明"
+	if err == nil && len(auditLog.AuditLogEntries) > 0 {
+		entry := auditLog.AuditLogEntries[0]
+		if entry.TargetID == e.Author.ID {
+			executor = entry.UserID
+		}
+	}
+	executorStr := "不明"
+	if executor == e.Author.ID {
+		executorStr = "メッセージの作成者本人"
+	} else if executor != "不明" {
+		executorStr = fmt.Sprintf("<@%s>", executor)
+	}
+	embed := &discordgo.MessageEmbed{
+		Title:     "🗑️ メッセージ削除",
+		Color:     0xe74c3c,
+		Timestamp: time.Now().Format(time.RFC3339),
+		Author: &discordgo.MessageEmbedAuthor{
+			Name:    e.Author.String(),
+			IconURL: e.Author.AvatarURL(""),
+		},
+		Fields: []*discordgo.MessageEmbedField{
+			{Name: "削除されたメッセージ", Value: fmt.Sprintf("```\n%s\n```", e.BeforeDelete.Content), Inline: false},
+			{Name: "チャンネル", Value: fmt.Sprintf("<#%s>", e.ChannelID), Inline: true},
+			{Name: "実行者", Value: executorStr, Inline: true},
+		},
+	}
+	h.sendLog(s, e.GuildID, embed)
+}
+
 func (h *EventHandler) handleMessageUpdate(s *discordgo.Session, e *discordgo.MessageUpdate) {
 	if e.Author == nil || e.Author.Bot || e.BeforeUpdate == nil || e.Content == e.BeforeUpdate.Content {
 		return
 	}
 	embed := &discordgo.MessageEmbed{
-		Title:     "メッセージ編集",
+		Title:     "✏️ メッセージ編集",
 		Color:     0x3498db,
 		Timestamp: time.Now().Format(time.RFC3339),
 		Author: &discordgo.MessageEmbedAuthor{
@@ -71,33 +116,13 @@ func (h *EventHandler) handleMessageUpdate(s *discordgo.Session, e *discordgo.Me
 	h.sendLog(s, e.GuildID, embed)
 }
 
-func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
-	embed := &discordgo.MessageEmbed{
-		Title:       "メッセージ削除",
-		Description: fmt.Sprintf("メッセージが削除されました。\n**チャンネル:** <#%s>\n**メッセージID:** `%s`", e.ChannelID, e.ID),
-		Color:       0xe74c3c,
-		Timestamp:   time.Now().Format(time.RFC3339),
-	}
-	h.sendLog(s, e.GuildID, embed)
-}
-
 func (h *EventHandler) handleChannelCreate(s *discordgo.Session, e *discordgo.ChannelCreate) {
-	embed := &discordgo.MessageEmbed{
-		Title:       "チャンネル作成",
-		Description: fmt.Sprintf("新しいチャンネル **%s** が作成されました。", e.Name),
-		Color:       0x2ecc71,
-		Timestamp:   time.Now().Format(time.RFC3339),
-	}
+	embed := &discordgo.MessageEmbed{Title: "チャンネル作成", Description: fmt.Sprintf("新しいチャンネル **%s** が作成されました。", e.Name), Color: 0x2ecc71, Timestamp: time.Now().Format(time.RFC3339)}
 	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleChannelDelete(s *discordgo.Session, e *discordgo.ChannelDelete) {
-	embed := &discordgo.MessageEmbed{
-		Title:       "チャンネル削除",
-		Description: fmt.Sprintf("チャンネル **%s** が削除されました。", e.Name),
-		Color:       0xe74c3c,
-		Timestamp:   time.Now().Format(time.RFC3339),
-	}
+	embed := &discordgo.MessageEmbed{Title: "チャンネル削除", Description: fmt.Sprintf("チャンネル **%s** が削除されました。", e.Name), Color: 0xe74c3c, Timestamp: time.Now().Format(time.RFC3339)}
 	h.sendLog(s, e.GuildID, embed)
 }
 
@@ -115,76 +140,37 @@ func (h *EventHandler) handleChannelUpdate(s *discordgo.Session, e *discordgo.Ch
 	if changes == "" {
 		return
 	}
-	embed := &discordgo.MessageEmbed{
-		Title:       "チャンネル更新",
-		Description: fmt.Sprintf("チャンネル <#%s> の設定が変更されました。\n\n%s", e.ID, changes),
-		Color:       0x3498db,
-		Timestamp:   time.Now().Format(time.RFC3339),
-	}
+	embed := &discordgo.MessageEmbed{Title: "チャンネル更新", Description: fmt.Sprintf("チャンネル <#%s> の設定が変更されました。\n\n%s", e.ID, changes), Color: 0x3498db, Timestamp: time.Now().Format(time.RFC3339)}
 	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleGuildRoleCreate(s *discordgo.Session, e *discordgo.GuildRoleCreate) {
-	embed := &discordgo.MessageEmbed{
-		Title:       "ロール作成",
-		Description: fmt.Sprintf("新しいロール <@&%s> が作成されました。", e.Role.ID),
-		Color:       0x2ecc71,
-		Timestamp:   time.Now().Format(time.RFC3339),
-	}
+	embed := &discordgo.MessageEmbed{Title: "ロール作成", Description: fmt.Sprintf("新しいロール <@&%s> が作成されました。", e.Role.ID), Color: 0x2ecc71, Timestamp: time.Now().Format(time.RFC3339)}
 	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleGuildRoleDelete(s *discordgo.Session, e *discordgo.GuildRoleDelete) {
-	embed := &discordgo.MessageEmbed{
-		Title:       "ロール削除",
-		Description: fmt.Sprintf("ロールID `%s` が削除されました。", e.RoleID),
-		Color:       0xe74c3c,
-		Timestamp:   time.Now().Format(time.RFC3339),
-	}
+	embed := &discordgo.MessageEmbed{Title: "ロール削除", Description: fmt.Sprintf("ロールID `%s` が削除されました。", e.RoleID), Color: 0xe74c3c, Timestamp: time.Now().Format(time.RFC3339)}
 	h.sendLog(s, e.GuildID, embed)
 }
 
-// ★★★ ここを修正 ★★★
 func (h *EventHandler) handleGuildRoleUpdate(s *discordgo.Session, e *discordgo.GuildRoleUpdate) {
-	// GuildRoleUpdateイベントは変更前の情報を含まないため、
-	// 変更があったという事実のみをログに残します。
-	// より詳細なログが必要な場合は、監査ログAPIをポーリングする必要があります。
-	embed := &discordgo.MessageEmbed{
-		Title:       "ロール更新",
-		Description: fmt.Sprintf("ロール <@&%s> (`%s`) の設定が変更されました。", e.Role.ID, e.Role.Name),
-		Color:       0x3498db,
-		Timestamp:   time.Now().Format(time.RFC3339),
-	}
+	embed := &discordgo.MessageEmbed{Title: "ロール更新", Description: fmt.Sprintf("ロール <@&%s> (`%s`) の設定が変更されました。", e.Role.ID, e.Role.Name), Color: 0x3498db, Timestamp: time.Now().Format(time.RFC3339)}
 	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleGuildBanAdd(s *discordgo.Session, e *discordgo.GuildBanAdd) {
-	embed := &discordgo.MessageEmbed{
-		Title:       "メンバーがBANされました",
-		Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID),
-		Color:       0xff0000,
-		Timestamp:   time.Now().Format(time.RFC3339),
-	}
+	embed := &discordgo.MessageEmbed{Title: "メンバーがBANされました", Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID), Color: 0xff0000, Timestamp: time.Now().Format(time.RFC3339)}
 	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleGuildMemberAdd(s *discordgo.Session, e *discordgo.GuildMemberAdd) {
-	embed := &discordgo.MessageEmbed{
-		Title:       "メンバー参加",
-		Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID),
-		Color:       0x00ff00,
-		Timestamp:   time.Now().Format(time.RFC3339),
-	}
+	embed := &discordgo.MessageEmbed{Title: "メンバー参加", Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID), Color: 0x00ff00, Timestamp: time.Now().Format(time.RFC3339)}
 	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleGuildMemberRemove(s *discordgo.Session, e *discordgo.GuildMemberRemove) {
-	embed := &discordgo.MessageEmbed{
-		Title:       "メンバー退出",
-		Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID),
-		Color:       0xaaaaaa,
-		Timestamp:   time.Now().Format(time.RFC3339),
-	}
+	embed := &discordgo.MessageEmbed{Title: "メンバー退出", Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID), Color: 0xaaaaaa, Timestamp: time.Now().Format(time.RFC3339)}
 	h.sendLog(s, e.GuildID, embed)
 }
 
@@ -227,7 +213,6 @@ func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo
 	if err := h.Store.GetConfig(e.GuildID, "temp_vc_config", &vcConfig); err != nil || vcConfig.LobbyID == "" {
 		return
 	}
-
 	if e.ChannelID == vcConfig.LobbyID {
 		member, err := s.State.Member(e.GuildID, e.UserID)
 		if err != nil {
@@ -236,7 +221,6 @@ func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo
 				return
 			}
 		}
-
 		newChannel, err := s.GuildChannelCreateComplex(e.GuildID, discordgo.GuildChannelCreateData{
 			Name:     fmt.Sprintf("%sの部屋", member.User.Username),
 			Type:     discordgo.ChannelTypeGuildVoice,
@@ -248,13 +232,11 @@ func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo
 		}
 		s.GuildMemberMove(e.GuildID, e.UserID, &newChannel.ID)
 	}
-
 	if e.BeforeUpdate != nil && e.BeforeUpdate.ChannelID != "" && e.BeforeUpdate.ChannelID != vcConfig.LobbyID {
 		oldChannel, err := s.Channel(e.BeforeUpdate.ChannelID)
 		if err != nil {
 			return
 		}
-
 		if oldChannel.ParentID == vcConfig.CategoryID {
 			guild, err := s.State.Guild(e.GuildID)
 			if err != nil {
@@ -280,7 +262,6 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 	if h.Gemini == nil {
 		return
 	}
-
 	isMentioned := false
 	for _, user := range m.Mentions {
 		if user.ID == s.State.User.ID {
@@ -288,36 +269,29 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 			break
 		}
 	}
-
 	if !isMentioned || m.Author.ID == s.State.User.ID {
 		return
 	}
-
 	s.MessageReactionAdd(m.ChannelID, m.ID, "🤔")
-
 	messages, err := s.ChannelMessages(m.ChannelID, 10, m.ID, "", "")
 	if err != nil {
 		logger.Error("会話履歴の取得に失敗", "error", err, "channelID", m.ChannelID)
 		return
 	}
-
 	var history string
 	for i := len(messages) - 1; i >= 0; i-- {
 		msg := messages[i]
 		history += fmt.Sprintf("%s: %s\n", msg.Author.Username, msg.Content)
 	}
 	history += fmt.Sprintf("%s: %s\n", m.Author.Username, m.Content)
-
 	persona := "あなたは「Luna Assistant」という名前の、高性能で親切なAIアシスタントです。過去の会話の文脈を理解し、自然な対話を行ってください。一人称は「私」を使い、常にフレンドリーで丁寧な言葉遣いを心がけてください。"
 	prompt := fmt.Sprintf("以下の会話履歴の続きとして、あなたの次の発言を生成してください。\n\n[会話履歴]\n%s\nLuna Assistant:", history)
-
 	response, err := h.Gemini.GenerateContent(prompt, persona)
 	if err != nil {
-		logger.Error("Geminiからの会話応答生成に失敗", "error", err)
-		s.ChannelMessageSend(m.ChannelID, "すみません、少し調子が悪いようです…。🌙")
+		logger.Error("Luna APIからの会話応答生成に失敗", "error", err)
+		s.ChannelMessageSend(m.ChannelID, "すみません、少し調子が悪いようです…。")
 	} else {
 		s.ChannelMessageSend(m.ChannelID, response)
 	}
-
 	s.MessageReactionRemove(m.ChannelID, m.ID, "🤔", s.State.User.ID)
 }
