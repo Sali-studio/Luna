@@ -53,7 +53,7 @@ func NewClient(apiKey string) (*Client, error) {
 
 // GenerateContent に systemInstruction パラメータを追加
 func (c *Client) GenerateContent(prompt, systemInstruction string) (string, error) {
-	apiURL := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-frash:generateContent?key=" + c.apiKey
+	apiURL := "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + c.apiKey
 
 	reqBody := geminiRequest{
 		Contents: []geminiContent{
