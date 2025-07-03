@@ -1,8 +1,8 @@
+// commands/help.go
 package commands
 
 import (
 	"fmt"
-	"luna/handlers"
 	"sort"
 	"strings"
 
@@ -10,8 +10,10 @@ import (
 )
 
 type HelpCommand struct {
-	// Botに登録されている全てのコマンドを保持するためのマップ
-	AllCommands map[string]handlers.CommandHandler
+	// ★★★ 修正点 ★★★
+	// 同じパッケージ内の CommandHandler を参照する
+	AllCommands map[string]CommandHandler
+	// ★★★ ここまで ★★★
 }
 
 func (c *HelpCommand) GetCommandDef() *discordgo.ApplicationCommand {

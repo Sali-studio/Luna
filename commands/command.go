@@ -1,4 +1,5 @@
-package handlers
+// commands/command.go
+package commands
 
 import "github.com/bwmarrin/discordgo"
 

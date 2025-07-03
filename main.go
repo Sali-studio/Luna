@@ -1,3 +1,4 @@
+// main.go
 package main
 
 import (
@@ -18,9 +19,12 @@ import (
 )
 
 var (
-	commandHandlers   map[string]handlers.CommandHandler
-	componentHandlers map[string]handlers.CommandHandler
-	startTime         time.Time
+	// ★★★ 修正点 ★★★
+	// 使用するインターフェースを commands.CommandHandler に変更
+	commandHandlers   map[string]commands.CommandHandler
+	componentHandlers map[string]commands.CommandHandler
+	// ★★★ ここまで ★★★
+	startTime time.Time
 )
 
 func main() {
@@ -42,6 +46,8 @@ func main() {
 		logger.Fatal("Discordセッションの作成中にエラー", "error", err)
 	}
 
+	dg.Identify.Intents = discordgo.IntentsAll
+
 	dbStore, err := storage.NewDBStore("./luna.db")
 	if err != nil {
 		logger.Fatal("データベースの初期化に失敗", "error", err)
@@ -55,8 +61,10 @@ func main() {
 
 	scheduler := cron.New()
 
-	commandHandlers = make(map[string]handlers.CommandHandler)
-	componentHandlers = make(map[string]handlers.CommandHandler)
+	// ★★★ 修正点 ★★★
+	commandHandlers = make(map[string]commands.CommandHandler)
+	componentHandlers = make(map[string]commands.CommandHandler)
+	// ★★★ ここまで ★★★
 
 	// DBStore, Gemini, StartTimeを各コマンドに注入
 	registerCommand(&commands.ConfigCommand{Store: dbStore})
@@ -76,14 +84,13 @@ func main() {
 	registerCommand(&commands.TranslateCommand{Gemini: geminiClient})
 	registerCommand(&commands.UserInfoCommand{})
 	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
+	// ★★★ 修正点 ★★★
+	// HelpCommandに commandHandlers を渡す
 	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
+	// ★★★ ここまで ★★★
 
 	eventHandler := handlers.NewEventHandler(dbStore, geminiClient)
-	// ### 修正点 ###
-	// この一行でevent.goに定義した全てのハンドラを登録します。
 	eventHandler.RegisterAllHandlers(dg)
-
-	// メッセージ作成とインタラクションのハンドラは個別に追加します。
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if m.Author.ID == s.State.User.ID {
 			return
@@ -120,7 +127,10 @@ func main() {
 	logger.Info("Botをシャットダウンします...")
 }
 
-func registerCommand(cmd handlers.CommandHandler) {
+// ★★★ 修正点 ★★★
+// 受け取る型を commands.CommandHandler に変更
+func registerCommand(cmd commands.CommandHandler) {
+	// ★★★ ここまで ★★★
 	def := cmd.GetCommandDef()
 	commandHandlers[def.Name] = cmd
 	for _, id := range cmd.GetComponentIDs() {
