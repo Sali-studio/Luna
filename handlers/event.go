@@ -80,7 +80,6 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
-	logger.Info("MessageCreate event received, message cached.", "messageID", m.ID)
 	if h.Gemini != nil {
 		isMentioned := false
 		for _, user := range m.Mentions {
@@ -91,27 +90,29 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 		}
 		if isMentioned {
 			s.MessageReactionAdd(m.ChannelID, m.ID, "🤔")
-			messages, err := s.ChannelMessages(m.ChannelID, 10, m.ID, "", "")
-			if err != nil {
-				logger.Error("会話履歴の取得に失敗", "error", err, "channelID", m.ChannelID)
-				return
-			}
-			var history string
-			for i := len(messages) - 1; i >= 0; i-- {
-				msg := messages[i]
-				history += fmt.Sprintf("%s: %s\n", msg.Author.Username, msg.Content)
-			}
-			history += fmt.Sprintf("%s: %s\n", m.Author.Username, m.Content)
-			persona := "あなたは「Luna Assistant」という名前の、高性能で親切なAIアシスタントです。過去の会話の文脈を理解し、自然な対話を行ってください。一人称は「私」を使い、常にフレンドリーで丁寧な言葉遣いを心がけてください。"
-			prompt := fmt.Sprintf("以下の会話履歴の続きとして、あなたの次の発言を生成してください。\n\n[会話履歴]\n%s\nLuna Assistant:", history)
-			response, err := h.Gemini.GenerateContent(prompt, persona)
-			if err != nil {
-				logger.Error("Luna APIからの会話応答生成に失敗", "error", err)
-				s.ChannelMessageSend(m.ChannelID, "すみません、少し調子が悪いようです…。")
-			} else {
-				s.ChannelMessageSend(m.ChannelID, response)
-			}
-			s.MessageReactionRemove(m.ChannelID, m.ID, "🤔", s.State.User.ID)
+			// AI応答ロジック
+			go func() {
+				messages, err := s.ChannelMessages(m.ChannelID, 10, m.ID, "", "")
+				if err != nil {
+					logger.Error("会話履歴の取得に失敗", "error", err)
+					return
+				}
+				var history string
+				for i := len(messages) - 1; i >= 0; i-- {
+					msg := messages[i]
+					history += fmt.Sprintf("%s: %s\n", msg.Author.Username, msg.Content)
+				}
+				persona := "あなたは「Luna Assistant」という名前の、高性能で親切なAIアシスタントです。過去の会話の文脈を理解し、自然な対話を行ってください。一人称は「私」を使い、常にフレンドリーで丁寧な言葉遣いを心がけてください。"
+				prompt := fmt.Sprintf("以下の会話履歴の続きとして、あなたの次の発言を生成してください。\n\n[会話履歴]\n%s\nLuna Assistant:", history)
+				response, err := h.Gemini.GenerateContent(prompt, persona)
+				if err != nil {
+					logger.Error("Luna APIからの会話応答生成に失敗", "error", err)
+					s.ChannelMessageSend(m.ChannelID, "すみません、少し調子が悪いようです…。")
+				} else {
+					s.ChannelMessageSend(m.ChannelID, response)
+				}
+				s.MessageReactionRemove(m.ChannelID, m.ID, "🤔", s.State.User.ID)
+			}()
 		}
 	}
 }

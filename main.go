@@ -1,4 +1,3 @@
-// main.go
 package main
 
 import (
@@ -39,6 +38,9 @@ func main() {
 		logger.Fatal("Discordセッションの作成中にエラー", "error", err)
 	}
 
+	dg.State = discordgo.NewState()
+	dg.State.MaxMessageCount = 2000 // 各チャンネルで記憶するメッセージ数を設定
+
 	dg.Identify.Intents = discordgo.IntentsAll
 
 	dbStore, err := storage.NewDBStore("./luna.db")
@@ -78,7 +80,6 @@ func main() {
 	eventHandler := handlers.NewEventHandler(dbStore, geminiClient)
 	eventHandler.RegisterAllHandlers(dg)
 
-	// interactionCreate は interactionCreate.go で処理される想定
 	dg.AddHandler(interactionCreate)
 
 	if err = dg.Open(); err != nil {
