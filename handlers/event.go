@@ -80,6 +80,9 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
+	if err := h.Store.CreateMessageCache(m.ID, m.Content, m.Author.ID); err != nil {
+		logger.Error("Failed to cache message in DB", "error", err)
+	}
 	if h.Gemini != nil {
 		isMentioned := false
 		for _, user := range m.Mentions {
@@ -90,7 +93,6 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 		}
 		if isMentioned {
 			s.MessageReactionAdd(m.ChannelID, m.ID, "🤔")
-			// AI応答ロジック
 			go func() {
 				messages, err := s.ChannelMessages(m.ChannelID, 10, m.ID, "", "")
 				if err != nil {
@@ -121,8 +123,10 @@ func (h *EventHandler) handleMessageUpdate(s *discordgo.Session, e *discordgo.Me
 	if e.Author == nil || e.Author.Bot {
 		return
 	}
-	if e.BeforeUpdate == nil {
-		embed := &discordgo.MessageEmbed{
+	cachedMsg, err := h.Store.GetMessageCache(e.ID)
+	var embed *discordgo.MessageEmbed
+	if err != nil || cachedMsg == nil {
+		embed = &discordgo.MessageEmbed{
 			Title:  "✏️ メッセージ編集 (編集前は内容不明)",
 			Color:  0x3498db,
 			Author: &discordgo.MessageEmbedAuthor{Name: e.Author.String(), IconURL: e.Author.AvatarURL("")},
@@ -133,29 +137,30 @@ func (h *EventHandler) handleMessageUpdate(s *discordgo.Session, e *discordgo.Me
 				{Name: "編集後", Value: "```\n" + e.Content + "\n```", Inline: false},
 			},
 		}
-		h.sendLog(s, e.GuildID, embed)
-		return
+	} else {
+		if e.Content == cachedMsg.Content {
+			return
+		}
+		embed = &discordgo.MessageEmbed{
+			Title:  "✏️ メッセージ編集",
+			Color:  0x3498db,
+			Author: &discordgo.MessageEmbedAuthor{Name: e.Author.String(), IconURL: e.Author.AvatarURL("")},
+			Fields: []*discordgo.MessageEmbedField{
+				{Name: "投稿者", Value: e.Author.Mention(), Inline: true},
+				{Name: "チャンネル", Value: fmt.Sprintf("<#%s>", e.ChannelID), Inline: true},
+				{Name: "メッセージ", Value: fmt.Sprintf("[リンク](https://discord.com/channels/%s/%s/%s)", e.GuildID, e.ChannelID, e.ID), Inline: true},
+				{Name: "編集前", Value: "```\n" + cachedMsg.Content + "\n```", Inline: false},
+				{Name: "編集後", Value: "```\n" + e.Content + "\n```", Inline: false},
+			},
+		}
 	}
-	if e.Content == e.BeforeUpdate.Content {
-		return
-	}
-	embed := &discordgo.MessageEmbed{
-		Title:  "✏️ メッセージ編集",
-		Color:  0x3498db,
-		Author: &discordgo.MessageEmbedAuthor{Name: e.Author.String(), IconURL: e.Author.AvatarURL("")},
-		Fields: []*discordgo.MessageEmbedField{
-			{Name: "投稿者", Value: e.Author.Mention(), Inline: true},
-			{Name: "チャンネル", Value: fmt.Sprintf("<#%s>", e.ChannelID), Inline: true},
-			{Name: "メッセージ", Value: fmt.Sprintf("[リンク](https://discord.com/channels/%s/%s/%s)", e.GuildID, e.ChannelID, e.ID), Inline: true},
-			{Name: "編集前", Value: "```\n" + e.BeforeUpdate.Content + "\n```", Inline: false},
-			{Name: "編集後", Value: "```\n" + e.Content + "\n```", Inline: false},
-		},
-	}
+	h.Store.CreateMessageCache(e.ID, e.Content, e.Author.ID)
 	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
-	if e.BeforeDelete == nil {
+	cachedMsg, err := h.Store.GetMessageCache(e.ID)
+	if err != nil || cachedMsg == nil {
 		embed := &discordgo.MessageEmbed{
 			Title:       "🗑️ メッセージ削除 (内容不明)",
 			Description: fmt.Sprintf("<#%s> でメッセージが削除されました。", e.ChannelID),
@@ -165,17 +170,42 @@ func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.Me
 		h.sendLog(s, e.GuildID, embed)
 		return
 	}
-	if e.BeforeDelete.Author == nil || e.BeforeDelete.Author.Bot {
-		return
+
+	author, err := s.User(cachedMsg.AuthorID)
+	if err != nil {
+		author = &discordgo.User{Username: "不明なユーザー", ID: cachedMsg.AuthorID}
 	}
+
+	deleterMention := "不明"
+	auditLog, err := s.GuildAuditLog(e.GuildID, "", "", int(discordgo.AuditLogActionMessageDelete), 5)
+	if err == nil {
+		for _, entry := range auditLog.AuditLogEntries {
+			if entry.TargetID == cachedMsg.AuthorID && entry.Options.ChannelID == e.ChannelID {
+				logTime, _ := discordgo.SnowflakeTimestamp(entry.ID)
+				if time.Since(logTime) < 10*time.Second {
+					if entry.UserID == author.ID {
+						deleterMention = "本人"
+					} else {
+						deleter, err := s.User(entry.UserID)
+						if err == nil {
+							deleterMention = deleter.Mention()
+						}
+					}
+					break
+				}
+			}
+		}
+	}
+
 	embed := &discordgo.MessageEmbed{
 		Title:  "🗑️ メッセージ削除",
 		Color:  0xf04747,
-		Author: &discordgo.MessageEmbedAuthor{Name: e.BeforeDelete.Author.String(), IconURL: e.BeforeDelete.Author.AvatarURL("")},
+		Author: &discordgo.MessageEmbedAuthor{Name: author.String(), IconURL: author.AvatarURL("")},
 		Fields: []*discordgo.MessageEmbedField{
-			{Name: "投稿者", Value: e.BeforeDelete.Author.Mention(), Inline: true},
+			{Name: "投稿者", Value: author.Mention(), Inline: true},
+			{Name: "削除者", Value: deleterMention, Inline: true},
 			{Name: "チャンネル", Value: fmt.Sprintf("<#%s>", e.ChannelID), Inline: true},
-			{Name: "内容", Value: "```\n" + e.BeforeDelete.Content + "\n```", Inline: false},
+			{Name: "内容", Value: "```\n" + cachedMsg.Content + "\n```", Inline: false},
 		},
 	}
 	h.sendLog(s, e.GuildID, embed)
