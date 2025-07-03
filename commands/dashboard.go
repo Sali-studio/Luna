@@ -123,12 +123,14 @@ func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string)
 		},
 	}
 
-	// MessageEdit構造体のEmbedsフィールドは、[]*discordgo.MessageEmbed 型を期待します。
-	// ポインタではなく、スライスそのものを渡します。
+	// ★★★ エラーの修正箇所 ★★★
+	// 1. まずEmbedのスライスを作成します
+	embeds := []*discordgo.MessageEmbed{embed}
+	// 2. MessageEdit構造体には、そのスライスへのポインタを渡します
 	editData := &discordgo.MessageEdit{
 		Channel:    config.ChannelID,
 		ID:         config.MessageID,
-		Embeds:     []*discordgo.MessageEmbed{embed}, // ポインタではなくスライスを渡す
+		Embeds:     &embeds,
 		Components: &components,
 	}
 	_, err = s.ChannelMessageEditComplex(editData)
