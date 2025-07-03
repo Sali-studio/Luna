@@ -1,3 +1,4 @@
+// storage/database.go
 package storage
 
 import (
@@ -8,6 +9,13 @@ import (
 
 	_ "modernc.org/sqlite"
 )
+
+// CachedMessage はDBに保存するメッセージの構造体です
+type CachedMessage struct {
+	MessageID string
+	Content   string
+	AuthorID  string
+}
 
 type TicketConfig struct {
 	PanelChannelID string `json:"panel_channel_id"`
@@ -88,6 +96,13 @@ func (s *DBStore) initTables() error {
 		`CREATE TABLE IF NOT EXISTS schedules (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, channel_id TEXT, cron_spec TEXT, message TEXT
 		);`,
+		// メッセージを保存するための新しいテーブル
+		`CREATE TABLE IF NOT EXISTS message_cache (
+			message_id TEXT PRIMARY KEY,
+			content TEXT,
+			author_id TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);`,
 	}
 	for _, table := range tables {
 		if _, err := s.db.Exec(table); err != nil {
@@ -97,11 +112,39 @@ func (s *DBStore) initTables() error {
 	return nil
 }
 
+// CreateMessageCache はメッセージをDBに保存します
+func (s *DBStore) CreateMessageCache(messageID, content, authorID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, err := s.db.Exec("INSERT OR REPLACE INTO message_cache (message_id, content, author_id) VALUES (?, ?, ?)", messageID, content, authorID)
+	return err
+}
+
+// GetMessageCache はメッセージをDBから取得し、その後削除します
+func (s *DBStore) GetMessageCache(messageID string) (*CachedMessage, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var msg CachedMessage
+	err := s.db.QueryRow("SELECT message_id, content, author_id FROM message_cache WHERE message_id = ?", messageID).Scan(&msg.MessageID, &msg.Content, &msg.AuthorID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 取得後、古いレコードなので削除
+	_, err = s.db.Exec("DELETE FROM message_cache WHERE message_id = ?", messageID)
+	if err != nil {
+		// 削除に失敗しても、取得はできているのでメッセージは返す
+		return &msg, nil
+	}
+
+	return &msg, nil
+}
+
 func (s *DBStore) Close() {
 	s.db.Close()
 }
 
-// ★ PingDB関数を追加 ★
 func (s *DBStore) PingDB() error {
 	return s.db.Ping()
 }
