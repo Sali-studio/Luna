@@ -19,21 +19,14 @@ import (
 )
 
 var (
-	// ★★★ 修正点 ★★★
-	// 使用するインターフェースを commands.CommandHandler に変更
 	commandHandlers   map[string]commands.CommandHandler
 	componentHandlers map[string]commands.CommandHandler
-	// ★★★ ここまで ★★★
-	startTime time.Time
+	startTime         time.Time
 )
 
 func main() {
 	logger.Init()
-
-	err := godotenv.Load()
-	if err != nil {
-		logger.Info(".envファイルが見つかりません。環境変数から直接読み込みます。")
-	}
+	godotenv.Load()
 
 	startTime = time.Now()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
@@ -60,13 +53,9 @@ func main() {
 	}
 
 	scheduler := cron.New()
-
-	// ★★★ 修正点 ★★★
 	commandHandlers = make(map[string]commands.CommandHandler)
 	componentHandlers = make(map[string]commands.CommandHandler)
-	// ★★★ ここまで ★★★
 
-	// DBStore, Gemini, StartTimeを各コマンドに注入
 	registerCommand(&commands.ConfigCommand{Store: dbStore})
 	registerCommand(&commands.DashboardCommand{Store: dbStore, Scheduler: scheduler})
 	registerCommand(&commands.ReactionRoleCommand{Store: dbStore})
@@ -84,13 +73,11 @@ func main() {
 	registerCommand(&commands.TranslateCommand{Gemini: geminiClient})
 	registerCommand(&commands.UserInfoCommand{})
 	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
-	// ★★★ 修正点 ★★★
-	// HelpCommandに commandHandlers を渡す
 	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
-	// ★★★ ここまで ★★★
 
 	eventHandler := handlers.NewEventHandler(dbStore, geminiClient)
 	eventHandler.RegisterAllHandlers(dg)
+
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if m.Author.ID == s.State.User.ID {
 			return
@@ -127,10 +114,7 @@ func main() {
 	logger.Info("Botをシャットダウンします...")
 }
 
-// ★★★ 修正点 ★★★
-// 受け取る型を commands.CommandHandler に変更
 func registerCommand(cmd commands.CommandHandler) {
-	// ★★★ ここまで ★★★
 	def := cmd.GetCommandDef()
 	commandHandlers[def.Name] = cmd
 	for _, id := range cmd.GetComponentIDs() {
