@@ -62,8 +62,6 @@ func (h *EventHandler) sendLog(s *discordgo.Session, guildID string, embed *disc
 	s.ChannelMessageSendEmbed(logConfig.ChannelID, embed)
 }
 
-// ★★★【修正】★★★
-// 実行者の特定ロジックを全体的に見直しました。
 func (h *EventHandler) getExecutor(s *discordgo.Session, guildID, targetID string, actionType discordgo.AuditLogAction) string {
 	auditLog, err := s.GuildAuditLog(guildID, "", "", int(actionType), 1)
 	if err != nil {
@@ -130,10 +128,6 @@ func (h *EventHandler) handleMessageUpdate(s *discordgo.Session, e *discordgo.Me
 	}
 	h.sendLog(s, e.GuildID, embed)
 }
-
-// ... 他のハンドラも同様に修正が必要な場合がありますが、まずはチャンネル更新とメッセージ更新に絞って修正します。
-// ... (他のハンドラは前のバージョンと同じ)
-// (以下、他の全てのハンドラを省略せずに記述)
 
 func (h *EventHandler) handleGuildUpdate(s *discordgo.Session, e *discordgo.GuildUpdate) {
 	executorID := h.getExecutor(s, e.Guild.ID, e.Guild.ID, discordgo.AuditLogActionGuildUpdate)
