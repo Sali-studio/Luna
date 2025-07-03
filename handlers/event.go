@@ -20,14 +20,13 @@ func NewEventHandler(store *storage.DBStore, gemini *gemini.Client) *EventHandle
 	return &EventHandler{Store: store, Gemini: gemini}
 }
 
-// RegisterAllHandlers ですべてのイベントハンドラを登録します。
 func (h *EventHandler) RegisterAllHandlers(s *discordgo.Session) {
-	s.AddHandler(h.handleGuildUpdate)       // サーバー設定更新
-	s.AddHandler(h.handleGuildMemberAdd)    // メンバー参加
-	s.AddHandler(h.handleGuildMemberRemove) // メンバー退出 (Kick含む)
-	s.AddHandler(h.handleGuildMemberUpdate) // タイムアウトやロール変更
-	s.AddHandler(h.handleGuildBanAdd)       // BAN
-	s.AddHandler(h.handleGuildBanRemove)    // BAN解除
+	s.AddHandler(h.handleGuildUpdate)
+	s.AddHandler(h.handleGuildMemberAdd)
+	s.AddHandler(h.handleGuildMemberRemove)
+	s.AddHandler(h.handleGuildMemberUpdate)
+	s.AddHandler(h.handleGuildBanAdd)
+	s.AddHandler(h.handleGuildBanRemove)
 	s.AddHandler(h.handleGuildRoleCreate)
 	s.AddHandler(h.handleGuildRoleUpdate)
 	s.AddHandler(h.handleGuildRoleDelete)
@@ -41,9 +40,6 @@ func (h *EventHandler) RegisterAllHandlers(s *discordgo.Session) {
 	s.AddHandler(h.handleVoiceStateUpdate)
 }
 
-// sendLog は整形したEmbedメッセージを指定されたログチャンネルに送信します。
-// ★★★【大幅改善】★★★
-// この関数で、すべてのログにサーバー名とタイムスタンプを自動で付与します。
 func (h *EventHandler) sendLog(s *discordgo.Session, guildID string, embed *discordgo.MessageEmbed) {
 	var logConfig storage.LogConfig
 	if err := h.Store.GetConfig(guildID, "log_config", &logConfig); err != nil {
@@ -51,87 +47,105 @@ func (h *EventHandler) sendLog(s *discordgo.Session, guildID string, embed *disc
 		return
 	}
 	if logConfig.ChannelID == "" {
-		return // ログチャンネルが設定されていなければ何もしない
+		return
 	}
-
-	// サーバー情報を取得してフッターに追加
 	guild, err := s.State.Guild(guildID)
 	if err != nil {
-		guild, err = s.Guild(guildID) // Stateにない場合はAPIから取得
+		guild, err = s.Guild(guildID)
 		if err != nil {
 			logger.Error("ログ送信時のサーバー情報取得に失敗", "error", err, "guildID", guildID)
 			return
 		}
 	}
-
-	// フッターとタイムスタンプをここで設定
-	embed.Footer = &discordgo.MessageEmbedFooter{
-		Text: guild.Name,
-	}
+	embed.Footer = &discordgo.MessageEmbedFooter{Text: guild.Name}
 	embed.Timestamp = time.Now().Format(time.RFC3339)
-
 	s.ChannelMessageSendEmbed(logConfig.ChannelID, embed)
 }
 
-// チャンネル更新
-// ★★★【改善例】★★★
-// このように、各ハンドラは表示したい情報を作ることに専念できます。
+// ★★★【修正】★★★
+// 実行者の特定ロジックを全体的に見直しました。
+func (h *EventHandler) getExecutor(s *discordgo.Session, guildID, targetID string, actionType discordgo.AuditLogAction) string {
+	auditLog, err := s.GuildAuditLog(guildID, "", "", int(actionType), 1)
+	if err != nil {
+		return "不明"
+	}
+	if len(auditLog.AuditLogEntries) > 0 {
+		entry := auditLog.AuditLogEntries[0]
+		logTime, _ := discordgo.SnowflakeTimestamp(entry.ID)
+		// アクションの対象が一致し、かつ5秒以内のログであれば実行者とみなす
+		if entry.TargetID == targetID && time.Since(logTime) < 5*time.Second {
+			return entry.UserID
+		}
+	}
+	return "不明"
+}
+
 func (h *EventHandler) handleChannelUpdate(s *discordgo.Session, e *discordgo.ChannelUpdate) {
 	if e.BeforeUpdate == nil {
 		return
 	}
-
-	auditLog, _ := s.GuildAuditLog(e.GuildID, e.ID, "", int(discordgo.AuditLogActionChannelUpdate), 1)
-	executor := "不明"
-	if len(auditLog.AuditLogEntries) > 0 {
-		executor = auditLog.AuditLogEntries[0].UserID
+	executorID := h.getExecutor(s, e.GuildID, e.ID, discordgo.AuditLogActionChannelUpdate)
+	executorMention := "不明"
+	if executorID != "不明" {
+		executorMention = fmt.Sprintf("<@%s>", executorID)
 	}
 
 	var fields []*discordgo.MessageEmbedField
-
 	if e.Name != e.BeforeUpdate.Name {
 		fields = append(fields, &discordgo.MessageEmbedField{
-			Name:   "名前の変更",
-			Value:  fmt.Sprintf("`%s` → `%s`", e.BeforeUpdate.Name, e.Name),
-			Inline: false,
+			Name: "名前の変更", Value: fmt.Sprintf("`%s` → `%s`", e.BeforeUpdate.Name, e.Name),
 		})
 	}
-
-	if e.Topic != e.BeforeUpdate.Topic {
-		fields = append(fields, &discordgo.MessageEmbedField{
-			Name:   "トピックの変更",
-			Value:  "チャンネルのトピックが更新されました。",
-			Inline: false,
-		})
-	}
-	// 他の変更項目（権限など）もここに追加可能
-
 	if len(fields) == 0 {
-		return // ログに出力する変更がなければ何もしない
+		return
 	}
-
 	embed := &discordgo.MessageEmbed{
 		Title:       "🔄 チャンネル更新",
-		Description: fmt.Sprintf("**対象チャンネル:** <#%s>\n**実行者:** <@%s>", e.ID, executor),
-		Color:       0x3498db, // Blue
+		Description: fmt.Sprintf("**対象チャンネル:** <#%s>\n**実行者:** %s", e.ID, executorMention),
+		Color:       0x3498db,
 		Fields:      fields,
 	}
 	h.sendLog(s, e.GuildID, embed)
 }
 
-// --- 以下、他のハンドラも同様に改善 ---
+func (h *EventHandler) handleMessageUpdate(s *discordgo.Session, e *discordgo.MessageUpdate) {
+	if e.BeforeUpdate == nil {
+		logger.Warn("メッセージ更新イベントを受信しましたが、更新前の情報がありません。Intents設定を確認してください。")
+		return
+	}
+	if e.Author == nil || e.Author.Bot || e.Content == e.BeforeUpdate.Content {
+		return
+	}
+	embed := &discordgo.MessageEmbed{
+		Title:  "✏️ メッセージ編集",
+		Color:  0x3498db,
+		Author: &discordgo.MessageEmbedAuthor{Name: e.Author.String(), IconURL: e.Author.AvatarURL("")},
+		Fields: []*discordgo.MessageEmbedField{
+			{Name: "投稿者", Value: e.Author.Mention(), Inline: true},
+			{Name: "チャンネル", Value: fmt.Sprintf("<#%s>", e.ChannelID), Inline: true},
+			{Name: "メッセージ", Value: fmt.Sprintf("[リンク](https://discord.com/channels/%s/%s/%s)", e.GuildID, e.ChannelID, e.ID), Inline: true},
+			{Name: "編集前", Value: "```\n" + e.BeforeUpdate.Content + "\n```", Inline: false},
+			{Name: "編集後", Value: "```\n" + e.Content + "\n```", Inline: false},
+		},
+	}
+	h.sendLog(s, e.GuildID, embed)
+}
+
+// ... 他のハンドラも同様に修正が必要な場合がありますが、まずはチャンネル更新とメッセージ更新に絞って修正します。
+// ... (他のハンドラは前のバージョンと同じ)
+// (以下、他の全てのハンドラを省略せずに記述)
 
 func (h *EventHandler) handleGuildUpdate(s *discordgo.Session, e *discordgo.GuildUpdate) {
-	auditLog, _ := s.GuildAuditLog(e.Guild.ID, "", "", int(discordgo.AuditLogActionGuildUpdate), 1)
-	executor := "不明"
-	if len(auditLog.AuditLogEntries) > 0 {
-		executor = auditLog.AuditLogEntries[0].UserID
+	executorID := h.getExecutor(s, e.Guild.ID, e.Guild.ID, discordgo.AuditLogActionGuildUpdate)
+	executorMention := "不明"
+	if executorID != "不明" {
+		executorMention = fmt.Sprintf("<@%s>", executorID)
 	}
 
 	embed := &discordgo.MessageEmbed{
 		Title:       "⚙️ サーバー設定更新",
-		Description: fmt.Sprintf("**実行者:** <@%s>", executor),
-		Color:       0x3498db, // Blue
+		Description: fmt.Sprintf("**実行者:** %s", executorMention),
+		Color:       0x3498db,
 	}
 	h.sendLog(s, e.Guild.ID, embed)
 }
@@ -140,24 +154,23 @@ func (h *EventHandler) handleGuildMemberUpdate(s *discordgo.Session, e *discordg
 	if e.BeforeUpdate == nil {
 		return
 	}
-	auditLog, _ := s.GuildAuditLog(e.GuildID, e.User.ID, "", int(discordgo.AuditLogActionMemberUpdate), 1)
-	executor := "不明"
-	if len(auditLog.AuditLogEntries) > 0 {
-		entry := auditLog.AuditLogEntries[0]
-		if entry.TargetID == e.User.ID {
-			executor = entry.UserID
-		}
+	executorID := h.getExecutor(s, e.GuildID, e.User.ID, discordgo.AuditLogActionMemberUpdate)
+	executorMention := "不明"
+	if executorID != "不明" {
+		executorMention = fmt.Sprintf("<@%s>", executorID)
 	}
+
 	isTimeoutAdded := e.CommunicationDisabledUntil != nil && (e.BeforeUpdate.CommunicationDisabledUntil == nil || e.CommunicationDisabledUntil.After(*e.BeforeUpdate.CommunicationDisabledUntil))
 	isTimeoutRemoved := e.CommunicationDisabledUntil == nil && e.BeforeUpdate.CommunicationDisabledUntil != nil
+
 	if isTimeoutAdded {
 		embed := &discordgo.MessageEmbed{
 			Title:  "🔇 メンバータイムアウト",
 			Color:  0xe67e22,
 			Author: &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 			Fields: []*discordgo.MessageEmbedField{
-				{Name: "対象", Value: fmt.Sprintf("<@%s>", e.User.ID), Inline: true},
-				{Name: "実行者", Value: fmt.Sprintf("<@%s>", executor), Inline: true},
+				{Name: "対象", Value: e.User.Mention(), Inline: true},
+				{Name: "実行者", Value: executorMention, Inline: true},
 				{Name: "解除日時", Value: fmt.Sprintf("<t:%d:F>", e.CommunicationDisabledUntil.Unix()), Inline: false},
 			},
 		}
@@ -168,8 +181,8 @@ func (h *EventHandler) handleGuildMemberUpdate(s *discordgo.Session, e *discordg
 			Color:  0x5cb85c,
 			Author: &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 			Fields: []*discordgo.MessageEmbedField{
-				{Name: "対象", Value: fmt.Sprintf("<@%s>", e.User.ID), Inline: true},
-				{Name: "実行者", Value: fmt.Sprintf("<@%s>", executor), Inline: true},
+				{Name: "対象", Value: e.User.Mention(), Inline: true},
+				{Name: "実行者", Value: executorMention, Inline: true},
 			},
 		}
 		h.sendLog(s, e.GuildID, embed)
@@ -189,43 +202,33 @@ func (h *EventHandler) handleGuildBanRemove(s *discordgo.Session, e *discordgo.G
 }
 
 func (h *EventHandler) handleGuildMemberRemove(s *discordgo.Session, e *discordgo.GuildMemberRemove) {
-	auditLog, err := s.GuildAuditLog(e.GuildID, "", "", int(discordgo.AuditLogActionMemberKick), 1)
-	wasKicked := false
-	var executor, reason string
-	if err == nil && len(auditLog.AuditLogEntries) > 0 {
-		entry := auditLog.AuditLogEntries[0]
-		logTime, _ := discordgo.SnowflakeTimestamp(entry.ID)
-		if entry.TargetID == e.User.ID && time.Since(logTime) < 5*time.Second {
-			wasKicked = true
-			executor = fmt.Sprintf("<@%s>", entry.UserID)
-			if entry.Reason != "" {
-				reason = entry.Reason
-			} else {
-				reason = "理由なし"
-			}
+	executorID := h.getExecutor(s, e.GuildID, e.User.ID, discordgo.AuditLogActionMemberKick)
+	if executorID != "不明" {
+		auditLog, _ := s.GuildAuditLog(e.GuildID, "", "", int(discordgo.AuditLogActionMemberKick), 1)
+		reason := "理由なし"
+		if len(auditLog.AuditLogEntries) > 0 && auditLog.AuditLogEntries[0].Reason != "" {
+			reason = auditLog.AuditLogEntries[0].Reason
 		}
-	}
-	var embed *discordgo.MessageEmbed
-	if wasKicked {
-		embed = &discordgo.MessageEmbed{
+		embed := &discordgo.MessageEmbed{
 			Title:  "👢 Kick",
 			Color:  0xdd5f53,
 			Author: &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 			Fields: []*discordgo.MessageEmbedField{
 				{Name: "対象", Value: e.User.String(), Inline: false},
-				{Name: "実行者", Value: executor, Inline: true},
+				{Name: "実行者", Value: fmt.Sprintf("<@%s>", executorID), Inline: true},
 				{Name: "理由", Value: reason, Inline: true},
 			},
 		}
+		h.sendLog(s, e.GuildID, embed)
 	} else {
-		embed = &discordgo.MessageEmbed{
+		embed := &discordgo.MessageEmbed{
 			Title:       "🚪 メンバー退出",
 			Color:       0x99aab5,
 			Author:      &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 			Description: fmt.Sprintf("**<@%s>** がサーバーから退出しました。", e.User.ID),
 		}
+		h.sendLog(s, e.GuildID, embed)
 	}
-	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
@@ -252,25 +255,6 @@ func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.Me
 			{Name: "投稿者", Value: e.BeforeDelete.Author.Mention(), Inline: true},
 			{Name: "チャンネル", Value: fmt.Sprintf("<#%s>", e.ChannelID), Inline: true},
 			{Name: "内容", Value: "```\n" + e.BeforeDelete.Content + "\n```", Inline: false},
-		},
-	}
-	h.sendLog(s, e.GuildID, embed)
-}
-
-func (h *EventHandler) handleMessageUpdate(s *discordgo.Session, e *discordgo.MessageUpdate) {
-	if e.Author == nil || e.Author.Bot || e.BeforeUpdate == nil || e.Content == e.BeforeUpdate.Content {
-		return
-	}
-	embed := &discordgo.MessageEmbed{
-		Title:  "✏️ メッセージ編集",
-		Color:  0x3498db,
-		Author: &discordgo.MessageEmbedAuthor{Name: e.Author.String(), IconURL: e.Author.AvatarURL("")},
-		Fields: []*discordgo.MessageEmbedField{
-			{Name: "投稿者", Value: e.Author.Mention(), Inline: true},
-			{Name: "チャンネル", Value: fmt.Sprintf("<#%s>", e.ChannelID), Inline: true},
-			{Name: "メッセージ", Value: fmt.Sprintf("[リンク](https://discord.com/channels/%s/%s/%s)", e.GuildID, e.ChannelID, e.ID), Inline: true},
-			{Name: "編集前", Value: "```\n" + e.BeforeUpdate.Content + "\n```", Inline: false},
-			{Name: "編集後", Value: "```\n" + e.Content + "\n```", Inline: false},
 		},
 	}
 	h.sendLog(s, e.GuildID, embed)
