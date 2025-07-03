@@ -24,16 +24,12 @@ var (
 )
 
 func main() {
-	// ★★★ ここを修正 ★★★
-	// 1. まずロガーを初期化する
 	logger.Init()
 
-	// 2. 次に.envファイルを読み込む
 	err := godotenv.Load()
 	if err != nil {
 		logger.Info(".envファイルが見つかりません。環境変数から直接読み込みます。")
 	}
-	// ★★★ ここまで ★★★
 
 	startTime = time.Now()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
@@ -83,7 +79,11 @@ func main() {
 	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
 
 	eventHandler := handlers.NewEventHandler(dbStore, geminiClient)
+	// ### 修正点 ###
+	// この一行でevent.goに定義した全てのハンドラを登録します。
 	eventHandler.RegisterAllHandlers(dg)
+
+	// メッセージ作成とインタラクションのハンドラは個別に追加します。
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if m.Author.ID == s.State.User.ID {
 			return
