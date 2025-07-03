@@ -10,10 +10,7 @@ import (
 )
 
 type HelpCommand struct {
-	// ★★★ 修正点 ★★★
-	// 同じパッケージ内の CommandHandler を参照する
 	AllCommands map[string]CommandHandler
-	// ★★★ ここまで ★★★
 }
 
 func (c *HelpCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -24,26 +21,23 @@ func (c *HelpCommand) GetCommandDef() *discordgo.ApplicationCommand {
 }
 
 func (c *HelpCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// カテゴリごとにコマンドを分類
 	categorizedCommands := make(map[string][]string)
 	for _, cmdHandler := range c.AllCommands {
 		def := cmdHandler.GetCommandDef()
 		category := cmdHandler.GetCategory()
 		if category == "" {
-			category = "その他" // カテゴリ未設定のコマンド
+			category = "その他"
 		}
 		commandInfo := fmt.Sprintf("`/%s` - %s", def.Name, def.Description)
 		categorizedCommands[category] = append(categorizedCommands[category], commandInfo)
 	}
 
-	// カテゴリ名をソートして、表示順を固定
 	categories := make([]string, 0, len(categorizedCommands))
 	for k := range categorizedCommands {
 		categories = append(categories, k)
 	}
 	sort.Strings(categories)
 
-	// Embedを作成
 	embed := &discordgo.MessageEmbed{
 		Title:       "Luna Bot コマンド一覧",
 		Description: "利用可能なコマンドは以下の通りです。",
@@ -60,9 +54,7 @@ func (c *HelpCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{embed},
-		},
+		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}},
 	})
 }
 
