@@ -78,12 +78,7 @@ func main() {
 	eventHandler := handlers.NewEventHandler(dbStore, geminiClient)
 	eventHandler.RegisterAllHandlers(dg)
 
-	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
-		if m.Author.ID == s.State.User.ID {
-			return
-		}
-		eventHandler.HandleMessageCreate(s, m)
-	})
+	// interactionCreate は interactionCreate.go で処理される想定
 	dg.AddHandler(interactionCreate)
 
 	if err = dg.Open(); err != nil {
