@@ -20,23 +20,28 @@ func NewEventHandler(store *storage.DBStore, gemini *gemini.Client) *EventHandle
 	return &EventHandler{Store: store, Gemini: gemini}
 }
 
+// RegisterAllHandlers ですべてのイベントハンドラを登録します。
 func (h *EventHandler) RegisterAllHandlers(s *discordgo.Session) {
-	s.AddHandler(h.handleMessageUpdate)
-	s.AddHandler(h.handleMessageDelete)
-	s.AddHandler(h.handleChannelCreate)
-	s.AddHandler(h.handleChannelUpdate)
-	s.AddHandler(h.handleChannelDelete)
+	s.AddHandler(h.handleGuildUpdate)       // サーバー設定更新
+	s.AddHandler(h.handleGuildMemberAdd)    // メンバー参加
+	s.AddHandler(h.handleGuildMemberRemove) // メンバー退出 (Kick含む)
+	s.AddHandler(h.handleGuildMemberUpdate) // タイムアウトやロール変更
+	s.AddHandler(h.handleGuildBanAdd)       // BAN
+	s.AddHandler(h.handleGuildBanRemove)    // BAN解除
 	s.AddHandler(h.handleGuildRoleCreate)
 	s.AddHandler(h.handleGuildRoleUpdate)
 	s.AddHandler(h.handleGuildRoleDelete)
-	s.AddHandler(h.handleGuildBanAdd)
-	s.AddHandler(h.handleGuildMemberAdd)
-	s.AddHandler(h.handleGuildMemberRemove)
+	s.AddHandler(h.handleChannelCreate)
+	s.AddHandler(h.handleChannelUpdate)
+	s.AddHandler(h.handleChannelDelete)
+	s.AddHandler(h.handleMessageDelete)
+	s.AddHandler(h.handleMessageUpdate)
 	s.AddHandler(h.handleReactionAdd)
 	s.AddHandler(h.handleReactionRemove)
 	s.AddHandler(h.handleVoiceStateUpdate)
 }
 
+// sendLog は整形したEmbedメッセージを指定されたログチャンネルに送信します。
 func (h *EventHandler) sendLog(s *discordgo.Session, guildID string, embed *discordgo.MessageEmbed) {
 	var logConfig storage.LogConfig
 	if err := h.Store.GetConfig(guildID, "log_config", &logConfig); err != nil {
@@ -44,9 +49,124 @@ func (h *EventHandler) sendLog(s *discordgo.Session, guildID string, embed *disc
 		return
 	}
 	if logConfig.ChannelID == "" {
-		return
+		return // ログチャンネルが設定されていなければ何もしない
 	}
 	s.ChannelMessageSendEmbed(logConfig.ChannelID, embed)
+}
+
+// サーバー設定の更新
+func (h *EventHandler) handleGuildUpdate(s *discordgo.Session, e *discordgo.GuildUpdate) {
+	// GuildUpdateイベントにはBeforeUpdateが含まれないため、変更があったことのみを通知
+	embed := &discordgo.MessageEmbed{
+		Title:       "⚙️ サーバー設定更新",
+		Description: fmt.Sprintf("サーバー「%s」の設定が更新されました。", e.Name),
+		Color:       0x3498db,
+		Timestamp:   time.Now().Format(time.RFC3339),
+	}
+	h.sendLog(s, e.Guild.ID, embed)
+}
+
+// メンバーのタイムアウト/ロール変更など
+func (h *EventHandler) handleGuildMemberUpdate(s *discordgo.Session, e *discordgo.GuildMemberUpdate) {
+	if e.BeforeUpdate == nil {
+		return
+	}
+
+	// タイムアウトの変更を検出
+	isTimeoutAdded := e.CommunicationDisabledUntil != nil && (e.BeforeUpdate.CommunicationDisabledUntil == nil || e.CommunicationDisabledUntil.After(*e.BeforeUpdate.CommunicationDisabledUntil))
+	isTimeoutRemoved := e.CommunicationDisabledUntil == nil && e.BeforeUpdate.CommunicationDisabledUntil != nil
+
+	if isTimeoutAdded {
+		embed := &discordgo.MessageEmbed{
+			Title:       "🔇 メンバータイムアウト",
+			Description: fmt.Sprintf("**対象:** <@%s>\n**解除日時:** <t:%d:F>", e.User.ID, e.CommunicationDisabledUntil.Unix()),
+			Color:       0xf0ad4e,
+			Timestamp:   time.Now().Format(time.RFC3339),
+			Author: &discordgo.MessageEmbedAuthor{
+				Name:    e.User.String(),
+				IconURL: e.User.AvatarURL(""),
+			},
+		}
+		h.sendLog(s, e.GuildID, embed)
+	} else if isTimeoutRemoved {
+		embed := &discordgo.MessageEmbed{
+			Title:       "🔈 タイムアウト解除",
+			Description: fmt.Sprintf("**対象:** <@%s>", e.User.ID),
+			Color:       0x5cb85c,
+			Timestamp:   time.Now().Format(time.RFC3339),
+			Author: &discordgo.MessageEmbedAuthor{
+				Name:    e.User.String(),
+				IconURL: e.User.AvatarURL(""),
+			},
+		}
+		h.sendLog(s, e.GuildID, embed)
+	}
+}
+
+// BAN解除
+func (h *EventHandler) handleGuildBanRemove(s *discordgo.Session, e *discordgo.GuildBanRemove) {
+	embed := &discordgo.MessageEmbed{
+		Title:       "🕊️ メンバーのBANが解除されました",
+		Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID),
+		Color:       0x58d68d,
+		Timestamp:   time.Now().Format(time.RFC3339),
+		Author: &discordgo.MessageEmbedAuthor{
+			Name:    e.User.String(),
+			IconURL: e.User.AvatarURL(""),
+		},
+	}
+	h.sendLog(s, e.GuildID, embed)
+}
+
+// メンバー退出 (Kickされた場合もこのイベントが発火します)
+func (h *EventHandler) handleGuildMemberRemove(s *discordgo.Session, e *discordgo.GuildMemberRemove) {
+	auditLog, err := s.GuildAuditLog(e.GuildID, "", "", int(discordgo.AuditLogActionMemberKick), 1)
+	wasKicked := false
+	var executor, reason string
+
+	if err == nil && len(auditLog.AuditLogEntries) > 0 {
+		entry := auditLog.AuditLogEntries[0]
+		logTime, _ := discordgo.SnowflakeTimestamp(entry.ID)
+		if entry.TargetID == e.User.ID && time.Since(logTime) < 5*time.Second {
+			wasKicked = true
+			executor = fmt.Sprintf("<@%s>", entry.UserID)
+			if entry.Reason != "" {
+				reason = entry.Reason
+			} else {
+				reason = "理由なし"
+			}
+		}
+	}
+
+	var embed *discordgo.MessageEmbed
+	if wasKicked {
+		embed = &discordgo.MessageEmbed{
+			Title: "👢 メンバーがKickされました",
+			Color: 0xdd5f53,
+			Fields: []*discordgo.MessageEmbedField{
+				{Name: "対象", Value: e.User.String(), Inline: false},
+				{Name: "実行者", Value: executor, Inline: true},
+				{Name: "理由", Value: reason, Inline: true},
+			},
+			Author: &discordgo.MessageEmbedAuthor{
+				Name:    e.User.String(),
+				IconURL: e.User.AvatarURL(""),
+			},
+			Timestamp: time.Now().Format(time.RFC3339),
+		}
+	} else {
+		embed = &discordgo.MessageEmbed{
+			Title:       "🚪 メンバー退出",
+			Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID),
+			Color:       0x99aab5,
+			Timestamp:   time.Now().Format(time.RFC3339),
+			Author: &discordgo.MessageEmbedAuthor{
+				Name:    e.User.String(),
+				IconURL: e.User.AvatarURL(""),
+			},
+		}
+	}
+	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
@@ -166,11 +286,6 @@ func (h *EventHandler) handleGuildBanAdd(s *discordgo.Session, e *discordgo.Guil
 
 func (h *EventHandler) handleGuildMemberAdd(s *discordgo.Session, e *discordgo.GuildMemberAdd) {
 	embed := &discordgo.MessageEmbed{Title: "メンバー参加", Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID), Color: 0x00ff00, Timestamp: time.Now().Format(time.RFC3339)}
-	h.sendLog(s, e.GuildID, embed)
-}
-
-func (h *EventHandler) handleGuildMemberRemove(s *discordgo.Session, e *discordgo.GuildMemberRemove) {
-	embed := &discordgo.MessageEmbed{Title: "メンバー退出", Description: fmt.Sprintf("**ユーザー:** %s (`%s`)", e.User.String(), e.User.ID), Color: 0xaaaaaa, Timestamp: time.Now().Format(time.RFC3339)}
 	h.sendLog(s, e.GuildID, embed)
 }
 
