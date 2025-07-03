@@ -73,9 +73,15 @@ func (c *ReactionRoleCommand) Handle(s *discordgo.Session, i *discordgo.Interact
 	selectOptions := make([]discordgo.SelectMenuOption, 0, len(messages))
 	for _, msg := range messages {
 		content := msg.Content
-		if len(content) > 50 {
-			content = string([]rune(content)[:47]) + "..."
+
+		// ★★★ ここを修正 ★★★
+		// runeスライスに変換して、文字数を正しく扱う
+		runes := []rune(content)
+		if len(runes) > 47 {
+			content = string(runes[:47]) + "..."
 		}
+		// ★★★ ここまで ★★★
+
 		if content == "" && len(msg.Embeds) > 0 {
 			content = fmt.Sprintf("Embed: %s", msg.Embeds[0].Title)
 		}
