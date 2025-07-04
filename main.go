@@ -66,6 +66,7 @@ func main() {
 	registerCommand(&commands.PingCommand{StartTime: startTime, Store: dbStore})
 	registerCommand(&commands.AskCommand{Gemini: geminiClient})
 	registerCommand(&commands.AvatarCommand{})
+	registerCommand(&commands.WelcomeCommand{Store: dbStore})
 	registerCommand(&commands.CalculatorCommand{})
 	registerCommand(&commands.EmbedCommand{})
 	registerCommand(&commands.ModerateCommand{})

@@ -6,6 +6,7 @@ import (
 	"luna/gemini"
 	"luna/logger"
 	"luna/storage"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -282,13 +283,46 @@ func (h *EventHandler) handleGuildUpdate(s *discordgo.Session, e *discordgo.Guil
 }
 
 func (h *EventHandler) handleGuildMemberAdd(s *discordgo.Session, e *discordgo.GuildMemberAdd) {
-	embed := &discordgo.MessageEmbed{
+	// --- 既存のログ送信処理 ---
+	logEmbed := &discordgo.MessageEmbed{
 		Title:       "✅ メンバー参加",
 		Description: fmt.Sprintf("**<@%s>** がサーバーに参加しました。", e.User.ID),
 		Author:      &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 		Color:       0x2ecc71,
 	}
-	h.sendLog(s, e.GuildID, embed)
+	h.sendLog(s, e.GuildID, logEmbed)
+
+	// --- ウェルカムメッセージ送信処理 ---
+	var welcomeConfig storage.WelcomeConfig
+	if err := h.Store.GetConfig(e.GuildID, "welcome_config", &welcomeConfig); err == nil && welcomeConfig.Enabled {
+		guild, err := s.State.Guild(e.GuildID)
+		if err != nil {
+			guild, _ = s.Guild(e.GuildID) // エラー時はAPIから再取得を試みる
+		}
+		if guild == nil {
+			logger.Error("ウェルカムメッセージ送信時にGuild情報の取得に失敗", "guildID", e.GuildID)
+			return
+		}
+
+		// メッセージ内のプレースホルダーを置換
+		message := strings.Replace(welcomeConfig.Message, "{user}", e.User.Mention(), -1)
+		message = strings.Replace(message, "{server}", guild.Name, -1)
+
+		// デザイン性の高いEmbedを作成
+		welcomeEmbed := &discordgo.MessageEmbed{
+			Description: message,
+			Color:       0x00bfff, // Deep Sky Blue
+			Thumbnail: &discordgo.MessageEmbedThumbnail{
+				URL: e.User.AvatarURL("256"),
+			},
+			Footer: &discordgo.MessageEmbedFooter{
+				Text:    fmt.Sprintf("%s へようこそ！", guild.Name),
+				IconURL: guild.IconURL(""),
+			},
+			Timestamp: time.Now().Format(time.RFC3339),
+		}
+		s.ChannelMessageSendEmbed(welcomeConfig.ChannelID, welcomeEmbed)
+	}
 }
 
 func (h *EventHandler) handleGuildMemberUpdate(s *discordgo.Session, e *discordgo.GuildMemberUpdate) {

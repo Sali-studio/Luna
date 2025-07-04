@@ -52,6 +52,12 @@ type Schedule struct {
 	Message   string
 }
 
+type WelcomeConfig struct {
+	Enabled   bool   `json:"enabled"`
+	ChannelID string `json:"channel_id"`
+	Message   string `json:"message"`
+}
+
 type DBStore struct {
 	db *sql.DB
 	mu sync.RWMutex
@@ -81,6 +87,7 @@ func (s *DBStore) initTables() error {
 			temp_vc_config TEXT DEFAULT '{}',
 			dashboard_config TEXT DEFAULT '{}',
 			bump_config TEXT DEFAULT '{}',
+			welcome_config TEXT DEFAULT '{}',
 			ticket_counter INTEGER DEFAULT 0
 		);`,
 		`CREATE TABLE IF NOT EXISTS tickets (
@@ -96,7 +103,6 @@ func (s *DBStore) initTables() error {
 		`CREATE TABLE IF NOT EXISTS schedules (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, channel_id TEXT, cron_spec TEXT, message TEXT
 		);`,
-		// メッセージを保存するための新しいテーブル
 		`CREATE TABLE IF NOT EXISTS message_cache (
 			message_id TEXT PRIMARY KEY,
 			content TEXT,
