@@ -28,7 +28,7 @@ type WeatherCommand struct {
 func (c *WeatherCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:        "weather",
-		Description: "指定した都市の現在の天気を表示します",
+		Description: "指定した都市の現在の天気を表示します（実験的機能）(APIが設定されていないので利用できません)",
 		Options: []*discordgo.ApplicationCommandOption{
 			{Type: discordgo.ApplicationCommandOptionString, Name: "city", Description: "都市名 (例: Tokyo)", Required: true},
 		},
