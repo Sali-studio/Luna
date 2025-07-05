@@ -16,3 +16,7 @@
 
 # API key
 google-credentials.json
+
+# Node.js dependencies (追加)
+node_modules/
+music_player/node_modules/
