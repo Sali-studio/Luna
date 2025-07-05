@@ -42,17 +42,17 @@ func main() {
 	defer pyCmd.Process.Kill()
 	log.Println("Python AI server started successfully.")
 
-	// 2. C#のOCRサーバーを起動
-	log.Println("Starting C# OCR server...")
-	csCmd := exec.Command("dotnet", "run")
-	csCmd.Dir = "./csharp_server" // csharp_serverフォルダ内で実行
-	csCmd.Stdout = os.Stdout
-	csCmd.Stderr = os.Stderr
-	if err := csCmd.Start(); err != nil {
-		log.Fatalf("Failed to start C# server: %v", err)
-	}
-	defer csCmd.Process.Kill()
-	log.Println("C# OCR server started successfully.")
+	// 2. C#のOCRサーバーを起動 --無効化--
+	//log.Println("Starting C# OCR server...")
+	//csCmd := exec.Command("dotnet", "run")
+	//csCmd.Dir = "./csharp_server" // csharp_serverフォルダ内で実行
+	//csCmd.Stdout = os.Stdout
+	//csCmd.Stderr = os.Stderr
+	//if err := csCmd.Start(); err != nil {
+	//	log.Fatalf("Failed to start C# server: %v", err)
+	//}
+	//defer csCmd.Process.Kill()
+	//log.Println("C# OCR server started successfully.")
 
 	// 3. Juliaの計算サーバーを起動
 	log.Println("Starting Julia calculation server...")
@@ -123,7 +123,7 @@ func main() {
 	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
 	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
 	registerCommand(&commands.ImagineCommand{})
-	registerCommand(&commands.ReadTextCommand{})
+	// registerCommand(&commands.ReadTextCommand{}) -- 無効化 --
 	registerCommand(&commands.MusicCommand{})
 
 	eventHandler := handlers.NewEventHandler(dbStore)

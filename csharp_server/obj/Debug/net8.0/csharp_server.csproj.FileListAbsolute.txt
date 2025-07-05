@@ -1,8 +1,0 @@
-C:\Users\amuka\OneDrive\ドキュメント\Luna\Luna\csharp_server\obj\Debug\net8.0\csharp_server.csproj.AssemblyReference.cache
-C:\Users\amuka\OneDrive\ドキュメント\Luna\Luna\csharp_server\obj\Debug\net8.0\csharp_server.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\amuka\OneDrive\ドキュメント\Luna\Luna\csharp_server\obj\Debug\net8.0\csharp_server.AssemblyInfoInputs.cache
-C:\Users\amuka\OneDrive\ドキュメント\Luna\Luna\csharp_server\obj\Debug\net8.0\csharp_server.AssemblyInfo.cs
-C:\Users\amuka\OneDrive\ドキュメント\Luna\Luna\csharp_server\obj\Debug\net8.0\csharp_server.csproj.CoreCompileInputs.cache
-C:\Users\amuka\OneDrive\ドキュメント\Luna\Luna\csharp_server\obj\Debug\net8.0\csharp_server.MvcApplicationPartsAssemblyInfo.cs
-C:\Users\amuka\OneDrive\ドキュメント\Luna\Luna\csharp_server\obj\Debug\net8.0\csharp_server.MvcApplicationPartsAssemblyInfo.cache
-C:\Users\amuka\OneDrive\ドキュメント\Luna\Luna\csharp_server\obj\Debug\net8.0\csharp_server.sourcelink.json
