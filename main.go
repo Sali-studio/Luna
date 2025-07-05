@@ -29,18 +29,43 @@ func main() {
 	logger.Init()
 	godotenv.Load()
 
-	// PythonのAIサーバーをバックグラウンドで起動
-	log.Println("Starting Python AI server...")
-	cmd := exec.Command("python", "python_server.py")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// --- サーバー群の自動起動 ---
 
-	err := cmd.Start()
-	if err != nil {
+	// 1. PythonのAIサーバーを起動
+	log.Println("Starting Python AI server...")
+	pyCmd := exec.Command("python", "python_server.py")
+	pyCmd.Stdout = os.Stdout
+	pyCmd.Stderr = os.Stderr
+	if err := pyCmd.Start(); err != nil {
 		log.Fatalf("Failed to start Python server: %v", err)
 	}
-	defer cmd.Process.Kill()
-	log.Println("Python server started successfully.")
+	defer pyCmd.Process.Kill()
+	log.Println("Python AI server started successfully.")
+
+	// 2. C#のOCRサーバーを起動
+	log.Println("Starting C# OCR server...")
+	csCmd := exec.Command("dotnet", "run")
+	csCmd.Dir = "./csharp_server" // csharp_serverフォルダ内で実行
+	csCmd.Stdout = os.Stdout
+	csCmd.Stderr = os.Stderr
+	if err := csCmd.Start(); err != nil {
+		log.Fatalf("Failed to start C# server: %v", err)
+	}
+	defer csCmd.Process.Kill()
+	log.Println("C# OCR server started successfully.")
+
+	// 3. Juliaの計算サーバーを起動
+	log.Println("Starting Julia calculation server...")
+	jlCmd := exec.Command("julia", "julia_server.jl")
+	jlCmd.Stdout = os.Stdout
+	jlCmd.Stderr = os.Stderr
+	if err := jlCmd.Start(); err != nil {
+		log.Fatalf("Failed to start Julia server: %v", err)
+	}
+	defer jlCmd.Process.Kill()
+	log.Println("Julia calculation server started successfully.")
+
+	// --- ここから下はBOT本体のロジック (変更なし) ---
 
 	startTime = time.Now()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
@@ -88,7 +113,7 @@ func main() {
 	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
 	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
 	registerCommand(&commands.ImagineCommand{})
-	registerCommand(&commands.MandelbrotCommand{})
+	registerCommand(&commands.ReadTextCommand{})
 
 	eventHandler := handlers.NewEventHandler(dbStore)
 	eventHandler.RegisterAllHandlers(dg)
