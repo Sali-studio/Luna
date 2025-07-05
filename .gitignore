@@ -13,3 +13,6 @@
 
 # Database file
 *.db
+
+# API key
+google-credentials.json
