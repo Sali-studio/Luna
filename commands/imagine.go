@@ -56,8 +56,7 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	reqJson, _ := json.Marshal(reqData)
 
 	// 3. PythonサーバーにHTTP POSTリクエストを送信
-	//    (ポート番号は image_server.py と合わせる)
-	resp, err := http.Post("http://localhost:5001/generate", "application/json", bytes.NewBuffer(reqJson))
+	resp, err := http.Post("http://localhost:5001/generate-image", "application/json", bytes.NewBuffer(reqJson))
 	if err != nil {
 		// Pythonサーバーに接続できなかった場合
 		content := "エラー: 画像生成サーバーに接続できませんでした。"
