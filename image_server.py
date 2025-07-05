@@ -6,17 +6,13 @@ import vertexai
 from vertexai.preview.vision_models import ImageGenerationModel
 import time
 
-# --- 設定 ---
-PROJECT_ID = "gemini-luna"
-REGION = "us-central1"
-
 IMG_DIR = "generated_images"
 if not os.path.exists(IMG_DIR):
     os.makedirs(IMG_DIR)
 
 # --- FlaskアプリとVertex AIの初期化 ---
 app = flask.Flask(__name__)
-vertexai.init(project=PROJECT_ID, location=REGION)
+vertexai.init()
 
 model = ImageGenerationModel.from_pretrained("imagegeneration@006")
 
