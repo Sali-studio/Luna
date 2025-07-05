@@ -23,12 +23,12 @@ type ImagineCommand struct{}
 func (c *ImagineCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:        "imagine",
-		Description: "Luna Assistantで画像を生成します",
+		Description: "Luna Assistantで画像を生成します（実験的機能）",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "prompt",
-				Description: "生成したい画像の説明 (例: 宇宙を泳ぐ猫)",
+				Description: "生成したい画像の説明 (必ず英語で指示を出してください。) (例: The Bear Swimming in Space)",
 				Required:    true,
 			},
 		},
