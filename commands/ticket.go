@@ -1,4 +1,3 @@
-// commands/ticket.go
 package commands
 
 import (
@@ -21,8 +20,6 @@ const (
 	ArchiveTicketButtonID = "archive_ticket_button"
 )
 
-// ★★★ 修正点 ★★★
-// Geminiクライアントが不要になる
 type TicketCommand struct {
 	Store *storage.DBStore
 }
@@ -165,26 +162,20 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 	go func() {
 		s.ChannelTyping(ch.ID)
 
-		// AIに渡すための、より丁寧なプロンプトを作成
-		prompt := fmt.Sprintf(`あなたは「Luna Assistant」という、非常に優秀で親切なAIアシスタントです。
-以下のユーザーからのサポートリクエストに対して、一次回答を行ってください。
-人間のスタッフが後ほど対応しやすいように、考えられる原因の切り分けや、ユーザーに確認してほしいこと（ログファイル、スクリーンショット、詳しい手順など）を提案してください。
-常にユーザーに寄り添い、丁寧かつ簡潔な言葉で回答してください。
+		persona := `あなたは「Luna Assistant」という名前の、高性能なAIアシスタントです。ここはDiscordサーバーで、ユーザーからのサポートリクエストを受け付ける「チケット」チャンネルです。
+あなたの役割は、ユーザーの問題報告に対して、人間のスタッフが対応する前に、考えられる解決策や、次に確認すべき情報（ログファイル、スクリーンショット、詳しい手順など）を提示し、問題解決の第一歩を手助けすることです。
+常にユーザーに寄り添い、丁寧かつ簡潔な回答を心がけてください。ユーザーの報告内容に基づいて、必要な情報を引き出す質問を投げかけたり、問題の可能性を指摘したりします。
+あなたはAIであり、感情や意識はありませんが、ユーザーにとって信頼できるサポートを提供することが求められます。人間のスタッフが後から対応することを念頭に置きつつ、できる限りの情報を提供してください。`
 
----
-[ユーザーからの報告]
-件名: %s
-詳細: %s
----
-
-あなたの回答:`, subject, details)
+		// ペルソナをシステムプロンプトとして、ユーザーの報告を具体的な指示として渡します。
+		prompt := fmt.Sprintf("システムインストラクション（あなたの役割）に従って、以下のユーザーからのサポートリクエストに回答してください。\n\n[ユーザーからの報告]\n件名: %s\n詳細: %s", subject, details)
 
 		// Pythonサーバーにリクエストを送信
-		reqData := TextRequest{Prompt: prompt}
+		reqData := TextRequest{Prompt: fmt.Sprintf("%s\n\n%s", persona, prompt)} // ペルソナとプロンプトを結合
 		reqJson, _ := json.Marshal(reqData)
 		resp, err := http.Post("http://localhost:5001/generate-text", "application/json", bytes.NewBuffer(reqJson))
 		if err != nil {
-			logger.Error("luna assistantからの応答取得に失敗 (サーバー接続不可)", "error", err)
+			logger.Error("AIサポーターからの応答取得に失敗 (サーバー接続不可)", "error", err)
 			return
 		}
 		defer resp.Body.Close()
@@ -194,7 +185,7 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 		json.Unmarshal(body, &textResp)
 
 		if textResp.Error != "" || resp.StatusCode != http.StatusOK {
-			logger.Error("luna assistantからの応答取得に失敗", "error", textResp.Error)
+			logger.Error("AIサポーターからの応答取得に失敗", "error", textResp.Error)
 			return
 		}
 
@@ -202,7 +193,7 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 			Author:      &discordgo.MessageEmbedAuthor{Name: "Luna Assistantによる一次回答", IconURL: s.State.User.AvatarURL("")},
 			Description: textResp.Text,
 			Color:       0x4a8cf7,
-			Footer:      &discordgo.MessageEmbedFooter{Text: "これはLuna Assistantによる自動生成の回答です。問題が解決しない場合は、スタッフの対応をお待ちください。"},
+			Footer:      &discordgo.MessageEmbedFooter{Text: "これはAIによる自動生成の回答です。問題が解決しない場合は、スタッフの対応をお待ちください。"},
 		}
 		s.ChannelMessageSendEmbed(ch.ID, aiEmbed)
 	}()
@@ -219,7 +210,7 @@ func (c *TicketCommand) confirmCloseTicket(s *discordgo.Session, i *discordgo.In
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
 			Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-				discordgo.Button{Label: "アーカイブします", Style: discordgo.DangerButton, CustomID: ArchiveTicketButtonID},
+				discordgo.Button{Label: "はい、アーカイブします", Style: discordgo.DangerButton, CustomID: ArchiveTicketButtonID},
 			}}},
 			Flags: discordgo.MessageFlagsEphemeral,
 		},
@@ -231,19 +222,16 @@ func (c *TicketCommand) archiveTicket(s *discordgo.Session, i *discordgo.Interac
 	if err != nil {
 		return
 	}
-
 	edit := &discordgo.ChannelEdit{
 		Archived: &[]bool{true}[0],
 	}
 	_, err = s.ChannelEditComplex(i.ChannelID, edit)
-
 	if err != nil {
 		logger.Error("チケットのアーカイブに失敗", "error", err, "channelID", i.ChannelID)
 		content := "❌ アーカイブに失敗しました。BOTの権限が不足している可能性があります。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
-
 	c.Store.CloseTicketRecord(i.ChannelID)
 	content := "チケットはアーカイブされました。"
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content, Components: &[]discordgo.MessageComponent{}})

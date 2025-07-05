@@ -1,4 +1,3 @@
-// commands/ask.go
 package commands
 
 import (

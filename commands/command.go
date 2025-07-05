@@ -2,7 +2,6 @@ package commands
 
 import "github.com/bwmarrin/discordgo"
 
-// mインターフェース
 type CommandHandler interface {
 	GetCommandDef() *discordgo.ApplicationCommand
 	Handle(s *discordgo.Session, i *discordgo.InteractionCreate)
