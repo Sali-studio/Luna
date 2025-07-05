@@ -1,8 +1,13 @@
+// commands/ticket.go
 package commands
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"luna/gemini"
+	"io/ioutil"
+	"net/http"
+
 	"luna/logger"
 	"luna/storage"
 
@@ -16,9 +21,10 @@ const (
 	ArchiveTicketButtonID = "archive_ticket_button"
 )
 
+// ★★★ 修正点 ★★★
+// Geminiクライアントが不要になる
 type TicketCommand struct {
-	Store  *storage.DBStore
-	Gemini *gemini.Client
+	Store *storage.DBStore
 }
 
 func (c *TicketCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -156,41 +162,50 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 	content := fmt.Sprintf("✅ チケットを作成しました: <#%s>", ch.ID)
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 
-	if c.Gemini != nil {
-		go func() {
-			s.ChannelTyping(ch.ID)
+	go func() {
+		s.ChannelTyping(ch.ID)
 
-			ticketPersona := `あなたは「Luna Assistant」という名前の、高性能なAIアシスタントです。ここはDiscordサーバーのサポートチケットチャンネルです。
+		// AIに渡すための、より丁寧なプロンプトを作成
+		prompt := fmt.Sprintf(`あなたは「Luna Assistant」という、非常に優秀で親切なAIアシスタントです。
+以下のユーザーからのサポートリクエストに対して、一次回答を行ってください。
+人間のスタッフが後ほど対応しやすいように、考えられる原因の切り分けや、ユーザーに確認してほしいこと（ログファイル、スクリーンショット、詳しい手順など）を提案してください。
+常にユーザーに寄り添い、丁寧かつ簡潔な言葉で回答してください。
 
-# あなたの役割
-ユーザーの問題報告に対して、人間のスタッフが対応する前に、技術的な観点から問題を分析し、解決策や次に確認すべき情報（ログファイル、スクリーンショット、詳しい手順など）を提示することです。
+---
+[ユーザーからの報告]
+件名: %s
+詳細: %s
+---
 
-# 行動指針
-- 常にユーザーに寄り添い、丁寧かつ簡潔な回答を心がけてください。
-- ユーザーの報告内容から、問題を解決するために必要な追加情報を引き出すような質問をしてください。
-- 人間のスタッフが後から対応することを念頭に置き、できる限りの情報を提供してください。
+あなたの回答:`, subject, details)
 
-# 禁止事項 (重要)
-- ユーザーからの質問が、サーバーのサポートと全く関係ない場合（例：「今日の天気は？」「面白い話をして」など）や、悪意のある荒らし、不適切な内容である場合は、**絶対にその質問に答えてはいけません。**
-- 上記のような無関係・不適切な質問に対しては、「申し訳ありませんが、ご質問の内容がサポート対象外であるため、お答えできません。サーバーのサポートに関するご用件をご記入ください。」という旨の定型文、またはそれに近い丁寧な表現で回答を拒否してください。
-- 質問の内容に無理にこじつけて回答を生成しようとしないでください。`
+		// Pythonサーバーにリクエストを送信
+		reqData := TextRequest{Prompt: prompt}
+		reqJson, _ := json.Marshal(reqData)
+		resp, err := http.Post("http://localhost:5001/generate-text", "application/json", bytes.NewBuffer(reqJson))
+		if err != nil {
+			logger.Error("luna assistantからの応答取得に失敗 (サーバー接続不可)", "error", err)
+			return
+		}
+		defer resp.Body.Close()
 
-			prompt := fmt.Sprintf("以下のユーザーからのサポートリクエストに対して、あなたの役割（システムインストラクション）に従って回答してください。\n\n件名: %s\n詳細: %s", subject, details)
+		body, _ := ioutil.ReadAll(resp.Body)
+		var textResp TextResponse
+		json.Unmarshal(body, &textResp)
 
-			aiResponse, err := c.Gemini.GenerateContent(prompt, ticketPersona)
-			if err != nil {
-				logger.Error("luna assistantによる一次回答の生成に失敗", "error", err)
-				return
-			}
-			aiEmbed := &discordgo.MessageEmbed{
-				Author:      &discordgo.MessageEmbedAuthor{Name: "Luna Assistantによる一次回答", IconURL: s.State.User.AvatarURL("")},
-				Description: aiResponse,
-				Color:       0x4a8cf7,
-				Footer:      &discordgo.MessageEmbedFooter{Text: "これはLuna Assistant AIによる自動生成の回答です。問題が解決しない場合は、スタッフの対応をお待ちください。"},
-			}
-			s.ChannelMessageSendEmbed(ch.ID, aiEmbed)
-		}()
-	}
+		if textResp.Error != "" || resp.StatusCode != http.StatusOK {
+			logger.Error("luna assistantからの応答取得に失敗", "error", textResp.Error)
+			return
+		}
+
+		aiEmbed := &discordgo.MessageEmbed{
+			Author:      &discordgo.MessageEmbedAuthor{Name: "Luna Assistantによる一次回答", IconURL: s.State.User.AvatarURL("")},
+			Description: textResp.Text,
+			Color:       0x4a8cf7,
+			Footer:      &discordgo.MessageEmbedFooter{Text: "これはLuna Assistantによる自動生成の回答です。問題が解決しない場合は、スタッフの対応をお待ちください。"},
+		}
+		s.ChannelMessageSendEmbed(ch.ID, aiEmbed)
+	}()
 }
 
 func (c *TicketCommand) confirmCloseTicket(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -204,7 +219,7 @@ func (c *TicketCommand) confirmCloseTicket(s *discordgo.Session, i *discordgo.In
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
 			Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-				discordgo.Button{Label: "はい、アーカイブします", Style: discordgo.DangerButton, CustomID: ArchiveTicketButtonID},
+				discordgo.Button{Label: "アーカイブします", Style: discordgo.DangerButton, CustomID: ArchiveTicketButtonID},
 			}}},
 			Flags: discordgo.MessageFlagsEphemeral,
 		},
