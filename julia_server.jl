@@ -31,14 +31,13 @@ function generate_mandelbrot_image(width, height, x_min, x_max, y_min, y_max)
 end
 
 # --- Webサーバーの定義 ---
-d
 # /mandelbrot というURLでリクエストを受け付ける
 route("/mandelbrot") do
   println("✅ Request received to generate Mandelbrot set.")
-  
+ 
   # 画像を生成
   img = generate_mandelbrot_image(800, 600, -2.0, 1.0, -1.0, 1.0)
-  
+ 
   # 生成した画像を一時ファイルとして保存
   filepath = "mandelbrot_temp.png"
   save(filepath, img)
