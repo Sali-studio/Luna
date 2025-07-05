@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -14,12 +16,6 @@ import (
 // Pythonサーバーに送るリクエストの構造体
 type ImagineRequest struct {
 	Prompt string `json:"prompt"`
-}
-
-// Pythonサーバーから返ってくるレスポンスの構造体
-type ImagineResponse struct {
-	ImageURL string `json:"image_url"`
-	Error    string `json:"error"`
 }
 
 type ImagineCommand struct{}
@@ -67,7 +63,10 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 
 	// 4. Pythonサーバーからの応答を読み取る
 	body, _ := ioutil.ReadAll(resp.Body)
-	var imagineResp ImagineResponse
+	var imagineResp struct {
+		ImagePath string `json:"image_path"`
+		Error     string `json:"error"`
+	}
 	json.Unmarshal(body, &imagineResp)
 
 	// 5. 応答に応じてメッセージを編集
@@ -78,7 +77,19 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		return
 	}
 
-	// 成功した場合、Embedを作成して画像を投稿
+	// 6. Pythonから教えられたパスの画像ファイルを開く
+	file, err := os.Open(imagineResp.ImagePath)
+	if err != nil {
+		content := "エラー: 生成された画像ファイルを開けませんでした。"
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		return
+	}
+	defer file.Close()
+
+	// 7. ファイル名をパスから取得
+	fileName := filepath.Base(imagineResp.ImagePath)
+
+	// 8. 成功した場合、Embedとファイルを一緒に投稿
 	embed := &discordgo.MessageEmbed{
 		Title: "🎨 画像生成が完了しました",
 		Author: &discordgo.MessageEmbedAuthor{
@@ -87,13 +98,19 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		},
 		Description: fmt.Sprintf("**Prompt:**\n```\n%s\n```", prompt),
 		Image: &discordgo.MessageEmbedImage{
-			URL: imagineResp.ImageURL,
+			URL: fmt.Sprintf("attachment://%s", fileName),
 		},
 		Color: 0x824ff1, // Gemini Purple
 	}
 
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Embeds: &[]*discordgo.MessageEmbed{embed},
+		Files: []*discordgo.File{
+			{
+				Name:   fileName,
+				Reader: file,
+			},
+		},
 	})
 }
 

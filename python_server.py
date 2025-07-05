@@ -44,11 +44,11 @@ def generate_image():
         
         with open(filepath, "wb") as f:
             f.write(image_data)
-        
-        server_url = f"http://localhost:5001/images/{filename}"
+
         print(f"✅ Image saved: {filepath}")
         
-        return jsonify({'image_url': server_url})
+        # 修正：URLの代わりに、保存したファイルの絶対パスを返す
+        return jsonify({'image_path': os.path.abspath(filepath)})
 
     except Exception as e:
         print(f"❌ Error generating image: {e}")
