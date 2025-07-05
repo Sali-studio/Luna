@@ -1,4 +1,3 @@
-// main.go
 package main
 
 import (
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	"luna/commands"
-	"luna/gemini"
 	"luna/handlers"
 	"luna/logger"
 	"luna/storage"
@@ -31,19 +29,16 @@ func main() {
 	logger.Init()
 	godotenv.Load()
 
-	// 1. PythonのAIサーバーをバックグラウンドで起動
+	// PythonのAIサーバーをバックグラウンドで起動
 	log.Println("Starting Python AI server...")
 	cmd := exec.Command("python", "ai_server.py")
-	// PythonサーバーのログをGoのコンソールに表示するための設定
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	// 非同期でPythonサーバーを起動
 	err := cmd.Start()
 	if err != nil {
 		log.Fatalf("Failed to start Python server: %v", err)
 	}
-
 	defer cmd.Process.Kill()
 	log.Println("Python AI server started successfully.")
 
@@ -69,23 +64,18 @@ func main() {
 	}
 	defer dbStore.Close()
 
-	geminiClient, err := gemini.NewClient(os.Getenv("GEMINI_API_KEY"))
-	if err != nil {
-		logger.Warn("Geminiクライアントの初期化に失敗", "error", err)
-	}
-
 	scheduler := cron.New()
 	commandHandlers = make(map[string]commands.CommandHandler)
 	componentHandlers = make(map[string]commands.CommandHandler)
 
-	// コマンドの登録.
+	// コマンドの登録
 	registerCommand(&commands.ConfigCommand{Store: dbStore})
 	registerCommand(&commands.DashboardCommand{Store: dbStore, Scheduler: scheduler})
 	registerCommand(&commands.ReactionRoleCommand{Store: dbStore})
 	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler, Store: dbStore})
-	registerCommand(&commands.TicketCommand{Store: dbStore, Gemini: geminiClient})
+	registerCommand(&commands.TicketCommand{Store: dbStore})
 	registerCommand(&commands.PingCommand{StartTime: startTime, Store: dbStore})
-	registerCommand(&commands.AskCommand{Gemini: geminiClient})
+	registerCommand(&commands.AskCommand{}) // Python化に伴いGeminiクライアントは不要
 	registerCommand(&commands.AvatarCommand{})
 	registerCommand(&commands.CalculatorCommand{})
 	registerCommand(&commands.EmbedCommand{})
@@ -93,13 +83,13 @@ func main() {
 	registerCommand(&commands.PokemonCalculatorCommand{})
 	registerCommand(&commands.PollCommand{})
 	registerCommand(&commands.PowerConverterCommand{})
-	registerCommand(&commands.TranslateCommand{Gemini: geminiClient})
+	registerCommand(&commands.TranslateCommand{}) // 同様に修正が必要
 	registerCommand(&commands.UserInfoCommand{})
 	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
 	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
 	registerCommand(&commands.ImagineCommand{})
 
-	eventHandler := handlers.NewEventHandler(dbStore, geminiClient)
+	eventHandler := handlers.NewEventHandler(dbStore, nil) // geminiClientをnilに
 	eventHandler.RegisterAllHandlers(dg)
 
 	dg.AddHandler(interactionCreate)
