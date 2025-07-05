@@ -11,6 +11,9 @@
 # Log files
 *.log
 
+# imagine generation files
+*.generated_images
+
 # Database file
 *.db
 
