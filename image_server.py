@@ -14,7 +14,7 @@ if not os.path.exists(IMG_DIR):
 app = flask.Flask(__name__)
 vertexai.init()
 
-model = ImageGenerationModel.from_pretrained("imagegeneration@006")
+model = ImageGenerationModel.from_pretrained("imagegeneration@005")
 
 # --- APIエンドポイント ---
 @app.route('/generate', methods=['POST'])
