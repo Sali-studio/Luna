@@ -1,50 +1,75 @@
+// commands/ask.go
 package commands
 
 import (
-	"luna/gemini"
-	"luna/logger"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-type AskCommand struct {
-	Gemini *gemini.Client
+// Pythonサーバーに送るテキスト生成リクエストの構造体
+type TextRequest struct {
+	Prompt string `json:"prompt"`
 }
+
+// Pythonサーバーから返ってくるテキスト生成レスポンスの構造体
+type TextResponse struct {
+	Text  string `json:"text"`
+	Error string `json:"error"`
+}
+
+type AskCommand struct{}
 
 func (c *AskCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:        "ask",
-		Description: "Luna Assistant AIに質問します",
+		Description: "Luna Assistantに質問します",
 		Options: []*discordgo.ApplicationCommandOption{
 			{Type: discordgo.ApplicationCommandOptionString, Name: "prompt", Description: "質問内容", Required: true},
 		},
 	}
 }
 
+// 内部の処理を、PythonサーバーへのHTTPリクエストに変更
 func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if c.Gemini == nil {
-		logger.Warn("Luna Assistantが設定されていないため、askコマンドが実行されましたが処理を中断しました。")
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: "❌ このコマンドは現在、管理者によって無効化されています。", Flags: discordgo.MessageFlagsEphemeral},
-		})
-		return
-	}
 	prompt := i.ApplicationCommandData().Options[0].StringValue()
 
-	persona := "あなたは「Luna Assistant」という名前の、高性能で親切なAIアシスタントです。穏やかで、知的で、常にユーザーに寄り添い、丁寧な言葉遣いで回答してください。一人称は「私」を使ってください。"
+	// 「考え中...」と即時応答
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource})
+	// Pythonサーバーに送信するデータを作成
+	reqData := TextRequest{Prompt: prompt}
+	reqJson, _ := json.Marshal(reqData)
 
-	responseContent, err := c.Gemini.GenerateContent(prompt, persona)
-
+	// Pythonサーバーのテキスト生成エンドポイントにリクエストを送信
+	resp, err := http.Post("http://localhost:5001/generate-text", "application/json", bytes.NewBuffer(reqJson))
 	if err != nil {
-		logger.Error("Geminiからの応答取得に失敗", "error", err, "prompt", prompt)
-		content := "❌ AIへの接続または応答の取得中にエラーが発生しました。"
+		content := "エラー: AIサーバーへの接続に失敗しました。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &responseContent})
+	defer resp.Body.Close()
+
+	// レスポンスを読み取りJSONをパース
+	body, _ := ioutil.ReadAll(resp.Body)
+	var textResp TextResponse
+	json.Unmarshal(body, &textResp)
+
+	if textResp.Error != "" || resp.StatusCode != http.StatusOK {
+		content := fmt.Sprintf("エラー: Luna Assistantからの応答取得に失敗しました。\n`%s`", textResp.Error)
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		return
+	}
+
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Content: &textResp.Text,
+	})
 }
 
 func (c *AskCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
