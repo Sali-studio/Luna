@@ -1,5 +1,3 @@
-# ai_server.py
-
 import os
 import flask
 from flask import request, jsonify
@@ -22,7 +20,6 @@ vertexai.init() # .envの認証情報を自動で読み込みます
 # 画像生成モデル
 image_model = ImageGenerationModel.from_pretrained("imagegeneration@005") 
 
-# テキスト生成モデル (最新のGemini 2.5 Flash)
 text_model = GenerativeModel("gemini-2.5-flash-preview-05-20")
 
 # --- APIエンドポイントの定義 ---

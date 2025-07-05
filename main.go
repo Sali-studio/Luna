@@ -75,7 +75,7 @@ func main() {
 	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler, Store: dbStore})
 	registerCommand(&commands.TicketCommand{Store: dbStore})
 	registerCommand(&commands.PingCommand{StartTime: startTime, Store: dbStore})
-	registerCommand(&commands.AskCommand{}) // Python化に伴いGeminiクライアントは不要
+	registerCommand(&commands.AskCommand{})
 	registerCommand(&commands.AvatarCommand{})
 	registerCommand(&commands.CalculatorCommand{})
 	registerCommand(&commands.EmbedCommand{})
@@ -83,13 +83,13 @@ func main() {
 	registerCommand(&commands.PokemonCalculatorCommand{})
 	registerCommand(&commands.PollCommand{})
 	registerCommand(&commands.PowerConverterCommand{})
-	registerCommand(&commands.TranslateCommand{}) // 同様に修正が必要
+	registerCommand(&commands.TranslateCommand{})
 	registerCommand(&commands.UserInfoCommand{})
 	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
 	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
 	registerCommand(&commands.ImagineCommand{})
 
-	eventHandler := handlers.NewEventHandler(dbStore, nil) // geminiClientをnilに
+	eventHandler := handlers.NewEventHandler(dbStore)
 	eventHandler.RegisterAllHandlers(dg)
 
 	dg.AddHandler(interactionCreate)

@@ -1,87 +1,84 @@
 package commands
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"luna/gemini"
-	"luna/logger"
+	"io/ioutil"
+	"net/http"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-const (
-	TranslateModalCustomID = "translate_modal"
-)
-
-type TranslateCommand struct {
-	Gemini *gemini.Client
-}
+type TranslateCommand struct{}
 
 func (c *TranslateCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:        "translate",
-		Description: "テキストをLuna Assistantを使って翻訳します",
+		Description: "Luna Assistantを使用し、テキストを指定された言語に翻訳します",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "text",
+				Description: "翻訳したいテキスト",
+				Required:    true,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "target_language",
+				Description: "翻訳先の言語 (例: 英語, 日本語, 韓国語、ヘブライ語)",
+				Required:    true,
+			},
+		},
 	}
 }
 
 func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseModal,
-		Data: &discordgo.InteractionResponseData{
-			CustomID: TranslateModalCustomID,
-			Title:    "翻訳",
-			Components: []discordgo.MessageComponent{
-				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-					discordgo.TextInput{CustomID: "text", Label: "翻訳したいテキスト", Style: discordgo.TextInputParagraph, Required: true},
-				}},
-				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-					discordgo.TextInput{CustomID: "lang", Label: "翻訳先の言語 (例: 英語, 日本語, 韓国語)", Style: discordgo.TextInputShort, Placeholder: "英語", Required: true},
-				}},
-			},
-		},
-	})
-	if err != nil {
-		logger.Error("Translateモーダルの表示に失敗", "error", err)
-	}
-}
+	options := i.ApplicationCommandData().Options
+	text := options[0].StringValue()
+	targetLang := options[1].StringValue()
 
-func (c *TranslateCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if c.Gemini == nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: "❌ 翻訳機能は現在利用できません。", Flags: discordgo.MessageFlagsEphemeral},
-		})
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+
+	prompt := fmt.Sprintf("以下のテキストを「%s」に翻訳してください。翻訳結果のテキストだけを返してください。\n\n[翻訳元テキスト]\n%s", targetLang, text)
+
+	reqData := TextRequest{Prompt: prompt}
+	reqJson, _ := json.Marshal(reqData)
+
+	resp, err := http.Post("http://localhost:5001/generate-text", "application/json", bytes.NewBuffer(reqJson))
+	if err != nil {
+		content := "エラー: Luna Assistantサーバーへの接続に失敗しました。"
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
+	defer resp.Body.Close()
 
-	data := i.ModalSubmitData()
-	text := data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
-	lang := data.Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	body, _ := ioutil.ReadAll(resp.Body)
+	var textResp TextResponse
+	json.Unmarshal(body, &textResp)
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}})
-
-	prompt := fmt.Sprintf("以下のテキストを %s に翻訳してください:\n\n---\n%s", lang, text)
-
-	translatedText, err := c.Gemini.GenerateContent(prompt, "")
-	if err != nil {
-		logger.Error("Luna Assistantからの翻訳応答取得に失敗", "error", err, "prompt", prompt)
-		content := "❌ 翻訳中にエラーが発生しました。"
+	if textResp.Error != "" || resp.StatusCode != http.StatusOK {
+		content := fmt.Sprintf("エラー: 翻訳に失敗しました。\n`%s`", textResp.Error)
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
 
 	embed := &discordgo.MessageEmbed{
-		Title: "翻訳結果 (by Luna Assistant)",
+		Title: "🌐 翻訳結果",
+		Color: 0x4CAF50,
 		Fields: []*discordgo.MessageEmbedField{
-			{Name: "原文", Value: text},
-			{Name: fmt.Sprintf("翻訳文 (%s)", lang), Value: translatedText},
+			{Name: "翻訳元", Value: "```\n" + text + "\n```"},
+			{Name: "翻訳先 (" + targetLang + ")", Value: "```\n" + textResp.Text + "\n```"},
 		},
-		Color: 0x4a8cf7, // Google Blue
 	}
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Embeds: &[]*discordgo.MessageEmbed{embed},
+	})
 }
 
 func (c *TranslateCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
-func (c *TranslateCommand) GetComponentIDs() []string                                            { return []string{TranslateModalCustomID} }
-func (c *TranslateCommand) GetCategory() string {
-	return "AI"
-}
+func (c *TranslateCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
+func (c *TranslateCommand) GetComponentIDs() []string                                            { return []string{} }
+func (c *TranslateCommand) GetCategory() string                                                  { return "AI" }
