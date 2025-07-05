@@ -190,3 +190,10 @@
 {"time":"2025-07-06T08:38:15.850353+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"Discord Botが起動しました。コマンドを登録します..."}
 {"time":"2025-07-06T08:38:16.307985+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"コマンドの登録が完了しました。Ctrl+Cで終了します。"}
 {"time":"2025-07-06T08:43:14.9106258+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"Botをシャットダウンします..."}
+{"time":"2025-07-06T08:44:37.5791307+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"DBからスケジュールを登録しました","count":0}
+{"time":"2025-07-06T08:44:37.5796369+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"Discord Botが起動しました。コマンドを登録します..."}
+{"time":"2025-07-06T08:44:38.0984055+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"コマンドの登録が完了しました。Ctrl+Cで終了します。"}
+{"time":"2025-07-06T08:46:24.2364552+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"Botをシャットダウンします..."}
+{"time":"2025-07-06T08:46:49.5644985+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"DBからスケジュールを登録しました","count":0}
+{"time":"2025-07-06T08:46:49.5650265+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"Discord Botが起動しました。コマンドを登録します..."}
+{"time":"2025-07-06T08:46:49.960061+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"コマンドの登録が完了しました。Ctrl+Cで終了します。"}
