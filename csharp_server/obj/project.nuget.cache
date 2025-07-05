@@ -1,28 +1,15 @@
 {
   "version": 2,
-  "dgSpecHash": "0a3NmhDPmo4=",
+  "dgSpecHash": "XijVkuSrJ34=",
   "success": true,
   "projectFilePath": "C:\\Users\\amuka\\OneDrive\\ドキュメント\\Luna\\Luna\\csharp_server\\csharp_server.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\amuka\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.0-preview.5.25277.114\\microsoft.aspnetcore.openapi.10.0.0-preview.5.25277.114.nupkg.sha512",
+    "C:\\Users\\amuka\\.nuget\\packages\\microsoft.aspnetcore.openapi\\8.0.6\\microsoft.aspnetcore.openapi.8.0.6.nupkg.sha512",
     "C:\\Users\\amuka\\.nuget\\packages\\microsoft.netcore.platforms\\5.0.0\\microsoft.netcore.platforms.5.0.0.nupkg.sha512",
-    "C:\\Users\\amuka\\.nuget\\packages\\microsoft.openapi\\2.0.0-preview.18\\microsoft.openapi.2.0.0-preview.18.nupkg.sha512",
+    "C:\\Users\\amuka\\.nuget\\packages\\microsoft.openapi\\1.4.3\\microsoft.openapi.1.4.3.nupkg.sha512",
     "C:\\Users\\amuka\\.nuget\\packages\\microsoft.win32.systemevents\\5.0.0\\microsoft.win32.systemevents.5.0.0.nupkg.sha512",
     "C:\\Users\\amuka\\.nuget\\packages\\system.drawing.common\\5.0.0\\system.drawing.common.5.0.0.nupkg.sha512",
     "C:\\Users\\amuka\\.nuget\\packages\\tesseract.net.sdk\\4.6.411\\tesseract.net.sdk.4.6.411.nupkg.sha512"
   ],
-  "logs": [
-    {
-      "code": "NU1904",
-      "level": "Warning",
-      "message": "パッケージ 'System.Drawing.Common' 5.0.0 に既知の クリティカル 重大度の脆弱性があります、https://github.com/advisories/GHSA-rxg9-xrhp-64gj",
-      "projectPath": "C:\\Users\\amuka\\OneDrive\\ドキュメント\\Luna\\Luna\\csharp_server\\csharp_server.csproj",
-      "warningLevel": 1,
-      "filePath": "C:\\Users\\amuka\\OneDrive\\ドキュメント\\Luna\\Luna\\csharp_server\\csharp_server.csproj",
-      "libraryId": "System.Drawing.Common",
-      "targetGraphs": [
-        "net10.0"
-      ]
-    }
-  ]
+  "logs": []
 }
