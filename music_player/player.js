@@ -13,11 +13,15 @@ const client = new Client({
 // --- 音楽プレーヤーを初期化 ---
 const player = new Player(client);
 
-// プレーヤーのイベントリスナー（エラーハンドリングなど）
-player.on('error', (queue, error) => {
+// プレーヤーがトラックの再生を開始したときのイベント
+player.events.on('playerStart', (queue, track) => {
+    queue.metadata.channel.send(`🎵 再生中: **${track.title}**`);
+});
+
+player.events.on('error', (queue, error) => {
     console.log(`[${queue.guild.name}] Error from queue: ${error.message}`);
 });
-player.on('connectionError', (queue, error) => {
+player.events.on('connectionError', (queue, error) => {
     console.log(`[${queue.guild.name}] Error from connection: ${error.message}`);
 });
 
@@ -40,38 +44,44 @@ app.post('/play', async (req, res) => {
     }
 
     const guild = client.guilds.cache.get(guildId);
-    const channel = guild.channels.cache.get(channelId);
+    // 元のchannelIdはテキストチャンネルIDなので、メンバーのボイスチャンネルを取得する
     const member = await guild.members.fetch(userId);
 
-
-    if (!channel || !member.voice.channel) {
+    if (!member.voice.channel) {
         return res.status(400).send('User is not in a voice channel.');
     }
+    
+    // キューの取得または作成方法を変更
+    const queue = player.nodes.create(guild, {
+        metadata: {
+            channel: guild.channels.cache.get(channelId) // テキストチャンネルをメタデータに保存
+        },
+        // 高音質化のためのオプション
+        ytdlOptions: {
+            quality: 'highestaudio',
+            highWaterMark: 1 << 25
+        },
+        leaveOnEnd: false,
+        leaveOnStop: true,
+        leaveOnEmpty: true,
+        leaveOnEmptyCooldown: 300000, // 5分
+    });
 
     try {
-        const queue = player.createQueue(guild, {
-             metadata: {
-                channel: channel
-            },
-            // 高音質化のためのオプション
-            ytdlOptions: {
-                quality: 'highestaudio',
-                highWaterMark: 1 << 25
-            }
-        });
-
         // ボイスチャンネルに接続
         if (!queue.connection) await queue.connect(member.voice.channel);
 
-        const track = await player.search(query, {
+        const searchResult = await player.search(query, {
             requestedBy: member.user
-        }).then(x => x.tracks[0]);
+        });
 
-        if (!track) return res.status(404).send('Track not found.');
+        if (!searchResult || !searchResult.tracks.length) return res.status(404).send('Track not found.');
 
-        queue.play(track);
+        // キューにトラックを追加して再生
+        searchResult.playlist ? queue.addTrack(searchResult.tracks) : queue.addTrack(searchResult.tracks[0]);
+        if (!queue.isPlaying()) await queue.node.play();
 
-        return res.status(200).send(`🎵 Queued: **${track.title}**`);
+        return res.status(200).send(`✅ キューに追加しました: **${searchResult.tracks[0].title}**`);
     } catch (e) {
         console.error(e);
         return res.status(500).send('Something went wrong.');
@@ -81,19 +91,21 @@ app.post('/play', async (req, res) => {
 // `/skip` エンドポイント
 app.post('/skip', (req, res) => {
     const { guildId } = req.body;
-    const queue = player.getQueue(guildId);
-    if (!queue || !queue.playing) return res.status(400).send('No music is being played.');
-    const success = queue.skip();
-    return res.status(200).send(success ? '⏭️ Skipped!' : 'Something went wrong.');
+    // ★★★ 修正箇所 ★★★
+    const queue = player.nodes.get(guildId);
+    if (!queue || !queue.isPlaying()) return res.status(400).send('No music is being played.');
+    const success = queue.node.skip();
+    return res.status(200).send(success ? '⏭️ スキップしました' : 'Something went wrong.');
 });
 
 // `/stop` エンドポイント
 app.post('/stop', (req, res) => {
     const { guildId } = req.body;
-    const queue = player.getQueue(guildId);
-    if (!queue || !queue.playing) return res.status(400).send('No music is being played.');
-    queue.destroy();
-    return res.status(200).send('⏹️ Stopped!');
+    const queue = player.nodes.get(guildId);
+    if (!queue || !queue.isPlaying()) return res.status(400).send('No music is being played.');
+    // destroyではなくdeleteを使用
+    queue.delete();
+    return res.status(200).send('⏹️ 再生を停止しました');
 });
 
 
