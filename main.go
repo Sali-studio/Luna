@@ -1,16 +1,20 @@
+// main.go
 package main
 
 import (
+	"log"
+	"os"
+	"os/exec"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
+
 	"luna/commands"
 	"luna/gemini"
 	"luna/handlers"
 	"luna/logger"
 	"luna/storage"
-	"os"
-	"os/signal"
-	"strings"
-	"syscall"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
@@ -27,6 +31,22 @@ func main() {
 	logger.Init()
 	godotenv.Load()
 
+	// 1. PythonのAIサーバーをバックグラウンドで起動
+	log.Println("Starting Python AI server...")
+	cmd := exec.Command("python", "ai_server.py")
+	// PythonサーバーのログをGoのコンソールに表示するための設定
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// 非同期でPythonサーバーを起動
+	err := cmd.Start()
+	if err != nil {
+		log.Fatalf("Failed to start Python server: %v", err)
+	}
+
+	defer cmd.Process.Kill()
+	log.Println("Python AI server started successfully.")
+
 	startTime = time.Now()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
 	if token == "" {
@@ -39,7 +59,7 @@ func main() {
 	}
 
 	dg.State = discordgo.NewState()
-	dg.State.MaxMessageCount = 2000 // 各チャンネルで記憶するメッセージ数を設定
+	dg.State.MaxMessageCount = 2000
 
 	dg.Identify.Intents = discordgo.IntentsAll
 
@@ -58,6 +78,7 @@ func main() {
 	commandHandlers = make(map[string]commands.CommandHandler)
 	componentHandlers = make(map[string]commands.CommandHandler)
 
+	// コマンドの登録.
 	registerCommand(&commands.ConfigCommand{Store: dbStore})
 	registerCommand(&commands.DashboardCommand{Store: dbStore, Scheduler: scheduler})
 	registerCommand(&commands.ReactionRoleCommand{Store: dbStore})
@@ -66,7 +87,6 @@ func main() {
 	registerCommand(&commands.PingCommand{StartTime: startTime, Store: dbStore})
 	registerCommand(&commands.AskCommand{Gemini: geminiClient})
 	registerCommand(&commands.AvatarCommand{})
-	registerCommand(&commands.WelcomeCommand{Store: dbStore})
 	registerCommand(&commands.CalculatorCommand{})
 	registerCommand(&commands.EmbedCommand{})
 	registerCommand(&commands.ModerateCommand{})
@@ -96,7 +116,7 @@ func main() {
 		scheduleCmd.LoadAndRegisterSchedules(dg)
 	}
 
-	logger.Info("Botが起動しました。コマンドを登録します...")
+	logger.Info("Discord Botが起動しました。コマンドを登録します...")
 	registeredCommands := make([]*discordgo.ApplicationCommand, 0, len(commandHandlers))
 	for _, handler := range commandHandlers {
 		registeredCommands = append(registeredCommands, handler.GetCommandDef())
