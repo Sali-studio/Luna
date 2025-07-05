@@ -27,7 +27,7 @@ type ImagineCommand struct{}
 func (c *ImagineCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:        "imagine",
-		Description: "AIで画像を生成します (Powered by Python & Gemini)",
+		Description: "Luna Assistantで画像を生成します",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
