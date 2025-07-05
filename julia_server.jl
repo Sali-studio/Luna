@@ -1,4 +1,3 @@
-# mandelbrot_server.jl
 using Genie, Images, Plots
 using Genie.Renderer.Json
 
