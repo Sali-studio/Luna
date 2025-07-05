@@ -65,6 +65,18 @@ func main() {
 	defer jlCmd.Process.Kill()
 	log.Println("Julia calculation server started successfully.")
 
+	// 4. Node.jsの音楽サーバーを起動
+	log.Println("Starting Node.js Music server...")
+	musicCmd := exec.Command("node", "player.js")
+	musicCmd.Dir = "./music_player" // music_playerフォルダ内で実行
+	musicCmd.Stdout = os.Stdout
+	musicCmd.Stderr = os.Stderr
+	if err := musicCmd.Start(); err != nil {
+		log.Fatalf("Failed to start Node.js music server: %v", err)
+	}
+	defer musicCmd.Process.Kill()
+	log.Println("Node.js Music server started successfully.")
+
 	startTime = time.Now()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
 	if token == "" {
@@ -112,6 +124,7 @@ func main() {
 	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
 	registerCommand(&commands.ImagineCommand{})
 	registerCommand(&commands.ReadTextCommand{})
+	registerCommand(&commands.MusicCommand{})
 
 	eventHandler := handlers.NewEventHandler(dbStore)
 	eventHandler.RegisterAllHandlers(dg)
