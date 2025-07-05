@@ -123,6 +123,7 @@ func main() {
 	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
 	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
 	registerCommand(&commands.ImagineCommand{})
+	registerCommand(&commands.MandelbrotCommand{})
 	// registerCommand(&commands.ReadTextCommand{}) -- 無効化 --
 	registerCommand(&commands.MusicCommand{})
 
