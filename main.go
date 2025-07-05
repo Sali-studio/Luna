@@ -31,7 +31,7 @@ func main() {
 
 	// PythonのAIサーバーをバックグラウンドで起動
 	log.Println("Starting Python AI server...")
-	cmd := exec.Command("python", "ai_server.py")
+	cmd := exec.Command("python", "python_server.py")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -40,7 +40,7 @@ func main() {
 		log.Fatalf("Failed to start Python server: %v", err)
 	}
 	defer cmd.Process.Kill()
-	log.Println("Python AI server started successfully.")
+	log.Println("Python server started successfully.")
 
 	startTime = time.Now()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
