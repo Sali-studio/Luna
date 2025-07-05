@@ -42,12 +42,20 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
 
+	// AIに役割を指示するシステムプロンプト（ペルソナ）を定義
+	persona := "あなたは「Luna Assistant」という高性能で親切なAIアシスタントです。Googleによってトレーニングされた、という前置きは不要です。あなた自身の言葉で、ユーザーの質問に直接的かつ簡潔に回答してください。"
+
+	// ユーザーの質問にペルソナを付け加える
+	fullPrompt := fmt.Sprintf("システムインストラクション（あなたの役割）: %s\n\n[ユーザーからの質問]\n%s", persona, prompt)
+
 	// Pythonサーバーに送信するデータを作成
-	reqData := TextRequest{Prompt: prompt}
+	reqData := TextRequest{Prompt: fullPrompt} // 修正：ペルソナ付きのプロンプトを送信
 	reqJson, _ := json.Marshal(reqData)
 
 	// Pythonサーバーのテキスト生成エンドポイントにリクエストを送信
 	resp, err := http.Post("http://localhost:5001/generate-text", "application/json", bytes.NewBuffer(reqJson))
+
+	// エラーハンドリング
 	if err != nil {
 		content := "エラー: AIサーバーへの接続に失敗しました。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
