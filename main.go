@@ -77,6 +77,7 @@ func main() {
 	registerCommand(&commands.UserInfoCommand{})
 	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
 	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
+	registerCommand(&commands.ImagineCommand{})
 
 	eventHandler := handlers.NewEventHandler(dbStore, geminiClient)
 	eventHandler.RegisterAllHandlers(dg)
