@@ -2,9 +2,10 @@ package commands
 
 import (
 	"fmt"
-	"luna/logger"
-	"luna/storage"
+	"strings"
 	"time"
+
+	"luna/storage"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -17,71 +18,100 @@ type PingCommand struct {
 func (c *PingCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:        "ping",
-		Description: "ボットのパフォーマンスと稼働時間を測定します",
+		Description: "BOTの応答速度や状態を確認します",
 	}
 }
 
 func (c *PingCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	apiStart := time.Now()
+	// 1. まずは即時応答し、APIレイテンシを測定する基準点を作る
+	start := time.Now()
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{Content: "測定中..."},
+		Data: &discordgo.InteractionResponseData{
+			Content: "🏓 Pinging...",
+		},
 	})
-	apiLatency := time.Since(apiStart)
 	if err != nil {
-		logger.Error("pingコマンドの初期応答に失敗", "error", err)
 		return
 	}
+	apiLatency := time.Since(start)
 
+	// 2. WebSocketのレイテンシを取得
+	wsLatency := s.HeartbeatLatency()
+
+	// 3. データベースの応答を確認
 	dbStart := time.Now()
-	err = c.Store.PingDB()
+	dbErr := c.Store.PingDB()
 	dbLatency := time.Since(dbStart)
-	dbStatus := "✅ 正常"
-	if err != nil {
-		dbStatus = "❌ 異常"
-		dbLatency = 0
+	dbStatus := "✅ Online"
+	if dbErr != nil {
+		dbStatus = "❌ Offline"
 	}
 
-	gatewayLatency := s.HeartbeatLatency()
+	// 4. アップタイムを計算
 	uptime := time.Since(c.StartTime)
-	uptimeStr := formatUptime(uptime)
 
-	latencyColor := 0x43b581
-	if gatewayLatency.Milliseconds() > 150 || apiLatency.Milliseconds() > 300 {
-		latencyColor = 0xfaa61a
-	}
-	if gatewayLatency.Milliseconds() > 400 || apiLatency.Milliseconds() > 600 {
-		latencyColor = 0xf04747
-	}
-	if dbStatus == "❌ 異常" {
-		latencyColor = 0xf04747
-	}
-
+	// 5. 結果をEmbedにまとめて表示
 	embed := &discordgo.MessageEmbed{
-		Title: "🏓 Pong! - ヘルスチェック", Color: latencyColor,
+		Title: "Pong! - BOTステータス",
+		Color: 0x7289da, // Discord Blue
 		Fields: []*discordgo.MessageEmbedField{
-			{Name: "ゲートウェイ", Value: fmt.Sprintf("```%s```", gatewayLatency.String()), Inline: true},
-			{Name: "API応答", Value: fmt.Sprintf("```%s```", apiLatency.String()), Inline: true},
-			{Name: "データベース", Value: fmt.Sprintf("```%s (%s)```", dbStatus, dbLatency.String()), Inline: true},
-			{Name: "稼働時間", Value: fmt.Sprintf("```%s```", uptimeStr), Inline: false},
+			{
+				Name:   "APIレイテンシ",
+				Value:  fmt.Sprintf("```%s```", apiLatency.Round(time.Millisecond).String()),
+				Inline: true,
+			},
+			{
+				Name:   "WebSocketレイテンシ",
+				Value:  fmt.Sprintf("```%s```", wsLatency.Round(time.Millisecond).String()),
+				Inline: true,
+			},
+			{
+				Name:   "データベース",
+				Value:  fmt.Sprintf("```%s (%s)```", dbStatus, dbLatency.Round(time.Millisecond).String()),
+				Inline: true,
+			},
+			{
+				Name:  "アップタイム",
+				Value: fmt.Sprintf("```%s```", formatUptime(uptime)),
+			},
 		},
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
+	// 最初に送った "Pinging..." というメッセージを、完成したEmbedに編集する
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-		Content: &[]string{""}[0],
+		Content: &[]string{""}[0], // テキストを空にする
 		Embeds:  &[]*discordgo.MessageEmbed{embed},
 	})
 }
 
+// アップタイムを見やすい形式にフォーマットするヘルパー関数
 func formatUptime(d time.Duration) string {
-	d = d.Round(time.Minute)
+	d = d.Round(time.Second)
 	days := d / (24 * time.Hour)
 	d -= days * 24 * time.Hour
 	h := d / time.Hour
 	d -= h * time.Hour
 	m := d / time.Minute
-	return fmt.Sprintf("%d日 %d時間 %d分", days, h, m)
+	d -= m * time.Minute
+	s := d / time.Second
+
+	var parts []string
+	if days > 0 {
+		parts = append(parts, fmt.Sprintf("%d日", days))
+	}
+	if h > 0 {
+		parts = append(parts, fmt.Sprintf("%d時間", h))
+	}
+	if m > 0 {
+		parts = append(parts, fmt.Sprintf("%d分", m))
+	}
+	if s > 0 || len(parts) == 0 {
+		parts = append(parts, fmt.Sprintf("%d秒", s))
+	}
+
+	return strings.Join(parts, " ")
 }
 
 func (c *PingCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

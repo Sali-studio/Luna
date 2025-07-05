@@ -152,6 +152,8 @@ func (s *DBStore) Close() {
 }
 
 func (s *DBStore) PingDB() error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.db.Ping()
 }
 
