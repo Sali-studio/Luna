@@ -1,6 +1,7 @@
 const express = require('express');
 const { Client, GatewayIntentBits } = require('discord.js');
 const { Player } = require('discord-player');
+const { DefaultExtractors } = require('@discord-player/extractor'); 
 
 // --- Discord Botのクライアントを初期化 ---
 const client = new Client({
@@ -13,11 +14,10 @@ const client = new Client({
 // --- 音楽プレーヤーを初期化 ---
 const player = new Player(client);
 
-
 // 非同期処理をまとめるためのメイン関数
 async function main() {
-    // デフォルトの音源抽出器（YouTubeなど）を読み込む
-    await player.extractors.loadDefault();
+    // 音源抽出器を読み込む
+    await player.extractors.loadMulti(DefaultExtractors);
 
     // プレーヤーがトラックの再生を開始したときのイベント
     player.events.on('playerStart', (queue, track) => {
@@ -32,7 +32,6 @@ async function main() {
         console.log(`[${queue.guild.name}] Error from connection: ${error.message}`);
         queue.metadata.channel.send('❌ ボイスチャンネルへの接続に失敗しました。');
     });
-
 
     client.on('ready', () => {
         console.log('Music Player Bot is online!');
