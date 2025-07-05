@@ -65,8 +65,6 @@ func main() {
 	defer jlCmd.Process.Kill()
 	log.Println("Julia calculation server started successfully.")
 
-	// --- ここから下はBOT本体のロジック (変更なし) ---
-
 	startTime = time.Now()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
 	if token == "" {
