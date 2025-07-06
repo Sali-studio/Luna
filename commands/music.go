@@ -1,14 +1,13 @@
 package commands
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"luna/logger"
 	"net/http"
-	"os/exec"
 	"sync"
 	"time"
 
@@ -28,15 +27,14 @@ type MusicSession struct {
 	NowPlaying      *Song
 	IsPlaying       bool
 	Mutex           sync.Mutex
-	FFmpegCmd       *exec.Cmd // ffmpegプロセスを直接保持
+	EncodeSession   *dca.EncodeSession // 再生中のエンコードセッションを保持
 }
 
 // Song は再生する曲の情報を表す
 type Song struct {
 	Title     string
-	StreamURL string
-	Query     string
-	Requester *discordgo.User
+	Query     string // ユーザーが入力したURLや検索ワード
+	StreamURL string // Pythonから取得した再生用URL
 }
 
 type MusicCommand struct{}
@@ -132,17 +130,15 @@ func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.Interaction
 		Title:     songInfo.Title,
 		StreamURL: songInfo.StreamURL,
 		Query:     query,
-		Requester: i.Member.User,
 	}
 
 	session.Mutex.Lock()
 	session.Queue = append(session.Queue, song)
-	queueLen := len(session.Queue)
 	isPlaying := session.IsPlaying
 	session.Mutex.Unlock()
 
 	if isPlaying {
-		content := fmt.Sprintf("🎵 **%s** をキューの%d番目に追加しました。", song.Title, queueLen)
+		content := fmt.Sprintf("🎵 **%s** をキューに追加しました。", song.Title)
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 	} else {
 		vc, err := s.ChannelVoiceJoin(i.GuildID, vs.ChannelID, false, true)
@@ -152,8 +148,7 @@ func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.Interaction
 		}
 		session.VoiceConnection = vc
 		go playMusic(session)
-		content := fmt.Sprintf("▶️ **%s** の再生を開始します。", song.Title)
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &[]string{"▶️ 再生を開始します..."}[0]})
 	}
 }
 
@@ -164,11 +159,8 @@ func (c *MusicCommand) handleSkip(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-	if session.FFmpegCmd != nil && session.FFmpegCmd.Process != nil {
-		err := session.FFmpegCmd.Process.Kill()
-		if err != nil {
-			logger.Error("Failed to kill ffmpeg process on skip", "error", err)
-		}
+	if session.EncodeSession != nil {
+		session.EncodeSession.Stop()
 	}
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "⏩ スキップしました。"}})
 }
@@ -182,11 +174,8 @@ func (c *MusicCommand) handleStop(s *discordgo.Session, i *discordgo.Interaction
 
 	session.Mutex.Lock()
 	session.Queue = make([]Song, 0)
-	if session.IsPlaying && session.FFmpegCmd != nil && session.FFmpegCmd.Process != nil {
-		err := session.FFmpegCmd.Process.Kill()
-		if err != nil {
-			logger.Error("Failed to kill ffmpeg process on stop", "error", err)
-		}
+	if session.IsPlaying && session.EncodeSession != nil {
+		session.EncodeSession.Stop()
 	}
 	session.Mutex.Unlock()
 
@@ -208,7 +197,7 @@ func (c *MusicCommand) handleQueue(s *discordgo.Session, i *discordgo.Interactio
 	defer session.Mutex.Unlock()
 
 	if session.NowPlaying != nil {
-		embed.Description = fmt.Sprintf("**現在再生中:**\n[%s](%s) | `リクエスト: %s`\n\n", session.NowPlaying.Title, session.NowPlaying.Query, session.NowPlaying.Requester.Username)
+		embed.Description = fmt.Sprintf("**現在再生中:**\n[%s](%s)\n\n", session.NowPlaying.Title, session.NowPlaying.Query)
 	}
 
 	if len(session.Queue) > 0 {
@@ -218,7 +207,7 @@ func (c *MusicCommand) handleQueue(s *discordgo.Session, i *discordgo.Interactio
 				queueText += fmt.Sprintf("\n...他%d曲", len(session.Queue)-10)
 				break
 			}
-			queueText += fmt.Sprintf("**%d.** [%s](%s) | `リクエスト: %s`\n", i+1, song.Title, song.Query, song.Requester.Username)
+			queueText += fmt.Sprintf("**%d.** %s\n", i+1, song.Title)
 		}
 		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{Name: "再生待ち", Value: queueText})
 	}
@@ -242,98 +231,42 @@ func playMusic(session *MusicSession) {
 			session.Mutex.Unlock()
 			return
 		}
-
 		song := session.Queue[0]
 		session.Queue = session.Queue[1:]
 		session.NowPlaying = &song
 		session.IsPlaying = true
 		session.Mutex.Unlock()
+		opts := dca.StdEncodeOptions
+		opts.RawOutput = true
+		opts.Bitrate = 96
+		opts.Application = "lowdelay"
 
-		// ★★★ ここからが最後の修正箇所です ★★★
-		// ffmpegの引数を正しい順番に修正
-		ffmpegArgs := []string{
-			// 入力に関するオプションを先に指定
-			"-reconnect", "1",
-			"-reconnect_streamed", "1",
-			"-reconnect_delay_max", "5",
-			"-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-
-			// 入力ソースを-iで指定
-			"-i", song.StreamURL,
-
-			// 出力に関するオプション
-			"-f", "s16le",
-			"-ar", "48000",
-			"-ac", "2",
-			"pipe:1",
-		}
-		// ★★★ ここまで ★★★
-
-		ffmpeg := exec.Command("ffmpeg", ffmpegArgs...)
-		session.FFmpegCmd = ffmpeg
-
-		ffmpegout, err := ffmpeg.StdoutPipe()
+		encodingSession, err := dca.EncodeFile(song.StreamURL, opts)
 		if err != nil {
-			logger.Error("FFmpeg StdoutPipe Error:", "error", err)
+			logger.Error("エンコードセッションの作成に失敗しました。", "error", err)
 			continue
 		}
-
-		ffmpegerr, err := ffmpeg.StderrPipe()
-		if err != nil {
-			logger.Error("FFmpeg StderrPipe Error:", "error", err)
-			continue
-		}
-
-		dcaOpts := &dca.EncodeOptions{
-			Volume:        256,
-			Channels:      2,
-			FrameRate:     48000,
-			FrameDuration: 20,
-			Bitrate:       96,
-			Application:   dca.AudioApplicationLowDelay,
-			RawOutput:     true,
-		}
-
-		encoder, err := dca.EncodeMem(ffmpegout, dcaOpts)
-		if err != nil {
-			logger.Error("DCA Encode Error:", "error", err)
-			continue
-		}
-		defer encoder.Cleanup()
-
-		if err := ffmpeg.Start(); err != nil {
-			logger.Error("Failed to start ffmpeg", "error", err)
-			continue
-		}
-
-		go func() {
-			scanner := bufio.NewScanner(ffmpegerr)
-			for scanner.Scan() {
-				logger.Info("[ffmpeg stderr]", "line", scanner.Text())
-			}
-		}()
+		session.EncodeSession = encodingSession
+		defer encodingSession.Cleanup()
 
 		session.VoiceConnection.Speaking(true)
-	streamingLoop:
+
+		// 音声フレームを読み出し、送信するループ
 		for {
-			opus, err := encoder.OpusFrame()
+			frame, err := encodingSession.OpusFrame()
 			if err != nil {
-				if err != io.EOF {
-					logger.Error("Opus frame error", "error", err)
+				if !errors.Is(err, io.EOF) {
+					logger.Error("Opusフレームの読み取りに失敗しました。", "error", err)
 				}
-				break streamingLoop
+				break
 			}
 
-			select {
-			case session.VoiceConnection.OpusSend <- opus:
-			case <-time.After(2 * time.Second):
-				logger.Error("Opus送信がタイムアウトしました")
-				break streamingLoop
-			}
+			// Discordのチャンネルに送信
+			session.VoiceConnection.OpusSend <- frame
 		}
+
 		session.VoiceConnection.Speaking(false)
 
-		ffmpeg.Wait()
 	}
 }
 
