@@ -1,6 +1,13 @@
 const express = require('express');
 const { Client, GatewayIntentBits } = require('discord.js');
-const { Player } = require('discord-player');
+const {
+    joinVoiceChannel,
+    createAudioPlayer,
+    createAudioResource,
+    AudioPlayerStatus,
+    VoiceConnectionStatus
+} = require('@discordjs/voice');
+const play = require('play-dl');
 
 const client = new Client({
     intents: [
@@ -9,14 +16,11 @@ const client = new Client({
     ]
 });
 
-const player = new Player(client);
+// サーバーごとの接続情報を保存
+const serverQueues = new Map();
 
-player.on('trackStart', (queue, track) => {
-    queue.metadata.channel.send(`🎵 再生中: **${track.title}**`);
-});
-
-player.on('error', (queue, error) => {
-    console.log(`Error: ${error.message}`);
+client.on('ready', () => {
+    console.log('Music Player Bot is online!');
 });
 
 const app = express();
@@ -26,69 +30,125 @@ const port = 8080;
 app.post('/play', async (req, res) => {
     const { guildId, channelId, query, userId } = req.body;
     if (!guildId || !channelId || !query || !userId) {
-        return res.status(400).send('リクエスト情報が不足しています。');
+        return res.status(400).send({ error: 'リクエスト情報が不足しています。' });
     }
 
-    const guild = client.guilds.cache.get(guildId);
-    if (!guild) return res.status(404).send('サーバーが見つかりません。');
-    
-    const member = await guild.members.fetch(userId).catch(() => null);
-    if (!member) return res.status(404).send('ユーザーが見つかりません。');
-    
-    const voiceChannel = member.voice.channel;
-    if (!voiceChannel) {
-        return res.status(400).send('まずボイスチャンネルに参加してください。');
-    }
-
-    const textChannel = guild.channels.cache.get(channelId);
-    if (!textChannel) return res.status(404).send('テキストチャンネルが見つかりません。');
-    
     try {
-        const queue = player.createQueue(guild, {
-            metadata: { channel: textChannel },
-            ytdlOptions: {
-                quality: 'highestaudio',
-                highWaterMark: 1 << 25
-            },
-            leaveOnEnd: false,
-        });
+        const guild = await client.guilds.fetch(guildId);
+        const member = await guild.members.fetch(userId);
+        const textChannel = await guild.channels.fetch(channelId);
 
-        if (!queue.connection) await queue.connect(voiceChannel);
+        if (!member.voice.channel) {
+            return res.status(400).send({ error: 'まずボイスチャンネルに参加してください。' });
+        }
+        
+        const queue = serverQueues.get(guildId);
+        
+        // 1. play-dlで動画を検索
+        const searchResult = await play.search(query, { limit: 1 });
+        if (searchResult.length === 0) {
+            return res.status(404).send({ error: 'トラックが見つかりませんでした。' });
+        }
+        const track = searchResult[0];
 
-        const track = await player.search(query, {
-            requestedBy: member.user
-        }).then(x => x.tracks[0]);
+        if (!queue) {
+            // キューがない場合は、新しいキューを作成して接続
+            const newQueue = {
+                voiceChannel: member.voice.channel,
+                textChannel: textChannel,
+                connection: null,
+                player: createAudioPlayer(),
+                songs: [track]
+            };
 
-        if (!track) return res.status(404).send('トラックが見つかりませんでした。');
+            serverQueues.set(guildId, newQueue);
 
-        queue.play(track);
+            try {
+                newQueue.connection = joinVoiceChannel({
+                    channelId: member.voice.channel.id,
+                    guildId: guild.id,
+                    adapterCreator: guild.voiceAdapterCreator,
+                });
 
-        return res.status(200).send(`✅ **${track.title}** をキューに追加しました。`);
+                newQueue.connection.subscribe(newQueue.player);
+                playNext(guildId);
+                res.status(200).send(`✅ **${track.title}** の再生を開始します。`);
+
+            } catch (err) {
+                console.error(err);
+                serverQueues.delete(guildId);
+                return res.status(500).send({ error: 'ボイスチャンネルへの接続に失敗しました。' });
+            }
+        } else {
+            // 既にキューがある場合は、曲を追加
+            queue.songs.push(track);
+            return res.status(200).send(`✅ **${track.title}** をキューに追加しました。`);
+        }
 
     } catch (e) {
-        console.error(e);
-        return res.status(500).send(`エラーが発生しました: ${e.message}`);
+        console.error('Error in /play route:', e);
+        return res.status(500).send({ error: `エラーが発生しました: ${e.message}` });
+    }
+});
+
+async function playNext(guildId) {
+    const queue = serverQueues.get(guildId);
+    if (!queue) return;
+    if (queue.songs.length === 0) {
+        // キューが空になったらVCから切断
+        if (queue.connection) {
+            queue.connection.destroy();
+        }
+        serverQueues.delete(guildId);
+        return;
+    }
+
+    const track = queue.songs.shift();
+
+    try {
+        const stream = await play.stream(track.url);
+        const resource = createAudioResource(stream.stream, { inputType: stream.type });
+        
+        queue.player.play(resource);
+        queue.textChannel.send(`🎵 再生中: **${track.title}**`);
+
+        queue.player.once(AudioPlayerStatus.Idle, () => {
+            playNext(guildId);
+        });
+    } catch (error) {
+        console.error(`Error playing track: ${error}`);
+        queue.textChannel.send(`❌ **${track.title}** の再生中にエラーが発生しました。`);
+        playNext(guildId); // 次の曲へ
+    }
+}
+
+app.post('/stop', (req, res) => {
+    const guildId = req.body.guildId;
+    const queue = serverQueues.get(guildId);
+
+    if (queue) {
+        queue.songs = []; // キューを空にする
+        if (queue.player) queue.player.stop();
+        if (queue.connection) queue.connection.destroy();
+        serverQueues.delete(guildId);
+        res.status(200).send({ message: '⏹️ 再生を停止しました。' });
+    } else {
+        res.status(400).send({ error: '現在再生中ではありません。' });
     }
 });
 
 app.post('/skip', (req, res) => {
-    const queue = player.getQueue(req.body.guildId);
-    if (!queue || !queue.playing) return res.status(400).send('再生中の曲がありません。');
-    const success = queue.skip();
-    res.status(200).send(success ? '⏭️ スキップしました。' : 'スキップに失敗しました。');
+    const guildId = req.body.guildId;
+    const queue = serverQueues.get(guildId);
+    if (!queue || queue.songs.length === 0) {
+        return res.status(400).send({ error: 'スキップする曲がありません。' });
+    }
+    // プレイヤーを停止させると、'Idle'イベントが発火して次の曲が再生される
+    queue.player.stop(); 
+    res.status(200).send({ message: '⏭️ スキップしました。' });
 });
 
-app.post('/stop', (req, res) => {
-    const queue = player.getQueue(req.body.guildId);
-    if (!queue) return res.status(400).send('キューがありません。');
-    queue.destroy();
-    res.status(200).send('⏹️ 再生を停止し、キューをクリアしました。');
-});
-
-
-client.login(process.env.DISCORD_BOT_TOKEN).then(() => {
-    console.log("Music Player Bot is online!");
-    app.listen(port, () => {
-        console.log(`Music player server listening at http://localhost:${port}`);
-    });
+client.login(process.env.DISCORD_BOT_TOKEN);
+app.listen(port, () => {
+    console.log(`Music player server listening at http://localhost:${port}`);
 });
