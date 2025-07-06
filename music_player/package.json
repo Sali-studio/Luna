@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@discord-player/extractor": "^4.4.7",
+    "@discordjs/opus": "^0.10.0",
     "@discordjs/voice": "^0.17.0",
     "discord-player": "^6.6.10",
     "discord.js": "^14.15.3",
