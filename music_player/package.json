@@ -1,19 +1,14 @@
 {
   "name": "music_player",
   "version": "1.0.0",
-  "description": "",
   "main": "player.js",
-  "scripts": {
-    "start": "node player.js"
-  },
+  
   "dependencies": {
     "@discordjs/opus": "^0.9.0",
-    "@discordjs/voice": "^0.16.1",
-    "discord-player": "^5.4.0",
+    "@discordjs/voice": "^0.17.0",
     "discord.js": "^14.15.3",
     "express": "^4.19.2",
     "ffmpeg-static": "^5.2.0",
-    "youtube-sr": "^4.3.11",
-    "ytdl-core": "^4.11.5"
+    "play-dl": "^1.9.7"
   }
 }
