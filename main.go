@@ -103,28 +103,28 @@ func main() {
 	componentHandlers = make(map[string]commands.CommandHandler)
 
 	// コマンドの登録
-	registerCommand(&commands.ConfigCommand{Store: dbStore})
-	registerCommand(&commands.DashboardCommand{Store: dbStore, Scheduler: scheduler})
-	registerCommand(&commands.ReactionRoleCommand{Store: dbStore})
-	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler, Store: dbStore})
-	registerCommand(&commands.TicketCommand{Store: dbStore})
+	//registerCommand(&commands.ConfigCommand{Store: dbStore})
+	//registerCommand(&commands.DashboardCommand{Store: dbStore, Scheduler: scheduler})
+	//registerCommand(&commands.ReactionRoleCommand{Store: dbStore})
+	//registerCommand(&commands.ScheduleCommand{Scheduler: scheduler, Store: dbStore})
+	//registerCommand(&commands.TicketCommand{Store: dbStore})
 	registerCommand(&commands.PingCommand{StartTime: startTime, Store: dbStore})
-	registerCommand(&commands.AskCommand{})
-	registerCommand(&commands.AvatarCommand{})
-	registerCommand(&commands.CalculatorCommand{})
-	registerCommand(&commands.EmbedCommand{})
-	registerCommand(&commands.ModerateCommand{})
-	registerCommand(&commands.PokemonCalculatorCommand{})
-	registerCommand(&commands.PollCommand{})
-	registerCommand(&commands.PowerConverterCommand{})
-	registerCommand(&commands.TranslateCommand{})
-	registerCommand(&commands.UserInfoCommand{})
-	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
-	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
-	registerCommand(&commands.ImagineCommand{})
-	registerCommand(&commands.MandelbrotCommand{})
+	//registerCommand(&commands.AskCommand{})
+	//registerCommand(&commands.AvatarCommand{})
+	//registerCommand(&commands.CalculatorCommand{})
+	//registerCommand(&commands.EmbedCommand{})
+	//registerCommand(&commands.ModerateCommand{})
+	//registerCommand(&commands.PokemonCalculatorCommand{})
+	//registerCommand(&commands.PollCommand{})
+	//registerCommand(&commands.PowerConverterCommand{})
+	//registerCommand(&commands.TranslateCommand{})
+	//registerCommand(&commands.UserInfoCommand{})
+	//registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
+	//registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
+	//registerCommand(&commands.ImagineCommand{})
+	//registerCommand(&commands.MandelbrotCommand{})
 	// registerCommand(&commands.ReadTextCommand{}) -- 無効化 --
-	registerCommand(&commands.MusicCommand{})
+	//registerCommand(&commands.MusicCommand{})
 
 	eventHandler := handlers.NewEventHandler(dbStore)
 	eventHandler.RegisterAllHandlers(dg)
@@ -149,10 +149,10 @@ func main() {
 		registeredCommands = append(registeredCommands, handler.GetCommandDef())
 	}
 
-	if _, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", registeredCommands); err != nil {
-		logger.Fatal("コマンドの登録に失敗しました", "error", err)
+	guildID := "1385573037608271963"
+	if _, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, guildID, registeredCommands); err != nil {
+		logger.Fatal("コマンドの登録に失敗しました", "error", err, "guildID", guildID)
 	}
-
 	logger.Info("コマンドの登録が完了しました。Ctrl+Cで終了します。")
 
 	sc := make(chan os.Signal, 1)
