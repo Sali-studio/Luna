@@ -3,11 +3,11 @@ package commands
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"luna/logger"
 	"net/http"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -27,7 +27,7 @@ type MusicSession struct {
 	NowPlaying      *Song
 	IsPlaying       bool
 	Mutex           sync.Mutex
-	EncodeSession   *dca.EncodeSession // エンコードセッションを直接保持
+	FFmpegCmd       *exec.Cmd // ffmpegプロセスを直接保持
 }
 
 // Song は再生する曲の情報を表す
@@ -153,7 +153,7 @@ func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.Interaction
 			return
 		}
 		session.VoiceConnection = vc
-		go playMusic(session) // 再生ループを開始
+		go playMusic(session)
 		content := fmt.Sprintf("▶️ **%s** の再生を開始します。", song.Title)
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 	}
@@ -166,8 +166,11 @@ func (c *MusicCommand) handleSkip(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-	if session.EncodeSession != nil {
-		session.EncodeSession.Stop()
+	if session.FFmpegCmd != nil && session.FFmpegCmd.Process != nil {
+		err := session.FFmpegCmd.Process.Kill()
+		if err != nil {
+			logger.Error("Failed to kill ffmpeg process on skip", "error", err)
+		}
 	}
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "⏩ スキップしました。"}})
 }
@@ -181,8 +184,11 @@ func (c *MusicCommand) handleStop(s *discordgo.Session, i *discordgo.Interaction
 
 	session.Mutex.Lock()
 	session.Queue = make([]Song, 0)
-	if session.IsPlaying && session.EncodeSession != nil {
-		session.EncodeSession.Stop()
+	if session.IsPlaying && session.FFmpegCmd != nil && session.FFmpegCmd.Process != nil {
+		err := session.FFmpegCmd.Process.Kill()
+		if err != nil {
+			logger.Error("Failed to kill ffmpeg process on stop", "error", err)
+		}
 	}
 	session.Mutex.Unlock()
 
@@ -231,9 +237,7 @@ func (c *MusicCommand) handleQueue(s *discordgo.Session, i *discordgo.Interactio
 
 // playMusicは音楽再生のメインループ
 func playMusic(session *MusicSession) {
-	// この関数が終了したら（キューが空になったら）、VCから切断しセッション情報を削除する
 	defer func() {
-		logger.Info("キューが空になったため再生を終了し、VCから切断します。")
 		session.VoiceConnection.Disconnect()
 		musicMutex.Lock()
 		delete(musicSessions, session.GuildID)
@@ -246,60 +250,52 @@ func playMusic(session *MusicSession) {
 			session.IsPlaying = false
 			session.NowPlaying = nil
 			session.Mutex.Unlock()
-			logger.Info("キューが空になりました。再生ループを終了します。")
-			return // キューが空になったらループを終了
+			return
 		}
 
 		song := session.Queue[0]
 		session.Queue = session.Queue[1:]
 		session.NowPlaying = &song
 		session.IsPlaying = true
-		logger.Info("次の曲の再生を開始します。", "title", song.Title)
 		session.Mutex.Unlock()
 
-		opts := &dca.EncodeOptions{
-			Volume:        256,
-			Channels:      2,
-			FrameRate:     48000,
-			FrameDuration: 20,
-			Bitrate:       96,
-			Application:   dca.AudioApplicationLowDelay,
-			RawOutput:     true,
-		}
+		opts := dca.StdEncodeOptions
+		opts.RawOutput = true
+		opts.Bitrate = 96
+		opts.Application = "lowdelay"
 
+		// dca.EncodeFileを使い、URLとオプションを直接渡す
 		encodingSession, err := dca.EncodeFile(song.StreamURL, opts)
 		if err != nil {
-			logger.Error("DCAエンコードセッションの作成に失敗しました。", "error", err, "title", song.Title)
-			continue // 次の曲へ
+			logger.Error("エンコードセッションの作成に失敗しました。", "error", err)
+			continue
 		}
+		// 曲が終わった後、またはスキップされた後に、リソースを解放する
+		defer encodingSession.Cleanup()
 
-		session.EncodeSession = encodingSession // スキップ/ストップ用にセッションを保持
+		done := make(chan error)
 
-		// ボイスチャンネルに送信を開始
+		// dca.NewStreamは存在しなかったため、正しいdca.NewVoiceStreamを使用
 		session.VoiceConnection.Speaking(true)
-		logger.Info("音声のストリーミングを開始します。")
-
+	streamingLoop:
 		for {
 			opus, err := encodingSession.OpusFrame()
 			if err != nil {
-				// EOFは曲の正常な終了
-				if !errors.Is(err, io.EOF) {
-					logger.Error("Opusフレームの読み込み中にエラーが発生しました。", "error", err)
-				} else {
-					logger.Info("曲が正常に終了しました(EOF)。")
+				if err != io.EOF {
+					logger.Error("ストリーミングエラー:", "error", err)
 				}
-				break // 曲の終わりかエラー
+				break streamingLoop
 			}
-			session.VoiceConnection.OpusSend <- opus
+
+			// OpusSendチャンネルがブロックされるのを防ぐ
+			select {
+			case session.VoiceConnection.OpusSend <- opus:
+			case <-time.After(2 * time.Second): // タイムアウト
+				logger.Error("Opus送信がタイムアウトしました")
+				break streamingLoop
+			}
 		}
-
 		session.VoiceConnection.Speaking(false)
-		logger.Info("音声のストリーミングが完了しました。")
-
-		// 曲が終わるごとに必ずCleanupを呼び出す
-		encodingSession.Cleanup()
-		session.EncodeSession = nil // 参照をクリア
-		logger.Info("エンコードセッションをクリーンアップしました。")
 	}
 }
 
