@@ -270,3 +270,6 @@
 {"time":"2025-07-06T10:32:40.0885438+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"Discord Botが起動しました。コマンドを登録します..."}
 {"time":"2025-07-06T10:32:40.5364008+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"コマンドの登録が完了しました。Ctrl+Cで終了します。"}
 {"time":"2025-07-06T10:34:27.4818459+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"Botをシャットダウンします..."}
+{"time":"2025-07-06T10:34:35.246603+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"DBからスケジュールを登録しました","count":0}
+{"time":"2025-07-06T10:34:35.2471261+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"Discord Botが起動しました。コマンドを登録します..."}
+{"time":"2025-07-06T10:34:35.7740952+09:00","level":"INFO","source":{"function":"luna/logger.Info","file":"C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/logger/logger.go","line":31},"msg":"コマンドの登録が完了しました。Ctrl+Cで終了します。"}
