@@ -7,7 +7,6 @@ import (
 	"io"
 	"luna/logger"
 	"net/http"
-	"os/exec"
 	"sync"
 	"time"
 
@@ -27,7 +26,7 @@ type MusicSession struct {
 	NowPlaying      *Song
 	IsPlaying       bool
 	Mutex           sync.Mutex
-	FFmpegCmd       *exec.Cmd // ffmpegプロセスを直接保持
+	EncodeSession   *dca.EncodeSession // エンコードセッションを直接保持
 }
 
 // Song は再生する曲の情報を表す
@@ -116,7 +115,6 @@ func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.Interaction
 	reqData := map[string]interface{}{"query": query}
 	jsonData, _ := json.Marshal(reqData)
 	resp, err := http.Post("http://localhost:5002/get-stream-url", "application/json", bytes.NewBuffer(jsonData))
-
 	if err != nil || resp.StatusCode != http.StatusOK {
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &[]string{"❌ 曲情報の取得に失敗しました。"}[0]})
 		return
@@ -164,8 +162,8 @@ func (c *MusicCommand) handleSkip(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-	if session.FFmpegCmd != nil && session.FFmpegCmd.Process != nil {
-		session.FFmpegCmd.Process.Kill()
+	if session.EncodeSession != nil {
+		session.EncodeSession.Stop()
 	}
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "⏩ スキップしました。"}})
 }
@@ -179,8 +177,8 @@ func (c *MusicCommand) handleStop(s *discordgo.Session, i *discordgo.Interaction
 
 	session.Mutex.Lock()
 	session.Queue = make([]Song, 0)
-	if session.IsPlaying && session.FFmpegCmd != nil && session.FFmpegCmd.Process != nil {
-		session.FFmpegCmd.Process.Kill()
+	if session.IsPlaying && session.EncodeSession != nil {
+		session.EncodeSession.Stop()
 	}
 	session.Mutex.Unlock()
 
@@ -243,68 +241,38 @@ func playMusic(session *MusicSession) {
 		session.IsPlaying = true
 		session.Mutex.Unlock()
 
-		// ★★★ ここからが最後の修正箇所です ★★★
-		ffmpegArgs := []string{
-			// ストリームの不安定さに対処するオプション
-			"-reconnect", "1",
-			"-reconnect_streamed", "1",
-			"-reconnect_delay_max", "5",
-			// User-Agentを偽装して、一般的なブラウザからのアクセスに見せかける
-			"-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-			// 入力
-			"-i", song.StreamURL,
-			// 出力フォーマット
-			"-f", "s16le",
-			"-ar", "48000",
-			"-ac", "2",
-			"pipe:1",
-		}
-		ffmpeg := exec.Command("ffmpeg", ffmpegArgs...)
-		session.FFmpegCmd = ffmpeg
+		opts := dca.StdEncodeOptions
+		opts.RawOutput = true
+		opts.Bitrate = 96
+		opts.Application = "lowdelay"
 
-		ffmpegout, err := ffmpeg.StdoutPipe()
+		// EncodeFileがffmpegプロセスを内部で管理し、エンコードを行う
+		encodingSession, err := dca.EncodeFile(song.StreamURL, opts)
 		if err != nil {
-			logger.Error("FFmpeg StdoutPipe Error:", "error", err)
+			logger.Error("エンコードセッションの作成に失敗しました。", "error", err)
 			continue
 		}
+		session.EncodeSession = encodingSession
+		defer encodingSession.Cleanup()
 
-		dcaOpts := &dca.EncodeOptions{
-			Volume:        256,
-			Channels:      2,
-			FrameRate:     48000,
-			FrameDuration: 20,
-			Bitrate:       96,
-			Application:   dca.AudioApplicationLowDelay,
-			RawOutput:     true,
-		}
-
-		encoder, err := dca.EncodeMem(ffmpegout, dcaOpts)
-		if err != nil {
-			logger.Error("DCA Encode Error:", "error", err)
-			continue
-		}
-		defer encoder.Cleanup()
-
-		if err := ffmpeg.Start(); err != nil {
-			logger.Error("Failed to start ffmpeg", "error", err)
-			continue
-		}
-
+		// ボイスチャンネルへの送信を開始
 		session.VoiceConnection.Speaking(true)
+
+		// 音声フレームを読み出し、送信するループ
 		for {
-			opus, err := encoder.OpusFrame()
+			frame, err := encodingSession.OpusFrame()
 			if err != nil {
 				if err != io.EOF {
-					logger.Error("Opus frame error", "error", err)
+					logger.Error("Opusフレームの読み取りに失敗しました。", "error", err)
 				}
-				break
+				break // 曲の終わり、またはエラー
 			}
-			session.VoiceConnection.OpusSend <- opus
-		}
-		session.VoiceConnection.Speaking(false)
 
-		ffmpeg.Wait()
-		// ★★★ ここまで ★★★
+			// Discordのチャンネルに送信
+			session.VoiceConnection.OpusSend <- frame
+		}
+
+		session.VoiceConnection.Speaking(false)
 	}
 }
 
