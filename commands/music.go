@@ -167,7 +167,7 @@ func (c *MusicCommand) handleSkip(s *discordgo.Session, i *discordgo.Interaction
 	}
 
 	if session.EncodeSession != nil {
-		session.EncodeSession.Stop() // エンコードセッションを停止して再生を終了させる
+		session.EncodeSession.Stop()
 	}
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "⏩ スキップしました。"}})
 }
@@ -231,7 +231,9 @@ func (c *MusicCommand) handleQueue(s *discordgo.Session, i *discordgo.Interactio
 
 // playMusicは音楽再生のメインループ
 func playMusic(session *MusicSession) {
+	// この関数が終了したら（キューが空になったら）、VCから切断しセッション情報を削除する
 	defer func() {
+		logger.Info("キューが空になったため再生を終了し、VCから切断します。")
 		session.VoiceConnection.Disconnect()
 		musicMutex.Lock()
 		delete(musicSessions, session.GuildID)
@@ -244,13 +246,15 @@ func playMusic(session *MusicSession) {
 			session.IsPlaying = false
 			session.NowPlaying = nil
 			session.Mutex.Unlock()
-			return
+			logger.Info("キューが空になりました。再生ループを終了します。")
+			return // キューが空になったらループを終了
 		}
 
 		song := session.Queue[0]
 		session.Queue = session.Queue[1:]
 		session.NowPlaying = &song
 		session.IsPlaying = true
+		logger.Info("次の曲の再生を開始します。", "title", song.Title)
 		session.Mutex.Unlock()
 
 		opts := &dca.EncodeOptions{
@@ -260,36 +264,46 @@ func playMusic(session *MusicSession) {
 			FrameDuration: 20,
 			Bitrate:       96,
 			Application:   dca.AudioApplicationLowDelay,
-			RawOutput:     true, // Opusデータを直接受け取るために必須
+			RawOutput:     true,
 		}
 
 		encodingSession, err := dca.EncodeFile(song.StreamURL, opts)
 		if err != nil {
-			logger.Error("Failed to create encoding session", "error", err)
-			continue
+			logger.Error("DCAエンコードセッションの作成に失敗しました。", "error", err, "title", song.Title)
+			continue // 次の曲へ
 		}
+
 		session.EncodeSession = encodingSession // スキップ/ストップ用にセッションを保持
-		defer encodingSession.Cleanup()
 
 		// ボイスチャンネルに送信を開始
 		session.VoiceConnection.Speaking(true)
+		logger.Info("音声のストリーミングを開始します。")
+
 		for {
 			opus, err := encodingSession.OpusFrame()
 			if err != nil {
+				// EOFは曲の正常な終了
 				if !errors.Is(err, io.EOF) {
-					logger.Error("Opus frame error", "error", err)
+					logger.Error("Opusフレームの読み込み中にエラーが発生しました。", "error", err)
+				} else {
+					logger.Info("曲が正常に終了しました(EOF)。")
 				}
 				break // 曲の終わりかエラー
 			}
 			session.VoiceConnection.OpusSend <- opus
 		}
+
 		session.VoiceConnection.Speaking(false)
+		logger.Info("音声のストリーミングが完了しました。")
+
+		// 曲が終わるごとに必ずCleanupを呼び出す
+		encodingSession.Cleanup()
+		session.EncodeSession = nil // 参照をクリア
+		logger.Info("エンコードセッションをクリーンアップしました。")
 	}
 }
 
 func (c *MusicCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *MusicCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *MusicCommand) GetComponentIDs() []string                                            { return []string{} }
-
-// レシーバーに名前を付けます
-func (c *MusicCommand) GetCategory() string { return "音楽" }
+func (c *MusicCommand) GetCategory() string                                                  { return "音楽" }
