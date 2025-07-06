@@ -124,6 +124,7 @@ func main() {
 	registerCommand(&commands.MandelbrotCommand{})
 	// registerCommand(&commands.ReadTextCommand{}) -- 無効化 --
 	registerCommand(&commands.MusicCommand{})
+	registerCommand(&commands.AIGameCommand{})
 
 	eventHandler := handlers.NewEventHandler(dbStore)
 	eventHandler.RegisterAllHandlers(dg)
