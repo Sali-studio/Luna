@@ -55,8 +55,12 @@ func (c *MusicCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 // handlePlay は /music play コマンドを処理します
 func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
 	// ユーザーがボイスチャンネルにいるか確認
-	vs, err := findUserVoiceState(s, i.GuildID, i.Member.User.ID)
+	guild, err := s.State.Guild(i.GuildID)
 	if err != nil {
+		return
+	}
+	vs, err := findUserVoiceState(s, guild, i.Member.User.ID)
+	if err != nil || vs == nil {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: "🔊 まずボイスチャンネルに参加してください。", Flags: discordgo.MessageFlagsEphemeral},
@@ -69,13 +73,14 @@ func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.Interaction
 	// Node.jsサーバーに送るデータ
 	payload := map[string]string{
 		"guildId":   i.GuildID,
-		"channelId": i.ChannelID, //コマンドが実行されたテキストチャンネルのIDを渡す
+		"channelId": i.ChannelID, // ★修正: コマンドが実行されたテキストチャンネルのIDを渡す
 		"userId":    i.Member.User.ID,
 		"query":     query,
 	}
+	jsonPayload, _ := json.Marshal(payload)
 
 	// Node.jsサーバーにリクエストを送信
-	resp, err := http.Post(fmt.Sprintf("%s/play", musicServerURL), "application/json", bytes.NewBuffer(jsonPayload))
+	_, err = http.Post(fmt.Sprintf("%s/play", musicServerURL), "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -83,7 +88,6 @@ func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.Interaction
 		})
 		return
 	}
-	defer resp.Body.Close()
 
 	// レスポンスの内容に応じて応答
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -94,25 +98,21 @@ func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.Interaction
 
 func (c *MusicCommand) handleSkip(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	payload := map[string]string{"guildId": i.GuildID}
-	jsonPayload, _ := json.Marshal(payload)
+	jsonPayload, _ := json.Marshal(payload) // ★修正：jsonPayloadを定義
 	http.Post(fmt.Sprintf("%s/skip", musicServerURL), "application/json", bytes.NewBuffer(jsonPayload))
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "⏭️ スキップリクエストを送信しました。"}})
 }
 
 func (c *MusicCommand) handleStop(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	payload := map[string]string{"guildId": i.GuildID}
-	jsonPayload, _ := json.Marshal(payload)
+	jsonPayload, _ := json.Marshal(payload) // ★修正：jsonPayloadを定義
 	http.Post(fmt.Sprintf("%s/stop", musicServerURL), "application/json", bytes.NewBuffer(jsonPayload))
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "⏹️ 停止リクエストを送信しました。"}})
 }
 
 // ユーザーのボイスステートを見つけるヘルパー関数
-func findUserVoiceState(s *discordgo.Session, guildID, userID string) (*discordgo.VoiceState, error) {
-	guild, err := s.State.Guild(guildID)
-	if err != nil {
-		return nil, err
-	}
-	for _, vs := range guild.VoiceStates {
+func findUserVoiceState(s *discordgo.Session, g *discordgo.Guild, userID string) (*discordgo.VoiceState, error) {
+	for _, vs := range g.VoiceStates {
 		if vs.UserID == userID {
 			return vs, nil
 		}
