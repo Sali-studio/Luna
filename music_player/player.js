@@ -10,7 +10,7 @@ const client = new Client({
     ]
 });
 
-// サーバーごとの接続情報とプレイヤーを保存
+// サーバーごとの接続情報を保存
 const connections = new Map();
 
 client.on('ready', () => {
@@ -36,43 +36,40 @@ app.post('/play', async (req, res) => {
             return res.status(400).send({ error: 'まずボイスチャンネルに参加してください。' });
         }
 
+        // 1. play-dlで動画を検索 (URLでも検索ワードでもOK)
+        const searchResults = await play.search(query, {
+            limit: 1
+        });
+
+        if (searchResults.length === 0) {
+            return res.status(404).send({ error: 'トラックが見つかりませんでした。' });
+        }
+        
+        // 検索結果の最初の動画を使用
+        const video = searchResults[0];
+
+        // 2. 検索結果のURLからストリーム情報を取得
+        const stream = await play.stream(video.url);
+
         const connection = joinVoiceChannel({
             channelId: member.voice.channel.id,
             guildId: guild.id,
             adapterCreator: guild.voiceAdapterCreator,
         });
-        
-        // 接続状態の監視
-        connection.on(VoiceConnectionStatus.Ready, () => {
-            console.log('The connection has entered the Ready state - ready to play!');
-        });
-        
-        connection.on(VoiceConnectionStatus.Disconnected, () => {
-            console.log('Voice connection was disconnected.');
-            // 必要に応じて再接続処理など
-        });
 
-        // play-dlでYouTubeのストリーム情報を取得
-        let streamInfo = await play.stream(query, {
-            quality: 1 // 0: low, 1: medium, 2: high
-        });
-
-        // オーディオプレイヤーを作成
         const audioPlayer = createAudioPlayer();
-        const resource = createAudioResource(streamInfo.stream, {
-            inputType: streamInfo.type
+        const resource = createAudioResource(stream.stream, {
+            inputType: stream.type
         });
 
-        // プレイヤーにリソースをセットして再生
         audioPlayer.play(resource);
         connection.subscribe(audioPlayer);
 
         // 再生が開始されたら通知
         audioPlayer.on(AudioPlayerStatus.Playing, () => {
-            textChannel.send(`🎵 再生中: **${streamInfo.video_details.title}**`);
+            textChannel.send(`🎵 再生中: **${video.title}**`);
         });
-
-        // 再生が終了したら接続を切る
+        
         audioPlayer.on(AudioPlayerStatus.Idle, () => {
              if (connection.state.status !== VoiceConnectionStatus.Destroyed) {
                 connection.destroy();
@@ -80,7 +77,6 @@ app.post('/play', async (req, res) => {
             }
         });
 
-        // サーバー情報を保存
         connections.set(guildId, { connection, audioPlayer });
 
         return res.status(200).send({ message: '再生リクエストを受け付けました。' });
@@ -96,7 +92,8 @@ app.post('/stop', (req, res) => {
     const serverConnection = connections.get(guildId);
 
     if (serverConnection && serverConnection.connection) {
-        serverConnection.connection.destroy();
+        if(serverConnection.audioPlayer) serverConnection.audioPlayer.stop();
+        if(serverConnection.connection) serverConnection.connection.destroy();
         connections.delete(guildId);
         return res.status(200).send({ message: '⏹️ 再生を停止しました。' });
     } else {
@@ -104,7 +101,6 @@ app.post('/stop', (req, res) => {
     }
 });
 
-// スキップ機能はキュー管理が必要なため、このシンプルな実装では省略しています。
 
 client.login(process.env.DISCORD_BOT_TOKEN);
 app.listen(port, () => {
