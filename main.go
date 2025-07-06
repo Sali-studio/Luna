@@ -65,6 +65,16 @@ func main() {
 	defer jlCmd.Process.Kill()
 	log.Println("Julia calculation server started successfully.")
 
+	log.Println("Starting Python music server...")
+	musicCmd := exec.Command("python", "./music_player/player.py")
+	musicCmd.Stdout = os.Stdout
+	musicCmd.Stderr = os.Stderr
+	if err := musicCmd.Start(); err != nil {
+		log.Fatalf("Failed to start Python music server: %v", err)
+	}
+	defer musicCmd.Process.Kill()
+	log.Println("Python music server started successfully.")
+
 	startTime = time.Now()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
 	if token == "" {
