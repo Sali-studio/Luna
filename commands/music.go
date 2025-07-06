@@ -249,17 +249,26 @@ func playMusic(session *MusicSession) {
 		session.IsPlaying = true
 		session.Mutex.Unlock()
 
+		// ★★★ ここからが最後の修正箇所です ★★★
+		// ffmpegの引数を正しい順番に修正
 		ffmpegArgs := []string{
+			// 入力に関するオプションを先に指定
 			"-reconnect", "1",
 			"-reconnect_streamed", "1",
 			"-reconnect_delay_max", "5",
 			"-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+
+			// 入力ソースを-iで指定
 			"-i", song.StreamURL,
+
+			// 出力に関するオプション
 			"-f", "s16le",
 			"-ar", "48000",
 			"-ac", "2",
 			"pipe:1",
 		}
+		// ★★★ ここまで ★★★
+
 		ffmpeg := exec.Command("ffmpeg", ffmpegArgs...)
 		session.FFmpegCmd = ffmpeg
 
