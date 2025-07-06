@@ -1,4 +1,4 @@
-# Luna 1.21.6
+# Luna 1.21.7
 
 <p align="center">
   <em>あなたのサーバー運営をサポートする多機能Bot。</em>
