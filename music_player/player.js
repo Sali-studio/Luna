@@ -10,22 +10,12 @@ const client = new Client({
     ]
 });
 
+// サーバーごとの接続情報を保存
 const connections = new Map();
-
-// サーバー起動時に、YouTubeの認証情報を事前に設定する
-async function configurePlayer() {
-    try {
-        console.log('YouTubeの認証情報を設定します...');
-        await play.get_cookie(); // YouTubeのCookieを取得して設定
-        console.log('✅ 認証情報の設定が完了しました。');
-    } catch (error) {
-        console.error('❌ 認証情報の設定中にエラーが発生しました:', error);
-    }
-}
 
 client.on('ready', () => {
     console.log('Music Player Bot is online!');
-    configurePlayer();
+    // play-dlの内部認証は自動で行われるため、事前の設定は不要です。
 });
 
 const app = express();
@@ -47,12 +37,18 @@ app.post('/play', async (req, res) => {
             return res.status(400).send({ error: 'まずボイスチャンネルに参加してください。' });
         }
         
-        const searchResults = await play.search(query, { limit: 1 });
+        // 1. play-dlで動画を検索
+        const searchResults = await play.search(query, {
+            limit: 1
+        });
+
         if (searchResults.length === 0) {
             return res.status(404).send({ error: 'トラックが見つかりませんでした。' });
         }
         
         const video = searchResults[0];
+
+        // 2. 検索結果のURLからストリーム情報を取得
         const stream = await play.stream(video.url);
 
         const connection = joinVoiceChannel({
@@ -62,15 +58,19 @@ app.post('/play', async (req, res) => {
         });
 
         const audioPlayer = createAudioPlayer();
-        const resource = createAudioResource(stream.stream, { inputType: stream.type });
+        const resource = createAudioResource(stream.stream, {
+            inputType: stream.type
+        });
 
         audioPlayer.play(resource);
         connection.subscribe(audioPlayer);
 
+        // 再生が開始されたら通知
         audioPlayer.on(AudioPlayerStatus.Playing, () => {
             textChannel.send(`🎵 再生中: **${video.title}**`);
         });
         
+        // 再生が終了したら接続を切る
         audioPlayer.on(AudioPlayerStatus.Idle, () => {
              if (connection.state.status !== VoiceConnectionStatus.Destroyed) {
                 connection.destroy();
