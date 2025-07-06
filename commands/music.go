@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -27,7 +28,7 @@ type MusicSession struct {
 	NowPlaying      *Song
 	IsPlaying       bool
 	Mutex           sync.Mutex
-	FFmpegCmd       *exec.Cmd // ffmpegプロセスを直接保持し、skip/stopで操作する
+	FFmpegCmd       *exec.Cmd // ffmpegプロセスを直接保持
 }
 
 // Song は再生する曲の情報を表す
@@ -249,15 +250,11 @@ func playMusic(session *MusicSession) {
 		session.Mutex.Unlock()
 
 		ffmpegArgs := []string{
-			// ストリームの不安定さに対処するオプション
 			"-reconnect", "1",
 			"-reconnect_streamed", "1",
 			"-reconnect_delay_max", "5",
-			// User-Agentを偽装して、一般的なブラウザからのアクセスに見せかける
 			"-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-			// 入力
 			"-i", song.StreamURL,
-			// 出力フォーマット
 			"-f", "s16le",
 			"-ar", "48000",
 			"-ac", "2",
@@ -272,6 +269,12 @@ func playMusic(session *MusicSession) {
 			continue
 		}
 
+		ffmpegerr, err := ffmpeg.StderrPipe()
+		if err != nil {
+			logger.Error("FFmpeg StderrPipe Error:", "error", err)
+			continue
+		}
+
 		dcaOpts := &dca.EncodeOptions{
 			Volume:        256,
 			Channels:      2,
@@ -282,7 +285,6 @@ func playMusic(session *MusicSession) {
 			RawOutput:     true,
 		}
 
-		// ffmpegの出力をDCAでエンコード
 		encoder, err := dca.EncodeMem(ffmpegout, dcaOpts)
 		if err != nil {
 			logger.Error("DCA Encode Error:", "error", err)
@@ -294,6 +296,13 @@ func playMusic(session *MusicSession) {
 			logger.Error("Failed to start ffmpeg", "error", err)
 			continue
 		}
+
+		go func() {
+			scanner := bufio.NewScanner(ffmpegerr)
+			for scanner.Scan() {
+				logger.Info("[ffmpeg stderr]", "line", scanner.Text())
+			}
+		}()
 
 		session.VoiceConnection.Speaking(true)
 	streamingLoop:
