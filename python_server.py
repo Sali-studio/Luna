@@ -18,7 +18,7 @@ vertexai.init() # .envの認証情報を自動で読み込みます
 
 # --- モデルのロード ---
 # 画像生成モデル
-image_model = ImageGenerationModel.from_pretrained("imagegeneration@005") 
+image_model = ImageGenerationModel.from_pretrained("imagen-4.0-generate-preview-06-06") 
 
 text_model = GenerativeModel("gemini-2.5-flash-preview-05-20")
 
