@@ -124,10 +124,5 @@ def run_bot():
         print("Error: DISCORD_BOT_TOKEN not found in .env file")
 
 if __name__ == '__main__':
-    # Flaskサーバーを別スレッドで起動
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
-
-    # Discord Botをメインスレッドで起動
-    run_bot()
+    # FlaskとDiscord Botを別スレッドで実行
+    run_flask()
