@@ -2,16 +2,17 @@ package commands
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"luna/logger"
 	"net/http"
-	"os/exec"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/jonas747/dca/v2"
 )
 
 // 各サーバーの音楽再生状態を管理
@@ -24,9 +25,9 @@ type MusicSession struct {
 	VoiceConnection *discordgo.VoiceConnection
 	Queue           []Song
 	NowPlaying      *Song
-	Stop            chan bool // 再生停止を通知するチャンネル
 	IsPlaying       bool
 	Mutex           sync.Mutex
+	EncodeSession   *dca.EncodeSession // エンコードセッションを直接保持
 }
 
 // Song は再生する曲の情報を表す
@@ -85,7 +86,6 @@ func (c *MusicCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	}
 }
 
-// getOrCreateSession は、サーバーのセッションを取得または新規作成する
 func getOrCreateSession(guildID string) *MusicSession {
 	musicMutex.Lock()
 	defer musicMutex.Unlock()
@@ -97,12 +97,9 @@ func getOrCreateSession(guildID string) *MusicSession {
 	musicSessions[guildID] = &MusicSession{
 		GuildID: guildID,
 		Queue:   make([]Song, 0),
-		Stop:    make(chan bool),
 	}
 	return musicSessions[guildID]
 }
-
-// --- コマンドハンドラ ---
 
 func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource})
@@ -110,14 +107,12 @@ func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.Interaction
 	query := i.ApplicationCommandData().Options[0].Options[0].StringValue()
 	session := getOrCreateSession(i.GuildID)
 
-	// ユーザーがVCにいるか確認
 	vs, err := s.State.VoiceState(i.GuildID, i.Member.User.ID)
 	if err != nil {
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &[]string{"❌ まずボイスチャンネルに参加してください。"}[0]})
 		return
 	}
 
-	// Pythonサーバーに問い合わせてStream URLを取得
 	reqData := map[string]interface{}{"query": query}
 	jsonData, _ := json.Marshal(reqData)
 	resp, err := http.Post("http://localhost:5002/get-stream-url", "application/json", bytes.NewBuffer(jsonData))
@@ -152,14 +147,13 @@ func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.Interaction
 		content := fmt.Sprintf("🎵 **%s** をキューの%d番目に追加しました。", song.Title, queueLen)
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 	} else {
-		// BotをVCに接続
 		vc, err := s.ChannelVoiceJoin(i.GuildID, vs.ChannelID, false, true)
 		if err != nil {
 			logger.Error("Failed to join voice channel", "error", err)
 			return
 		}
 		session.VoiceConnection = vc
-		go playMusic(s, session) // 再生ループを開始
+		go playMusic(session) // 再生ループを開始
 		content := fmt.Sprintf("▶️ **%s** の再生を開始します。", song.Title)
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 	}
@@ -172,7 +166,9 @@ func (c *MusicCommand) handleSkip(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-	session.Stop <- true
+	if session.EncodeSession != nil {
+		session.EncodeSession.Stop() // エンコードセッションを停止して再生を終了させる
+	}
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "⏩ スキップしました。"}})
 }
 
@@ -184,17 +180,14 @@ func (c *MusicCommand) handleStop(s *discordgo.Session, i *discordgo.Interaction
 	}
 
 	session.Mutex.Lock()
-	session.Queue = make([]Song, 0) // キューをクリア
-	if session.IsPlaying {
-		session.Stop <- true
+	session.Queue = make([]Song, 0)
+	if session.IsPlaying && session.EncodeSession != nil {
+		session.EncodeSession.Stop()
 	}
 	session.Mutex.Unlock()
 
+	time.Sleep(250 * time.Millisecond)
 	session.VoiceConnection.Disconnect()
-
-	musicMutex.Lock()
-	delete(musicSessions, i.GuildID)
-	musicMutex.Unlock()
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "⏹️ 再生を停止し、切断しました。"}})
 }
@@ -221,7 +214,7 @@ func (c *MusicCommand) handleQueue(s *discordgo.Session, i *discordgo.Interactio
 	if len(session.Queue) > 0 {
 		var queueText string
 		for i, song := range session.Queue {
-			if i > 9 { // 表示上限
+			if i > 9 {
 				queueText += fmt.Sprintf("\n...他%d曲", len(session.Queue)-10)
 				break
 			}
@@ -236,18 +229,22 @@ func (c *MusicCommand) handleQueue(s *discordgo.Session, i *discordgo.Interactio
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}}})
 }
 
-// playMusic は、キューから曲を取り出して再生するループ
-func playMusic(s *discordgo.Session, session *MusicSession) {
+// playMusicは音楽再生のメインループ
+func playMusic(session *MusicSession) {
+	defer func() {
+		session.VoiceConnection.Disconnect()
+		musicMutex.Lock()
+		delete(musicSessions, session.GuildID)
+		musicMutex.Unlock()
+	}()
+
 	for {
 		session.Mutex.Lock()
 		if len(session.Queue) == 0 {
 			session.IsPlaying = false
-			session.VoiceConnection.Disconnect()
-			musicMutex.Lock()
-			delete(musicSessions, session.GuildID)
-			musicMutex.Unlock()
+			session.NowPlaying = nil
 			session.Mutex.Unlock()
-			return // キューが空なら終了
+			return
 		}
 
 		song := session.Queue[0]
@@ -256,58 +253,43 @@ func playMusic(s *discordgo.Session, session *MusicSession) {
 		session.IsPlaying = true
 		session.Mutex.Unlock()
 
-		// ffmpegを使って音声ストリームをエンコード
-		ffmpeg := exec.Command("ffmpeg", "-i", song.StreamURL, "-f", "s16le", "-ar", "48000", "-ac", "2", "pipe:1")
-		stdout, err := ffmpeg.StdoutPipe()
+		opts := &dca.EncodeOptions{
+			Volume:        256,
+			Channels:      2,
+			FrameRate:     48000,
+			FrameDuration: 20,
+			Bitrate:       96,
+			Application:   dca.AudioApplicationLowDelay,
+			RawOutput:     true, // Opusデータを直接受け取るために必須
+		}
+
+		encodingSession, err := dca.EncodeFile(song.StreamURL, opts)
 		if err != nil {
-			logger.Error("ffmpeg stdout pipe error", "error", err)
+			logger.Error("Failed to create encoding session", "error", err)
 			continue
 		}
+		session.EncodeSession = encodingSession // スキップ/ストップ用にセッションを保持
+		defer encodingSession.Cleanup()
 
-		if err := ffmpeg.Start(); err != nil {
-			logger.Error("ffmpeg start error", "error", err)
-			continue
-		}
-
+		// ボイスチャンネルに送信を開始
 		session.VoiceConnection.Speaking(true)
-
-	streamLoop:
 		for {
-			select {
-			case <-session.Stop:
-				break streamLoop
-			default:
-				opus, err := readOpus(stdout)
-				if err != nil {
-					if err != io.EOF {
-						logger.Error("readOpus error", "error", err)
-					}
-					break streamLoop
+			opus, err := encodingSession.OpusFrame()
+			if err != nil {
+				if !errors.Is(err, io.EOF) {
+					logger.Error("Opus frame error", "error", err)
 				}
-				session.VoiceConnection.OpusSend <- opus
+				break // 曲の終わりかエラー
 			}
+			session.VoiceConnection.OpusSend <- opus
 		}
-
 		session.VoiceConnection.Speaking(false)
-		ffmpeg.Process.Kill()
 	}
 }
 
-// readOpus はio.Readerから1フレーム分のOpusデータを読み込む
-func readOpus(r io.Reader) ([]byte, error) {
-	var opusLen int16
-	err := binary.Read(r, binary.LittleEndian, &opusLen)
-	if err != nil {
-		return nil, err
-	}
-
-	opus := make([]byte, opusLen)
-	err = binary.Read(r, binary.LittleEndian, &opus)
-	return opus, err
-}
-
-// --- 未使用のインターフェースメソッド ---
 func (c *MusicCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *MusicCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *MusicCommand) GetComponentIDs() []string                                            { return []string{} }
-func (c *MusicCommand) GetCategory() string                                                  { return "音楽" }
+
+// レシーバーに名前を付けます
+func (c *MusicCommand) GetCategory() string { return "音楽" }
