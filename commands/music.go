@@ -3,11 +3,11 @@ package commands
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"luna/logger"
 	"net/http"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -27,7 +27,7 @@ type MusicSession struct {
 	NowPlaying      *Song
 	IsPlaying       bool
 	Mutex           sync.Mutex
-	EncodeSession   *dca.EncodeSession // エンコードセッションを直接保持
+	FFmpegCmd       *exec.Cmd // ffmpegプロセスを直接保持
 }
 
 // Song は再生する曲の情報を表す
@@ -166,8 +166,11 @@ func (c *MusicCommand) handleSkip(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-	if session.EncodeSession != nil {
-		session.EncodeSession.Stop()
+	if session.FFmpegCmd != nil && session.FFmpegCmd.Process != nil {
+		err := session.FFmpegCmd.Process.Kill()
+		if err != nil {
+			logger.Error("Failed to kill ffmpeg process on skip", "error", err)
+		}
 	}
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "⏩ スキップしました。"}})
 }
@@ -181,8 +184,11 @@ func (c *MusicCommand) handleStop(s *discordgo.Session, i *discordgo.Interaction
 
 	session.Mutex.Lock()
 	session.Queue = make([]Song, 0)
-	if session.IsPlaying && session.EncodeSession != nil {
-		session.EncodeSession.Stop()
+	if session.IsPlaying && session.FFmpegCmd != nil && session.FFmpegCmd.Process != nil {
+		err := session.FFmpegCmd.Process.Kill()
+		if err != nil {
+			logger.Error("Failed to kill ffmpeg process on stop", "error", err)
+		}
 	}
 	session.Mutex.Unlock()
 
@@ -253,30 +259,71 @@ func playMusic(session *MusicSession) {
 		session.IsPlaying = true
 		session.Mutex.Unlock()
 
-		opts := dca.StdEncodeOptions
-		opts.RawOutput = true
-		opts.Bitrate = 96
-		opts.Application = "lowdelay"
+		// ★★★ ここからが修正された最終コードです ★★★
+		ffmpegArgs := []string{
+			"-reconnect", "1",
+			"-reconnect_streamed", "1",
+			"-reconnect_delay_max", "5",
+			"-i", song.StreamURL,
+			"-f", "s16le",
+			"-ar", "48000",
+			"-ac", "2",
+			"pipe:1",
+		}
+		ffmpeg := exec.Command("ffmpeg", ffmpegArgs...)
+		session.FFmpegCmd = ffmpeg
 
-		// ★★★ FFMpegFixという存在しないオプションを削除 ★★★
-		// opts.FFMpegFix = true
-
-		encodingSession, err := dca.EncodeFile(song.StreamURL, opts)
+		ffmpegout, err := ffmpeg.StdoutPipe()
 		if err != nil {
-			logger.Error("エンコードセッションの作成に失敗しました。", "error", err)
+			logger.Error("FFmpeg StdoutPipe Error:", "error", err)
 			continue
 		}
-		defer encodingSession.Cleanup()
-		session.EncodeSession = encodingSession
 
-		// 再生が完了したか、スキップ/ストップされるまで待機する
-		finished := make(chan error)
-		dca.NewVoiceStream(encodingSession, session.VoiceConnection, finished)
-
-		err = <-finished
-		if err != nil && !errors.Is(err, io.EOF) {
-			logger.Error("ストリーミング中にエラーが発生しました。", "error", err)
+		dcaOpts := &dca.EncodeOptions{
+			Volume:        256,
+			Channels:      2,
+			FrameRate:     48000,
+			FrameDuration: 20,
+			Bitrate:       96,
+			Application:   dca.AudioApplicationLowDelay,
+			RawOutput:     true,
 		}
+
+		// ffmpegの出力をDCAでエンコード
+		encoder, err := dca.EncodeMem(ffmpegout, dcaOpts)
+		if err != nil {
+			logger.Error("DCA Encode Error:", "error", err)
+			continue
+		}
+		defer encoder.Cleanup()
+
+		if err := ffmpeg.Start(); err != nil {
+			logger.Error("Failed to start ffmpeg", "error", err)
+			continue
+		}
+
+		session.VoiceConnection.Speaking(true)
+	streamingLoop:
+		for {
+			opus, err := encoder.OpusFrame()
+			if err != nil {
+				if err != io.EOF {
+					logger.Error("Opus frame error", "error", err)
+				}
+				break streamingLoop
+			}
+
+			select {
+			case session.VoiceConnection.OpusSend <- opus:
+			case <-time.After(2 * time.Second):
+				logger.Error("Opus送信がタイムアウトしました")
+				break streamingLoop
+			}
+		}
+		session.VoiceConnection.Speaking(false)
+
+		ffmpeg.Wait()
+		// ★★★ ここまで ★★★
 	}
 }
 
