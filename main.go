@@ -149,10 +149,11 @@ func main() {
 		registeredCommands = append(registeredCommands, handler.GetCommandDef())
 	}
 
-	guildID := "1385573037608271963"
-	if _, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, guildID, registeredCommands); err != nil {
-		logger.Fatal("コマンドの登録に失敗しました", "error", err, "guildID", guildID)
+	// グローバルコマンドとして登録（サーバーIDを "" にする）
+	if _, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, "", registeredCommands); err != nil {
+		logger.Fatal("コマンドの登録に失敗しました", "error", err)
 	}
+
 	logger.Info("コマンドの登録が完了しました。Ctrl+Cで終了します。")
 
 	sc := make(chan os.Signal, 1)
