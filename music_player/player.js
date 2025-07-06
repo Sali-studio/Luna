@@ -1,7 +1,6 @@
 const express = require('express');
 const { Client, GatewayIntentBits } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } = require('@discordjs/voice');
-const play = require('play-dl');
+const { Player } = require('discord-player');
 
 const client = new Client({
     intents: [
@@ -10,12 +9,14 @@ const client = new Client({
     ]
 });
 
-// サーバーごとの接続情報を保存
-const connections = new Map();
+const player = new Player(client);
 
-client.on('ready', () => {
-    console.log('Music Player Bot is online!');
-    // play-dlの内部認証は自動で行われるため、事前の設定は不要です。
+player.on('trackStart', (queue, track) => {
+    queue.metadata.channel.send(`🎵 再生中: **${track.title}**`);
+});
+
+player.on('error', (queue, error) => {
+    console.log(`Error: ${error.message}`);
 });
 
 const app = express();
@@ -25,87 +26,69 @@ const port = 8080;
 app.post('/play', async (req, res) => {
     const { guildId, channelId, query, userId } = req.body;
     if (!guildId || !channelId || !query || !userId) {
-        return res.status(400).send({ error: 'リクエスト情報が不足しています。' });
+        return res.status(400).send('リクエスト情報が不足しています。');
     }
 
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return res.status(404).send('サーバーが見つかりません。');
+    
+    const member = await guild.members.fetch(userId).catch(() => null);
+    if (!member) return res.status(404).send('ユーザーが見つかりません。');
+    
+    const voiceChannel = member.voice.channel;
+    if (!voiceChannel) {
+        return res.status(400).send('まずボイスチャンネルに参加してください。');
+    }
+
+    const textChannel = guild.channels.cache.get(channelId);
+    if (!textChannel) return res.status(404).send('テキストチャンネルが見つかりません。');
+    
     try {
-        const guild = await client.guilds.fetch(guildId);
-        const member = await guild.members.fetch(userId);
-        const textChannel = await guild.channels.fetch(channelId);
-
-        if (!member.voice.channel) {
-            return res.status(400).send({ error: 'まずボイスチャンネルに参加してください。' });
-        }
-        
-        // 1. play-dlで動画を検索
-        const searchResults = await play.search(query, {
-            limit: 1
+        const queue = player.createQueue(guild, {
+            metadata: { channel: textChannel },
+            ytdlOptions: {
+                quality: 'highestaudio',
+                highWaterMark: 1 << 25
+            },
+            leaveOnEnd: false,
         });
 
-        if (searchResults.length === 0) {
-            return res.status(404).send({ error: 'トラックが見つかりませんでした。' });
-        }
-        
-        const video = searchResults[0];
+        if (!queue.connection) await queue.connect(voiceChannel);
 
-        // 2. 検索結果のURLからストリーム情報を取得
-        const stream = await play.stream(video.url);
+        const track = await player.search(query, {
+            requestedBy: member.user
+        }).then(x => x.tracks[0]);
 
-        const connection = joinVoiceChannel({
-            channelId: member.voice.channel.id,
-            guildId: guild.id,
-            adapterCreator: guild.voiceAdapterCreator,
-        });
+        if (!track) return res.status(404).send('トラックが見つかりませんでした。');
 
-        const audioPlayer = createAudioPlayer();
-        const resource = createAudioResource(stream.stream, {
-            inputType: stream.type
-        });
+        queue.play(track);
 
-        audioPlayer.play(resource);
-        connection.subscribe(audioPlayer);
-
-        // 再生が開始されたら通知
-        audioPlayer.on(AudioPlayerStatus.Playing, () => {
-            textChannel.send(`🎵 再生中: **${video.title}**`);
-        });
-        
-        // 再生が終了したら接続を切る
-        audioPlayer.on(AudioPlayerStatus.Idle, () => {
-             if (connection.state.status !== VoiceConnectionStatus.Destroyed) {
-                connection.destroy();
-                connections.delete(guildId);
-            }
-        });
-
-        connections.set(guildId, { connection, audioPlayer });
-
-        return res.status(200).send({ message: '再生リクエストを受け付けました。' });
+        return res.status(200).send(`✅ **${track.title}** をキューに追加しました。`);
 
     } catch (e) {
-        console.error('Error in /play route:', e);
-        return res.status(500).send({ error: `エラーが発生しました: ${e.message}` });
+        console.error(e);
+        return res.status(500).send(`エラーが発生しました: ${e.message}`);
     }
+});
+
+app.post('/skip', (req, res) => {
+    const queue = player.getQueue(req.body.guildId);
+    if (!queue || !queue.playing) return res.status(400).send('再生中の曲がありません。');
+    const success = queue.skip();
+    res.status(200).send(success ? '⏭️ スキップしました。' : 'スキップに失敗しました。');
 });
 
 app.post('/stop', (req, res) => {
-    const guildId = req.body.guildId;
-    const serverConnection = connections.get(guildId);
-
-    if (serverConnection && serverConnection.connection) {
-        if(serverConnection.audioPlayer) serverConnection.audioPlayer.stop(true);
-        if(serverConnection.connection.state.status !== VoiceConnectionStatus.Destroyed) {
-            serverConnection.connection.destroy();
-        }
-        connections.delete(guildId);
-        return res.status(200).send({ message: '⏹️ 再生を停止しました。' });
-    } else {
-        return res.status(400).send({ error: '現在再生中ではありません。' });
-    }
+    const queue = player.getQueue(req.body.guildId);
+    if (!queue) return res.status(400).send('キューがありません。');
+    queue.destroy();
+    res.status(200).send('⏹️ 再生を停止し、キューをクリアしました。');
 });
 
 
-client.login(process.env.DISCORD_BOT_TOKEN);
-app.listen(port, () => {
-    console.log(`Music player server listening at http://localhost:${port}`);
+client.login(process.env.DISCORD_BOT_TOKEN).then(() => {
+    console.log("Music Player Bot is online!");
+    app.listen(port, () => {
+        console.log(`Music player server listening at http://localhost:${port}`);
+    });
 });

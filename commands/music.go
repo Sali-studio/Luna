@@ -69,11 +69,10 @@ func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.Interaction
 	// Node.jsサーバーに送るデータ
 	payload := map[string]string{
 		"guildId":   i.GuildID,
-		"channelId": vs.ChannelID, // ユーザーがいるボイスチャンネルのID
+		"channelId": i.ChannelID, //コマンドが実行されたテキストチャンネルのIDを渡す
 		"userId":    i.Member.User.ID,
 		"query":     query,
 	}
-	jsonPayload, _ := json.Marshal(payload)
 
 	// Node.jsサーバーにリクエストを送信
 	resp, err := http.Post(fmt.Sprintf("%s/play", musicServerURL), "application/json", bytes.NewBuffer(jsonPayload))
