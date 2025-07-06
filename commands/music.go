@@ -259,7 +259,6 @@ func playMusic(session *MusicSession) {
 		session.IsPlaying = true
 		session.Mutex.Unlock()
 
-		// ★★★ ここからが修正された最終コードです ★★★
 		ffmpegArgs := []string{
 			"-reconnect", "1",
 			"-reconnect_streamed", "1",
@@ -323,7 +322,6 @@ func playMusic(session *MusicSession) {
 		session.VoiceConnection.Speaking(false)
 
 		ffmpeg.Wait()
-		// ★★★ ここまで ★★★
 	}
 }
 
