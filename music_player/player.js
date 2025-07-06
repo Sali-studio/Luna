@@ -10,11 +10,22 @@ const client = new Client({
     ]
 });
 
-// サーバーごとの接続情報を保存
 const connections = new Map();
+
+// サーバー起動時に、YouTubeの認証情報を事前に設定する
+async function configurePlayer() {
+    try {
+        console.log('YouTubeの認証情報を設定します...');
+        await play.get_cookie(); // YouTubeのCookieを取得して設定
+        console.log('✅ 認証情報の設定が完了しました。');
+    } catch (error) {
+        console.error('❌ 認証情報の設定中にエラーが発生しました:', error);
+    }
+}
 
 client.on('ready', () => {
     console.log('Music Player Bot is online!');
+    configurePlayer();
 });
 
 const app = express();
@@ -35,20 +46,13 @@ app.post('/play', async (req, res) => {
         if (!member.voice.channel) {
             return res.status(400).send({ error: 'まずボイスチャンネルに参加してください。' });
         }
-
-        // 1. play-dlで動画を検索 (URLでも検索ワードでもOK)
-        const searchResults = await play.search(query, {
-            limit: 1
-        });
-
+        
+        const searchResults = await play.search(query, { limit: 1 });
         if (searchResults.length === 0) {
             return res.status(404).send({ error: 'トラックが見つかりませんでした。' });
         }
         
-        // 検索結果の最初の動画を使用
         const video = searchResults[0];
-
-        // 2. 検索結果のURLからストリーム情報を取得
         const stream = await play.stream(video.url);
 
         const connection = joinVoiceChannel({
@@ -58,14 +62,11 @@ app.post('/play', async (req, res) => {
         });
 
         const audioPlayer = createAudioPlayer();
-        const resource = createAudioResource(stream.stream, {
-            inputType: stream.type
-        });
+        const resource = createAudioResource(stream.stream, { inputType: stream.type });
 
         audioPlayer.play(resource);
         connection.subscribe(audioPlayer);
 
-        // 再生が開始されたら通知
         audioPlayer.on(AudioPlayerStatus.Playing, () => {
             textChannel.send(`🎵 再生中: **${video.title}**`);
         });
@@ -92,8 +93,10 @@ app.post('/stop', (req, res) => {
     const serverConnection = connections.get(guildId);
 
     if (serverConnection && serverConnection.connection) {
-        if(serverConnection.audioPlayer) serverConnection.audioPlayer.stop();
-        if(serverConnection.connection) serverConnection.connection.destroy();
+        if(serverConnection.audioPlayer) serverConnection.audioPlayer.stop(true);
+        if(serverConnection.connection.state.status !== VoiceConnectionStatus.Destroyed) {
+            serverConnection.connection.destroy();
+        }
         connections.delete(guildId);
         return res.status(200).send({ message: '⏹️ 再生を停止しました。' });
     } else {
