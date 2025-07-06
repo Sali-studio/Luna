@@ -175,7 +175,7 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 		reqJson, _ := json.Marshal(reqData)
 		resp, err := http.Post("http://localhost:5001/generate-text", "application/json", bytes.NewBuffer(reqJson))
 		if err != nil {
-			logger.Error("AIサポーターからの応答取得に失敗 (サーバー接続不可)", "error", err)
+			logger.Error("Luna Assistantからの応答取得に失敗 (サーバー接続不可)", "error", err)
 			return
 		}
 		defer resp.Body.Close()
@@ -185,7 +185,7 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 		json.Unmarshal(body, &textResp)
 
 		if textResp.Error != "" || resp.StatusCode != http.StatusOK {
-			logger.Error("AIサポーターからの応答取得に失敗", "error", textResp.Error)
+			logger.Error("Luna Assistantからの応答取得に失敗", "error", textResp.Error)
 			return
 		}
 
@@ -193,7 +193,7 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 			Author:      &discordgo.MessageEmbedAuthor{Name: "Luna Assistantによる一次回答", IconURL: s.State.User.AvatarURL("")},
 			Description: textResp.Text,
 			Color:       0x4a8cf7,
-			Footer:      &discordgo.MessageEmbedFooter{Text: "これはAIによる自動生成の回答です。問題が解決しない場合は、スタッフの対応をお待ちください。"},
+			Footer:      &discordgo.MessageEmbedFooter{Text: "これはLuna Assistantによる自動生成の回答です。問題が解決しない場合は、スタッフの対応をお待ちください。"},
 		}
 		s.ChannelMessageSendEmbed(ch.ID, aiEmbed)
 	}()
@@ -210,7 +210,7 @@ func (c *TicketCommand) confirmCloseTicket(s *discordgo.Session, i *discordgo.In
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
 			Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-				discordgo.Button{Label: "はい、アーカイブします", Style: discordgo.DangerButton, CustomID: ArchiveTicketButtonID},
+				discordgo.Button{Label: "アーカイブ", Style: discordgo.DangerButton, CustomID: ArchiveTicketButtonID},
 			}}},
 			Flags: discordgo.MessageFlagsEphemeral,
 		},
