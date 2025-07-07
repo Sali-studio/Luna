@@ -1,9 +1,7 @@
 package main
 
 import (
-	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -12,6 +10,7 @@ import (
 	"luna/commands"
 	"luna/handlers"
 	"luna/logger"
+	"luna/servers"
 	"luna/storage"
 
 	"github.com/bwmarrin/discordgo"
@@ -30,50 +29,14 @@ func main() {
 	godotenv.Load()
 
 	// --- サーバー群の自動起動 ---
+	serverManager := servers.NewManager()
+	serverManager.AddServer(servers.NewGenericServer("Python AI Server", "python", []string{"python_server.py"}, ""))
+	serverManager.AddServer(servers.NewGenericServer("Julia Calculation Server", "julia", []string{"julia_server.jl"}, ""))
+	serverManager.AddServer(servers.NewGenericServer("Python Music Server", "python", []string{"./music_player/player.py"}, ""))
+	// serverManager.AddServer(servers.NewGenericServer("C# OCR Server", "dotnet", []string{"run"}, "./csharp_server"))
 
-	// 1. PythonのAIサーバーを起動
-	log.Println("Starting Python AI server...")
-	pyCmd := exec.Command("python", "python_server.py")
-	pyCmd.Stdout = os.Stdout
-	pyCmd.Stderr = os.Stderr
-	if err := pyCmd.Start(); err != nil {
-		log.Fatalf("Failed to start Python server: %v", err)
-	}
-	defer pyCmd.Process.Kill()
-	log.Println("Python AI server started successfully.")
-
-	// 2. C#のOCRサーバーを起動 --無効化--
-	//log.Println("Starting C# OCR server...")
-	//csCmd := exec.Command("dotnet", "run")
-	//csCmd.Dir = "./csharp_server" // csharp_serverフォルダ内で実行
-	//csCmd.Stdout = os.Stdout
-	//csCmd.Stderr = os.Stderr
-	//if err := csCmd.Start(); err != nil {
-	//	log.Fatalf("Failed to start C# server: %v", err)
-	//}
-	//defer csCmd.Process.Kill()
-	//log.Println("C# OCR server started successfully.")
-
-	// 3. Juliaの計算サーバーを起動
-	log.Println("Starting Julia calculation server...")
-	jlCmd := exec.Command("julia", "julia_server.jl")
-	jlCmd.Stdout = os.Stdout
-	jlCmd.Stderr = os.Stderr
-	if err := jlCmd.Start(); err != nil {
-		log.Fatalf("Failed to start Julia server: %v", err)
-	}
-	defer jlCmd.Process.Kill()
-	log.Println("Julia calculation server started successfully.")
-
-	log.Println("Starting Python music server...")
-	musicCmd := exec.Command("python", "./music_player/player.py")
-	musicCmd.Stdout = os.Stdout
-	musicCmd.Stderr = os.Stderr
-	if err := musicCmd.Start(); err != nil {
-		log.Fatalf("Failed to start Python music server: %v", err)
-	}
-	defer musicCmd.Process.Kill()
-	log.Println("Python music server started successfully.")
+	serverManager.StartAll()
+	defer serverManager.StopAll()
 
 	startTime = time.Now()
 	token := os.Getenv("DISCORD_BOT_TOKEN")
