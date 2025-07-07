@@ -70,7 +70,7 @@ func (c *AIGameCommand) handleQuiz(s *discordgo.Session, i *discordgo.Interactio
 	})
 
 	persona := "あなたはクイズマスターです。ユーザーに楽しくてためになるクイズを出題してください。"
-	prompt := fmt.Sprintf("システムインストラクション（あなたの役割）: %s\n\n[ユーザーからのリクエスト]\n「%s」に関する面白い4択クイズを1問出題してください。答えと簡単な解説も付けてください。", persona, topic)
+	prompt := fmt.Sprintf("システムインストラクション（あなたの役割）: %s\n\n[ユーザーからのリクエスト]\n「%s」に関する面白い4択クイズを1問出題してください。答えと簡単な解説はDiscordのネタバレ機能(`||hoge||`)を使って隠してください。", persona, topic)
 
 	c.generateAndSend(s, i, prompt)
 }
