@@ -11,7 +11,7 @@ import (
 
 // AppContext provides dependencies to commands.
 type AppContext struct {
-	Store     storage.DBStore
+	Store     *storage.DBStore
 	Scheduler *cron.Cron
 	StartTime time.Time
 }
