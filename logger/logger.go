@@ -21,9 +21,14 @@ func Init() {
 
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
 
+	logLevel := new(slog.Level)
+	if err := logLevel.UnmarshalText([]byte(os.Getenv("LUNA_LOG_LEVEL"))); err != nil {
+		*logLevel = slog.LevelInfo // Default to INFO level
+	}
+
 	logger = slog.New(slog.NewJSONHandler(multiWriter, &slog.HandlerOptions{
 		AddSource: true,
-		Level:     slog.LevelDebug,
+		Level:     *logLevel,
 	}))
 }
 
@@ -41,5 +46,7 @@ func Error(msg string, args ...any) {
 
 func Fatal(msg string, args ...any) {
 	logger.Error(msg, args...)
+	// Ensure the log is written before exiting
+	_ = logger.Handler().Enabled(nil, slog.LevelError)
 	os.Exit(1)
 }

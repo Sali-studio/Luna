@@ -65,29 +65,14 @@ func main() {
 	componentHandlers = make(map[string]commands.CommandHandler)
 
 	// コマンドの登録
-	registerCommand(&commands.ConfigCommand{Store: dbStore})
-	registerCommand(&commands.DashboardCommand{Store: dbStore, Scheduler: scheduler})
-	registerCommand(&commands.ReactionRoleCommand{Store: dbStore})
-	registerCommand(&commands.ScheduleCommand{Scheduler: scheduler, Store: dbStore})
-	registerCommand(&commands.TicketCommand{Store: dbStore})
-	registerCommand(&commands.PingCommand{StartTime: startTime, Store: dbStore})
-	registerCommand(&commands.AskCommand{})
-	registerCommand(&commands.AvatarCommand{})
-	registerCommand(&commands.CalculatorCommand{})
-	registerCommand(&commands.EmbedCommand{})
-	registerCommand(&commands.ModerateCommand{})
-	registerCommand(&commands.PokemonCalculatorCommand{})
-	registerCommand(&commands.PollCommand{})
-	registerCommand(&commands.PowerConverterCommand{})
-	registerCommand(&commands.TranslateCommand{})
-	registerCommand(&commands.UserInfoCommand{})
-	registerCommand(&commands.WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")})
-	registerCommand(&commands.HelpCommand{AllCommands: commandHandlers})
-	registerCommand(&commands.ImagineCommand{})
-	registerCommand(&commands.MandelbrotCommand{})
-	// registerCommand(&commands.ReadTextCommand{}) -- 無効化 --
-	registerCommand(&commands.MusicCommand{})
-	registerCommand(&commands.AIGameCommand{})
+	appContext := &commands.AppContext{
+		Store:     dbStore,
+		Scheduler: scheduler,
+		StartTime: startTime,
+	}
+	for _, cmd := range commands.RegisterAllCommands(appContext, commandHandlers) {
+		registerCommand(cmd)
+	}
 
 	eventHandler := handlers.NewEventHandler(dbStore)
 	eventHandler.RegisterAllHandlers(dg)

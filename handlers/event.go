@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 
 	"luna/logger"
@@ -54,7 +55,8 @@ func (h *EventHandler) RegisterAllHandlers(s *discordgo.Session) {
 
 func (h *EventHandler) sendLog(s *discordgo.Session, guildID string, embed *discordgo.MessageEmbed) {
 	var logConfig storage.LogConfig
-	if err := h.Store.GetConfig(guildID, "log_config", &logConfig); err != nil {
+	if err := h.Store.GetConfig(guildID, ConfigKeyLog, &logConfig); err != nil {
+		logger.Error("Failed to get log config from DB", "error", err, "guildID", guildID)
 		return
 	}
 	if logConfig.ChannelID == "" {
@@ -69,18 +71,21 @@ func (h *EventHandler) sendLog(s *discordgo.Session, guildID string, embed *disc
 		embed.Footer = &discordgo.MessageEmbedFooter{Text: guild.Name}
 	}
 	embed.Timestamp = time.Now().Format(time.RFC3339)
-	s.ChannelMessageSendEmbed(logConfig.ChannelID, embed)
+	if _, err := s.ChannelMessageSendEmbed(logConfig.ChannelID, embed); err != nil {
+		logger.Error("Failed to send log embed", "error", err, "channelID", logConfig.ChannelID)
+	}
 }
 
 func getExecutor(s *discordgo.Session, guildID string, targetID string, action discordgo.AuditLogAction) string {
 	auditLog, err := s.GuildAuditLog(guildID, "", "", int(action), 5)
 	if err != nil {
+		logger.Error("Failed to get audit log", "error", err, "guildID", guildID, "action", action)
 		return ""
 	}
 	for _, entry := range auditLog.AuditLogEntries {
 		if entry.TargetID == targetID {
 			logTime, _ := discordgo.SnowflakeTimestamp(entry.ID)
-			if time.Since(logTime) < 10*time.Second {
+			if time.Since(logTime) < AuditLogTimeWindow {
 				return entry.UserID
 			}
 		}
@@ -121,9 +126,17 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 			prompt := fmt.Sprintf("システムインストラクション（あなたの役割）: %s\n\n以下の会話履歴の続きとして、あなたの次の発言を生成してください。\n\n[会話履歴]\n%s\nLuna Assistant:", persona, history)
 			reqData := TextRequest{Prompt: prompt}
 			reqJson, _ := json.Marshal(reqData)
-			resp, err := http.Post("http://localhost:5001/generate-text", "application/json", bytes.NewBuffer(reqJson))
+
+			aiServerURL := os.Getenv(EnvPythonAIServerURL)
+			if aiServerURL == "" {
+				aiServerURL = "http://localhost:5001/generate-text" // Fallback to default
+				logger.Warn("PYTHON_AI_SERVER_URL environment variable not set. Using default: " + aiServerURL)
+			}
+
+			resp, err := http.Post(aiServerURL, "application/json", bytes.NewBuffer(reqJson))
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "すみません、AIサーバーへの接続に失敗したようです…。")
+				logger.Error("Failed to connect to AI server", "error", err, "url", aiServerURL)
 				return
 			}
 			defer resp.Body.Close()
@@ -132,6 +145,7 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 			json.Unmarshal(body, &textResp)
 			if textResp.Error != "" || resp.StatusCode != http.StatusOK {
 				s.ChannelMessageSend(m.ChannelID, "すみません、AIからの応答取得に失敗しました…。")
+				logger.Error("AI server returned an error or non-OK status", "status", resp.StatusCode, "response_error", textResp.Error)
 				return
 			}
 			s.ChannelMessageSend(m.ChannelID, textResp.Text)
@@ -147,7 +161,7 @@ func (h *EventHandler) handleMessageUpdate(s *discordgo.Session, e *discordgo.Me
 	var embed *discordgo.MessageEmbed
 	if err != nil || cachedMsg == nil {
 		embed = &discordgo.MessageEmbed{
-			Title: "✏️ メッセージ編集 (編集前は内容不明)", Color: 0x3498db,
+			Title: "✏️ メッセージ編集 (編集前は内容不明)", Color: ColorBlue,
 			Author: &discordgo.MessageEmbedAuthor{Name: e.Author.String(), IconURL: e.Author.AvatarURL("")},
 			Fields: []*discordgo.MessageEmbedField{
 				{Name: "投稿者", Value: e.Author.Mention(), Inline: true},
@@ -161,7 +175,7 @@ func (h *EventHandler) handleMessageUpdate(s *discordgo.Session, e *discordgo.Me
 			return
 		}
 		embed = &discordgo.MessageEmbed{
-			Title: "✏️ メッセージ編集", Color: 0x3498db,
+			Title: "✏️ メッセージ編集", Color: ColorBlue,
 			Author: &discordgo.MessageEmbedAuthor{Name: e.Author.String(), IconURL: e.Author.AvatarURL("")},
 			Fields: []*discordgo.MessageEmbedField{
 				{Name: "投稿者", Value: e.Author.Mention(), Inline: true},
@@ -181,7 +195,7 @@ func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.Me
 	if err != nil || cachedMsg == nil {
 		embed := &discordgo.MessageEmbed{
 			Title: "🗑️ メッセージ削除 (内容不明)", Description: fmt.Sprintf("<#%s> でメッセージが削除されました。", e.ChannelID),
-			Color: 0x99aab5, Fields: []*discordgo.MessageEmbedField{{Name: "メッセージID", Value: e.ID}},
+			Color: ColorGray, Fields: []*discordgo.MessageEmbedField{{Name: "メッセージID", Value: e.ID}},
 		}
 		h.sendLog(s, e.GuildID, embed)
 		return
@@ -196,7 +210,7 @@ func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.Me
 		for _, entry := range auditLog.AuditLogEntries {
 			if entry.TargetID == cachedMsg.AuthorID && entry.Options.ChannelID == e.ChannelID {
 				logTime, _ := discordgo.SnowflakeTimestamp(entry.ID)
-				if time.Since(logTime) < 10*time.Second {
+				if time.Since(logTime) < AuditLogTimeWindow {
 					if entry.UserID == author.ID {
 						deleterMention = "本人"
 					} else {
@@ -211,7 +225,7 @@ func (h *EventHandler) handleMessageDelete(s *discordgo.Session, e *discordgo.Me
 		}
 	}
 	embed := &discordgo.MessageEmbed{
-		Title: "🗑️ メッセージ削除", Color: 0xf04747,
+		Title: "🗑️ メッセージ削除", Color: ColorRed,
 		Author: &discordgo.MessageEmbedAuthor{Name: author.String(), IconURL: author.AvatarURL("")},
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "投稿者", Value: author.Mention(), Inline: true},
@@ -244,7 +258,7 @@ func (h *EventHandler) handleChannelUpdate(s *discordgo.Session, e *discordgo.Ch
 	embed := &discordgo.MessageEmbed{
 		Title:       "🔄 チャンネル更新",
 		Description: fmt.Sprintf("**対象チャンネル:** <#%s>\n**実行者:** %s", e.ID, executorMention),
-		Color:       0x3498db, Fields: fields,
+		Color:       ColorBlue, Fields: fields,
 	}
 	h.sendLog(s, e.GuildID, embed)
 }
@@ -258,7 +272,7 @@ func (h *EventHandler) handleGuildMemberRemove(s *discordgo.Session, e *discordg
 			reason = auditLog.AuditLogEntries[0].Reason
 		}
 		embed := &discordgo.MessageEmbed{
-			Title: "👢 Kick", Color: 0xdd5f53,
+			Title: "👢 Kick", Color: ColorRed,
 			Author: &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 			Fields: []*discordgo.MessageEmbedField{
 				{Name: "対象", Value: e.User.String(), Inline: false},
@@ -269,7 +283,7 @@ func (h *EventHandler) handleGuildMemberRemove(s *discordgo.Session, e *discordg
 		h.sendLog(s, e.GuildID, embed)
 	} else {
 		embed := &discordgo.MessageEmbed{
-			Title: "🚪 メンバー退出", Color: 0x99aab5,
+			Title: "🚪 メンバー退出", Color: ColorGray,
 			Author:      &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 			Description: fmt.Sprintf("**<@%s>** がサーバーから退出しました。", e.User.ID),
 		}
@@ -284,7 +298,7 @@ func (h *EventHandler) handleGuildUpdate(s *discordgo.Session, e *discordgo.Guil
 		executorMention = fmt.Sprintf("<@%s>", executorID)
 	}
 	embed := &discordgo.MessageEmbed{
-		Title: "⚙️ サーバー設定更新", Description: fmt.Sprintf("**実行者:** %s", executorMention), Color: 0x3498db,
+		Title: "⚙️ サーバー設定更新", Description: fmt.Sprintf("**実行者:** %s", executorMention), Color: ColorBlue,
 	}
 	h.sendLog(s, e.Guild.ID, embed)
 }
@@ -292,7 +306,7 @@ func (h *EventHandler) handleGuildUpdate(s *discordgo.Session, e *discordgo.Guil
 func (h *EventHandler) handleGuildMemberAdd(s *discordgo.Session, e *discordgo.GuildMemberAdd) {
 	embed := &discordgo.MessageEmbed{
 		Title: "✅ メンバー参加", Description: fmt.Sprintf("**<@%s>** がサーバーに参加しました。", e.User.ID),
-		Author: &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")}, Color: 0x2ecc71,
+		Author: &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")}, Color: ColorGreen,
 	}
 	h.sendLog(s, e.GuildID, embed)
 }
@@ -310,7 +324,7 @@ func (h *EventHandler) handleGuildMemberUpdate(s *discordgo.Session, e *discordg
 	isTimeoutRemoved := e.CommunicationDisabledUntil == nil && e.BeforeUpdate.CommunicationDisabledUntil != nil
 	if isTimeoutAdded {
 		embed := &discordgo.MessageEmbed{
-			Title: "🔇 メンバータイムアウト", Color: 0xe67e22,
+			Title: "🔇 メンバータイムアウト", Color: ColorOrange,
 			Author: &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 			Fields: []*discordgo.MessageEmbedField{
 				{Name: "対象", Value: e.User.Mention(), Inline: true},
@@ -321,7 +335,7 @@ func (h *EventHandler) handleGuildMemberUpdate(s *discordgo.Session, e *discordg
 		h.sendLog(s, e.GuildID, embed)
 	} else if isTimeoutRemoved {
 		embed := &discordgo.MessageEmbed{
-			Title: "🔈 タイムアウト解除", Color: 0x5cb85c,
+			Title: "🔈 タイムアウト解除", Color: ColorTeal,
 			Author: &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 			Fields: []*discordgo.MessageEmbedField{
 				{Name: "対象", Value: e.User.Mention(), Inline: true},
@@ -334,7 +348,7 @@ func (h *EventHandler) handleGuildMemberUpdate(s *discordgo.Session, e *discordg
 
 func (h *EventHandler) handleGuildBanAdd(s *discordgo.Session, e *discordgo.GuildBanAdd) {
 	embed := &discordgo.MessageEmbed{
-		Title: "🔨 BAN", Color: 0xff0000,
+		Title: "🔨 BAN", Color: ColorRed,
 		Author: &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "対象", Value: fmt.Sprintf("%s (`%s`)", e.User.String(), e.User.ID)},
@@ -345,7 +359,7 @@ func (h *EventHandler) handleGuildBanAdd(s *discordgo.Session, e *discordgo.Guil
 
 func (h *EventHandler) handleGuildBanRemove(s *discordgo.Session, e *discordgo.GuildBanRemove) {
 	embed := &discordgo.MessageEmbed{
-		Title: "🕊️ BAN解除", Color: 0x58d68d,
+		Title: "🕊️ BAN解除", Color: ColorTeal,
 		Author: &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "対象", Value: fmt.Sprintf("%s (`%s`)", e.User.String(), e.User.ID)},
@@ -356,35 +370,35 @@ func (h *EventHandler) handleGuildBanRemove(s *discordgo.Session, e *discordgo.G
 
 func (h *EventHandler) handleGuildRoleCreate(s *discordgo.Session, e *discordgo.GuildRoleCreate) {
 	embed := &discordgo.MessageEmbed{
-		Title: "➕ ロール作成", Description: fmt.Sprintf("新しいロール <@&%s> が作成されました。", e.Role.ID), Color: 0x2ecc71,
+		Title: "➕ ロール作成", Description: fmt.Sprintf("新しいロール <@&%s> が作成されました。", e.Role.ID), Color: ColorGreen,
 	}
 	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleGuildRoleUpdate(s *discordgo.Session, e *discordgo.GuildRoleUpdate) {
 	embed := &discordgo.MessageEmbed{
-		Title: "🔄 ロール更新", Description: fmt.Sprintf("ロール <@&%s> (`%s`) の設定が変更されました。", e.Role.ID, e.Role.Name), Color: 0x3498db,
+		Title: "🔄 ロール更新", Description: fmt.Sprintf("ロール <@&%s> (`%s`) の設定が変更されました。", e.Role.ID, e.Role.Name), Color: ColorBlue,
 	}
 	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleGuildRoleDelete(s *discordgo.Session, e *discordgo.GuildRoleDelete) {
 	embed := &discordgo.MessageEmbed{
-		Title: "➖ ロール削除", Description: fmt.Sprintf("ロール `%s` が削除されました。", e.RoleID), Color: 0xf04747,
+		Title: "➖ ロール削除", Description: fmt.Sprintf("ロール `%s` が削除されました。", e.RoleID), Color: ColorRed,
 	}
 	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleChannelCreate(s *discordgo.Session, e *discordgo.ChannelCreate) {
 	embed := &discordgo.MessageEmbed{
-		Title: "➕ チャンネル作成", Description: fmt.Sprintf("チャンネル **<#%s>** (`%s`) が作成されました。", e.ID, e.Name), Color: 0x2ecc71,
+		Title: "➕ チャンネル作成", Description: fmt.Sprintf("チャンネル **<#%s>** (`%s`) が作成されました。", e.ID, e.Name), Color: ColorGreen,
 	}
 	h.sendLog(s, e.GuildID, embed)
 }
 
 func (h *EventHandler) handleChannelDelete(s *discordgo.Session, e *discordgo.ChannelDelete) {
 	embed := &discordgo.MessageEmbed{
-		Title: "➖ チャンネル削除", Description: fmt.Sprintf("チャンネル **%s** が削除されました。", e.Name), Color: 0xf04747,
+		Title: "➖ チャンネル削除", Description: fmt.Sprintf("チャンネル **%s** が削除されました。", e.Name), Color: ColorRed,
 	}
 	h.sendLog(s, e.GuildID, embed)
 }
@@ -423,7 +437,7 @@ func (h *EventHandler) handleReactionRemove(s *discordgo.Session, r *discordgo.M
 
 func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo.VoiceStateUpdate) {
 	var vcConfig storage.TempVCConfig
-	if err := h.Store.GetConfig(e.GuildID, "temp_vc_config", &vcConfig); err != nil || vcConfig.LobbyID == "" {
+	if err := h.Store.GetConfig(e.GuildID, ConfigKeyTempVC, &vcConfig); err != nil || vcConfig.LobbyID == "" {
 		return
 	}
 	if e.ChannelID == vcConfig.LobbyID {
