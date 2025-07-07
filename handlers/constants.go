@@ -1,5 +1,7 @@
 package handlers
 
+import "time"
+
 const (
 	// Embed Colors
 	ColorBlue   = 0x3498db
