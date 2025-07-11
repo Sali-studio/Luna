@@ -10,6 +10,10 @@ type Config struct {
 	Discord struct {
 		Token string `mapstructure:"token"`
 	}
+	Google struct {
+		ProjectID       string `mapstructure:"project_id"`
+		CredentialsPath string `mapstructure:"credentials_path"`
+	}
 }
 
 var Cfg *Config
