@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"luna/bot"
 	"luna/config"
 	"luna/logger"
@@ -11,6 +13,11 @@ func main() {
 	logger.Init()
 	if err := config.LoadConfig(); err != nil {
 		logger.Fatal("設定ファイルの読み込みに失敗しました", "error", err)
+	}
+
+	// Google Cloudの認証情報を環境変数に設定
+	if config.Cfg.Google.CredentialsPath != "" {
+		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", config.Cfg.Google.CredentialsPath)
 	}
 
 	// --- サーバー群の自動起動 ---
