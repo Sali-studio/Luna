@@ -17,8 +17,9 @@
 # Database file
 *.db
 
-# API key
+# key
 google-credentials.json
+config.yaml
 
 # Node.js dependencies (追加)
 node_modules/
