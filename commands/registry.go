@@ -38,7 +38,6 @@ func RegisterAllCommands(ctx *AppContext, allCommands map[string]CommandHandler)
 		&WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY")},
 		&HelpCommand{AllCommands: allCommands},
 		&ImagineCommand{},
-		&MandelbrotCommand{},
 		&MusicCommand{},
 		&AIGameCommand{},
 		// To add a new command, simply add it to this list.

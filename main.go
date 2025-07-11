@@ -31,7 +31,6 @@ func main() {
 	// --- サーバー群の自動起動 ---
 	serverManager := servers.NewManager()
 	serverManager.AddServer(servers.NewGenericServer("Python AI Server", "python", []string{"python_server.py"}, ""))
-	serverManager.AddServer(servers.NewGenericServer("Julia Calculation Server", "julia", []string{"julia_server.jl"}, ""))
 	serverManager.AddServer(servers.NewGenericServer("Python Music Server", "python", []string{"./music_player/player.py"}, ""))
 	// serverManager.AddServer(servers.NewGenericServer("C# OCR Server", "dotnet", []string{"run"}, "./csharp_server"))
 
