@@ -10,7 +10,6 @@ import (
 	"luna/config"
 	"luna/handlers"
 	"luna/logger"
-	"luna/storage"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/robfig/cron/v3"
@@ -19,7 +18,7 @@ import (
 // Bot はDiscordボットのコアな状態とロジックを管理します。
 type Bot struct {
 	Session           *discordgo.Session
-	dbStore           *storage.DBStore
+	dbStore           DataStore
 	scheduler         *cron.Cron
 	commandHandlers   map[string]commands.CommandHandler
 	componentHandlers map[string]commands.CommandHandler
@@ -27,7 +26,7 @@ type Bot struct {
 }
 
 // New は新しいBotインスタンスを作成します。
-func New() (*Bot, error) {
+func New(db DataStore) (*Bot, error) {
 	token := config.Cfg.Discord.Token
 	if token == "" || token == "YOUR_DISCORD_BOT_TOKEN_HERE" {
 		logger.Fatal("DiscordのBotトークンが設定されていません。config.yamlを確認してください。")
@@ -42,14 +41,9 @@ func New() (*Bot, error) {
 	dg.State.MaxMessageCount = 2000
 	dg.Identify.Intents = discordgo.IntentsAll
 
-	dbStore, err := storage.NewDBStore("./luna.db")
-	if err != nil {
-		return nil, err
-	}
-
 	return &Bot{
 		Session:           dg,
-		dbStore:           dbStore,
+		dbStore:           db,
 		scheduler:         cron.New(),
 		commandHandlers:   make(map[string]commands.CommandHandler),
 		componentHandlers: make(map[string]commands.CommandHandler),

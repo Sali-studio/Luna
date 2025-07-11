@@ -7,6 +7,7 @@ import (
 	"luna/config"
 	"luna/logger"
 	"luna/servers"
+	"luna/storage"
 )
 
 func main() {
@@ -29,7 +30,14 @@ func main() {
 	serverManager.StartAll()
 	defer serverManager.StopAll()
 
-	b, err := bot.New()
+	// データベースインスタンスの生成
+	db, err := storage.NewDBStore("./luna.db")
+	if err != nil {
+		logger.Fatal("データベースの初期化に失敗しました", "error", err)
+	}
+
+	// Botにデータベースインスタンスを注入
+	b, err := bot.New(db)
 	if err != nil {
 		logger.Fatal("Botの初期化に失敗しました", "error", err)
 	}
