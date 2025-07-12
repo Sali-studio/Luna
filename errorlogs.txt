@@ -774,3 +774,609 @@
 	"endColumn": 35,
 	"origin": "extHost1"
 }]
+
+### 2025-07-13-1:09 ###
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/calculator.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 14,
+	"startColumn": 13,
+	"endLineNumber": 14,
+	"endColumn": 19,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/config.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: bot.DataStore",
+	"source": "compiler",
+	"startLineNumber": 17,
+	"startColumn": 12,
+	"endLineNumber": 17,
+	"endColumn": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/config.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 18,
+	"startColumn": 15,
+	"endLineNumber": 18,
+	"endColumn": 21,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/dashboard.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: bot.DataStore",
+	"source": "compiler",
+	"startLineNumber": 20,
+	"startColumn": 16,
+	"endLineNumber": 20,
+	"endColumn": 25,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/dashboard.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: bot.Scheduler",
+	"source": "compiler",
+	"startLineNumber": 21,
+	"startColumn": 16,
+	"endLineNumber": 21,
+	"endColumn": 25,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/dashboard.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 22,
+	"startColumn": 19,
+	"endLineNumber": 22,
+	"endColumn": 25,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/embed.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 15,
+	"startColumn": 13,
+	"endLineNumber": 15,
+	"endColumn": 19,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/help.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: CommandHandler",
+	"source": "compiler",
+	"startLineNumber": 13,
+	"startColumn": 25,
+	"endLineNumber": 13,
+	"endColumn": 39,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/moderate.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 19,
+	"startColumn": 13,
+	"endLineNumber": 19,
+	"endColumn": 19,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/music.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 31,
+	"startColumn": 25,
+	"endLineNumber": 31,
+	"endColumn": 31,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/music.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 42,
+	"startColumn": 13,
+	"endLineNumber": 42,
+	"endColumn": 19,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/ping.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: bot.DataStore",
+	"source": "compiler",
+	"startLineNumber": 14,
+	"startColumn": 16,
+	"endLineNumber": 14,
+	"endColumn": 25,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/poll.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 12,
+	"startColumn": 13,
+	"endLineNumber": 12,
+	"endColumn": 19,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/reaction_role.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: bot.DataStore",
+	"source": "compiler",
+	"startLineNumber": 18,
+	"startColumn": 12,
+	"endLineNumber": 18,
+	"endColumn": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/reaction_role.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 19,
+	"startColumn": 15,
+	"endLineNumber": 19,
+	"endColumn": 21,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/schedule.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: bot.Scheduler",
+	"source": "compiler",
+	"startLineNumber": 14,
+	"startColumn": 16,
+	"endLineNumber": 14,
+	"endColumn": 25,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/schedule.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: bot.DataStore",
+	"source": "compiler",
+	"startLineNumber": 15,
+	"startColumn": 16,
+	"endLineNumber": 15,
+	"endColumn": 25,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/schedule.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 16,
+	"startColumn": 19,
+	"endLineNumber": 16,
+	"endColumn": 25,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/ticket.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: bot.DataStore",
+	"source": "compiler",
+	"startLineNumber": 25,
+	"startColumn": 12,
+	"endLineNumber": 25,
+	"endColumn": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/ticket.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 26,
+	"startColumn": 15,
+	"endLineNumber": 26,
+	"endColumn": 21,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/user_info.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 13,
+	"startColumn": 13,
+	"endLineNumber": 13,
+	"endColumn": 19,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/welcome.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: bot.DataStore",
+	"source": "compiler",
+	"startLineNumber": 13,
+	"startColumn": 12,
+	"endLineNumber": 13,
+	"endColumn": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/welcome.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 14,
+	"startColumn": 15,
+	"endLineNumber": 14,
+	"endColumn": 21,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/config/config.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 22,
+	"startColumn": 28,
+	"endLineNumber": 22,
+	"endColumn": 34,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/interfaces/interfaces.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UnusedImport",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UnusedImport"
+		}
+	},
+	"severity": 8,
+	"message": "\"time\" imported and not used",
+	"source": "compiler",
+	"startLineNumber": 6,
+	"startColumn": 2,
+	"endLineNumber": 6,
+	"endColumn": 8,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/servers/manager.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 13,
+	"startColumn": 17,
+	"endLineNumber": 13,
+	"endColumn": 23,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/servers/manager.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredImportedName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredImportedName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: logger.Logger",
+	"source": "compiler",
+	"startLineNumber": 17,
+	"startColumn": 28,
+	"endLineNumber": 17,
+	"endColumn": 34,
+	"origin": "extHost1"
+}]
