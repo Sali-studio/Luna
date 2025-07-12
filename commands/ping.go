@@ -2,17 +2,16 @@ package commands
 
 import (
 	"fmt"
+	"luna/bot"
 	"strings"
 	"time"
-
-	"luna/storage"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 type PingCommand struct {
 	StartTime time.Time
-	Store     *storage.DBStore
+	Store     bot.DataStore
 }
 
 func (c *PingCommand) GetCommandDef() *discordgo.ApplicationCommand {

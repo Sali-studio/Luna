@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"luna/bot"
 	"luna/logger"
 	"luna/storage"
 
@@ -10,8 +11,9 @@ import (
 )
 
 type ScheduleCommand struct {
-	Scheduler *cron.Cron
-	Store     *storage.DBStore
+	Scheduler bot.Scheduler
+	Store     bot.DataStore
+	Log       logger.Logger
 }
 
 func (c *ScheduleCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -48,14 +50,14 @@ func (c *ScheduleCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 		Message:   message,
 	}
 	if err := c.Store.SaveSchedule(schedule); err != nil {
-		logger.Error("スケジュールのDB保存に失敗", "error", err)
+		c.Log.Error("スケジュールのDB保存に失敗", "error", err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "スケジュールの保存に失敗しました。", Flags: discordgo.MessageFlagsEphemeral}})
 		return
 	}
 
 	c.Scheduler.AddFunc(cronSpec, func() {
 		if _, err := s.ChannelMessageSend(channel.ID, message); err != nil {
-			logger.Error("予約メッセージの送信に失敗", "error", err, "channelID", channel.ID)
+			c.Log.Error("予約メッセージの送信に失敗", "error", err, "channelID", channel.ID)
 		}
 	})
 
@@ -68,7 +70,7 @@ func (c *ScheduleCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 func (c *ScheduleCommand) LoadAndRegisterSchedules(s *discordgo.Session) {
 	schedules, err := c.Store.GetAllSchedules()
 	if err != nil {
-		logger.Error("DBからのスケジュール読み込みに失敗", "error", err)
+		c.Log.Error("DBからのスケジュール読み込みに失敗", "error", err)
 		return
 	}
 	for _, sc := range schedules {
@@ -77,7 +79,7 @@ func (c *ScheduleCommand) LoadAndRegisterSchedules(s *discordgo.Session) {
 			s.ChannelMessageSend(currentSchedule.ChannelID, currentSchedule.Message)
 		})
 	}
-	logger.Info("DBからスケジュールを登録しました", "count", len(schedules))
+	c.Log.Info("DBからスケジュールを登録しました", "count", len(schedules))
 }
 
 func (c *ScheduleCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

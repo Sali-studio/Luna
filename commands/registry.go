@@ -4,15 +4,15 @@ import (
 	"os"
 	"time"
 
-	"luna/storage"
-
-	"github.com/robfig/cron/v3"
+	"luna/bot"
+	"luna/logger"
 )
 
 // AppContext provides dependencies to commands.
 type AppContext struct {
-	Store     *storage.DBStore
-	Scheduler *cron.Cron
+	Log       logger.Logger
+	Store     bot.DataStore
+	Scheduler bot.Scheduler
 	StartTime time.Time
 }
 
@@ -39,7 +39,7 @@ func RegisterAllCommands(ctx *AppContext, allCommands map[string]CommandHandler)
 		&HelpCommand{AllCommands: allCommands},
 		&ImagineCommand{},
 		&MusicCommand{},
-		&AIGameCommand{},
+		&QuizCommand{},
 		// To add a new command, simply add it to this list.
 	}
 }

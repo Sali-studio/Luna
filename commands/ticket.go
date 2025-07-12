@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"luna/bot"
 	"luna/logger"
 	"luna/storage"
 
@@ -21,7 +22,8 @@ const (
 )
 
 type TicketCommand struct {
-	Store *storage.DBStore
+	Store bot.DataStore
+	Log   logger.Logger
 }
 
 func (c *TicketCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -46,7 +48,7 @@ func (c *TicketCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 		StaffRoleID:    staffRoleID,
 	}
 	if err := c.Store.SaveConfig(i.GuildID, "ticket_config", config); err != nil {
-		logger.Error("チケット設定の保存に失敗", "error", err, "guildID", i.GuildID)
+		c.Log.Error("チケット設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "❌ 設定の保存に失敗しました。", Flags: discordgo.MessageFlagsEphemeral}})
 		return
 	}
@@ -96,13 +98,13 @@ func (c *TicketCommand) showTicketModal(s *discordgo.Session, i *discordgo.Inter
 					discordgo.TextInput{CustomID: "subject", Label: "件名", Style: discordgo.TextInputShort, Placeholder: "どのようなご用件ですか？", Required: true, MaxLength: 100},
 				}},
 				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-					discordgo.TextInput{CustomID: "details", Label: "詳細", Style: discordgo.TextInputParagraph, Placeholder: "問題の詳細や質問内容をできるだけ詳しくご記入ください。", Required: true, MaxLength: 2000},
+					discordgo.TextInput{CustomID: "details", Label: "詳細", Style: discordgo.TextInputParagraph, Placeholder: "問題の詳細や質問内容をできるけ詳しくご記入ください。", Required: true, MaxLength: 2000},
 				}},
 			},
 		},
 	})
 	if err != nil {
-		logger.Error("チケットモーダルの表示に失敗", "error", err)
+		c.Log.Error("チケットモーダルの表示に失敗", "error", err)
 	}
 }
 
@@ -115,13 +117,13 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 
 	var config storage.TicketConfig
 	if err := c.Store.GetConfig(i.GuildID, "ticket_config", &config); err != nil {
-		logger.Error("チケット設定の取得に失敗", "error", err, "guildID", i.GuildID)
+		c.Log.Error("チケット設定の取得に失敗", "error", err, "guildID", i.GuildID)
 		return
 	}
 
 	counter, err := c.Store.GetNextTicketCounter(i.GuildID)
 	if err != nil {
-		logger.Error("チケット番号の取得に失敗", "error", err, "guildID", i.GuildID)
+		c.Log.Error("チケット番号の取得に失敗", "error", err, "guildID", i.GuildID)
 		return
 	}
 
@@ -136,7 +138,7 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 		},
 	})
 	if err != nil {
-		logger.Error("チケットチャンネルの作成に失敗", "error", err)
+		c.Log.Error("チケットチャンネルの作成に失敗", "error", err)
 		return
 	}
 
@@ -152,8 +154,8 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 		Content: fmt.Sprintf("<@%s>, <@&%s>", i.Member.User.ID, config.StaffRoleID),
 		Embeds:  []*discordgo.MessageEmbed{initialEmbed},
 		Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-			discordgo.Button{Label: "チケットを閉じる", Style: discordgo.DangerButton, CustomID: CloseTicketButtonID, Emoji: &discordgo.ComponentEmoji{Name: "🔒"}},
-		}}},
+				discordgo.Button{Label: "チケットを閉じる", Style: discordgo.DangerButton, CustomID: CloseTicketButtonID, Emoji: &discordgo.ComponentEmoji{Name: "🔒"}},
+			}}},
 	})
 
 	content := fmt.Sprintf("✅ チケットを作成しました: <#%s>", ch.ID)
@@ -175,7 +177,7 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 		reqJson, _ := json.Marshal(reqData)
 		resp, err := http.Post("http://localhost:5001/generate-text", "application/json", bytes.NewBuffer(reqJson))
 		if err != nil {
-			logger.Error("Luna Assistantからの応答取得に失敗 (サーバー接続不可)", "error", err)
+			c.Log.Error("Luna Assistantからの応答取得に失敗 (サーバー接続不可)", "error", err)
 			return
 		}
 		defer resp.Body.Close()
@@ -185,7 +187,7 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 		json.Unmarshal(body, &textResp)
 
 		if textResp.Error != "" || resp.StatusCode != http.StatusOK {
-			logger.Error("Luna Assistantからの応答取得に失敗", "error", textResp.Error)
+			c.Log.Error("Luna Assistantからの応答取得に失敗", "error", textResp.Error)
 			return
 		}
 
@@ -227,15 +229,14 @@ func (c *TicketCommand) archiveTicket(s *discordgo.Session, i *discordgo.Interac
 	}
 	_, err = s.ChannelEditComplex(i.ChannelID, edit)
 	if err != nil {
-		logger.Error("チケットのアーカイブに失敗", "error", err, "channelID", i.ChannelID)
+		c.Log.Error("チケットのアーカイブに失敗", "error", err, "channelID", i.ChannelID)
 		content := "❌ アーカイブに失敗しました。BOTの権限が不足している可能性があります。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
 	c.Store.CloseTicketRecord(i.ChannelID)
 	content := "チケットはアーカイブされました。"
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content, Components: &[]discordgo.MessageComponent{}})
-}
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content, Components: &[]discordgo.MessageComponent{}})}
 
 func (c *TicketCommand) GetComponentIDs() []string {
 	return []string{CreateTicketButtonID, SubmitTicketModalID, CloseTicketButtonID, ArchiveTicketButtonID}

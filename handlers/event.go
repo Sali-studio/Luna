@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"luna/bot"
 	"luna/logger"
 	"luna/storage"
 
@@ -25,11 +26,12 @@ type TextResponse struct {
 }
 
 type EventHandler struct {
-	Store *storage.DBStore
+	Store bot.DataStore
+	Log   logger.Logger
 }
 
-func NewEventHandler(store *storage.DBStore) *EventHandler {
-	return &EventHandler{Store: store}
+func NewEventHandler(store bot.DataStore, log logger.Logger) *EventHandler {
+	return &EventHandler{Store: store, Log: log}
 }
 
 func (h *EventHandler) RegisterAllHandlers(s *discordgo.Session) {
@@ -56,7 +58,7 @@ func (h *EventHandler) RegisterAllHandlers(s *discordgo.Session) {
 func (h *EventHandler) sendLog(s *discordgo.Session, guildID string, embed *discordgo.MessageEmbed) {
 	var logConfig storage.LogConfig
 	if err := h.Store.GetConfig(guildID, ConfigKeyLog, &logConfig); err != nil {
-		logger.Error("Failed to get log config from DB", "error", err, "guildID", guildID)
+		h.Log.Error("Failed to get log config from DB", "error", err, "guildID", guildID)
 		return
 	}
 	if logConfig.ChannelID == "" {
@@ -72,14 +74,14 @@ func (h *EventHandler) sendLog(s *discordgo.Session, guildID string, embed *disc
 	}
 	embed.Timestamp = time.Now().Format(time.RFC3339)
 	if _, err := s.ChannelMessageSendEmbed(logConfig.ChannelID, embed); err != nil {
-		logger.Error("Failed to send log embed", "error", err, "channelID", logConfig.ChannelID)
+		h.Log.Error("Failed to send log embed", "error", err, "channelID", logConfig.ChannelID)
 	}
 }
 
-func getExecutor(s *discordgo.Session, guildID string, targetID string, action discordgo.AuditLogAction) string {
+func (h *EventHandler) getExecutor(s *discordgo.Session, guildID string, targetID string, action discordgo.AuditLogAction) string {
 	auditLog, err := s.GuildAuditLog(guildID, "", "", int(action), 5)
 	if err != nil {
-		logger.Error("Failed to get audit log", "error", err, "guildID", guildID, "action", action)
+		h.Log.Error("Failed to get audit log", "error", err, "guildID", guildID, "action", action)
 		return ""
 	}
 	for _, entry := range auditLog.AuditLogEntries {
@@ -99,7 +101,7 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 	}
 
 	if err := h.Store.CreateMessageCache(m.ID, m.Content, m.Author.ID); err != nil {
-		logger.Error("Failed to cache message in DB", "error", err)
+		h.Log.Error("Failed to cache message in DB", "error", err)
 	}
 
 	isMentioned := false
@@ -114,7 +116,7 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 			s.ChannelTyping(m.ChannelID)
 			messages, err := s.ChannelMessages(m.ChannelID, 15, m.ID, "", "")
 			if err != nil {
-				logger.Error("会話履歴の取得に失敗", "error", err)
+				h.Log.Error("会話履歴の取得に失敗", "error", err)
 				return
 			}
 			var history string
@@ -130,13 +132,13 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 			aiServerURL := os.Getenv(EnvPythonAIServerURL)
 			if aiServerURL == "" {
 				aiServerURL = "http://localhost:5001/generate-text" // Fallback to default
-				logger.Warn("PYTHON_AI_SERVER_URL environment variable not set. Using default: " + aiServerURL)
+				h.Log.Warn("PYTHON_AI_SERVER_URL environment variable not set. Using default: " + aiServerURL)
 			}
 
 			resp, err := http.Post(aiServerURL, "application/json", bytes.NewBuffer(reqJson))
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "すみません、AIサーバーへの接続に失敗したようです…。")
-				logger.Error("Failed to connect to AI server", "error", err, "url", aiServerURL)
+				h.Log.Error("Failed to connect to AI server", "error", err, "url", aiServerURL)
 				return
 			}
 			defer resp.Body.Close()
@@ -145,7 +147,7 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 			json.Unmarshal(body, &textResp)
 			if textResp.Error != "" || resp.StatusCode != http.StatusOK {
 				s.ChannelMessageSend(m.ChannelID, "すみません、AIからの応答取得に失敗しました…。")
-				logger.Error("AI server returned an error or non-OK status", "status", resp.StatusCode, "response_error", textResp.Error)
+				h.Log.Error("AI server returned an error or non-OK status", "status", resp.StatusCode, "response_error", textResp.Error)
 				return
 			}
 			s.ChannelMessageSend(m.ChannelID, textResp.Text)
@@ -241,7 +243,7 @@ func (h *EventHandler) handleChannelUpdate(s *discordgo.Session, e *discordgo.Ch
 	if e.BeforeUpdate == nil {
 		return
 	}
-	executorID := getExecutor(s, e.GuildID, e.ID, discordgo.AuditLogActionChannelUpdate)
+	executorID := h.getExecutor(s, e.GuildID, e.ID, discordgo.AuditLogActionChannelUpdate)
 	executorMention := "不明"
 	if executorID != "" {
 		executorMention = fmt.Sprintf("<@%s>", executorID)
@@ -264,7 +266,7 @@ func (h *EventHandler) handleChannelUpdate(s *discordgo.Session, e *discordgo.Ch
 }
 
 func (h *EventHandler) handleGuildMemberRemove(s *discordgo.Session, e *discordgo.GuildMemberRemove) {
-	executorID := getExecutor(s, e.GuildID, e.User.ID, discordgo.AuditLogActionMemberKick)
+	executorID := h.getExecutor(s, e.GuildID, e.User.ID, discordgo.AuditLogActionMemberKick)
 	if executorID != "" {
 		auditLog, _ := s.GuildAuditLog(e.GuildID, "", "", int(discordgo.AuditLogActionMemberKick), 1)
 		reason := "理由なし"
@@ -292,7 +294,7 @@ func (h *EventHandler) handleGuildMemberRemove(s *discordgo.Session, e *discordg
 }
 
 func (h *EventHandler) handleGuildUpdate(s *discordgo.Session, e *discordgo.GuildUpdate) {
-	executorID := getExecutor(s, e.Guild.ID, e.Guild.ID, discordgo.AuditLogActionGuildUpdate)
+	executorID := h.getExecutor(s, e.Guild.ID, e.Guild.ID, discordgo.AuditLogActionGuildUpdate)
 	executorMention := "不明"
 	if executorID != "" {
 		executorMention = fmt.Sprintf("<@%s>", executorID)
@@ -315,7 +317,7 @@ func (h *EventHandler) handleGuildMemberUpdate(s *discordgo.Session, e *discordg
 	if e.BeforeUpdate == nil {
 		return
 	}
-	executorID := getExecutor(s, e.GuildID, e.User.ID, discordgo.AuditLogActionMemberUpdate)
+	executorID := h.getExecutor(s, e.GuildID, e.User.ID, discordgo.AuditLogActionMemberUpdate)
 	executorMention := "不明"
 	if executorID != "" {
 		executorMention = fmt.Sprintf("<@%s>", executorID)
@@ -410,12 +412,12 @@ func (h *EventHandler) handleReactionAdd(s *discordgo.Session, r *discordgo.Mess
 	rr, err := h.Store.GetReactionRole(r.GuildID, r.MessageID, r.Emoji.APIName())
 	if err != nil {
 		if err != sql.ErrNoRows {
-			logger.Error("リアクションロールのDB取得に失敗", "error", err, "guildID", r.GuildID)
+			h.Log.Error("リアクションロールのDB取得に失敗", "error", err, "guildID", r.GuildID)
 		}
 		return
 	}
 	if err = s.GuildMemberRoleAdd(r.GuildID, r.UserID, rr.RoleID); err != nil {
-		logger.Error("ロールの付与に失敗", "error", err, "userID", r.UserID, "roleID", rr.RoleID)
+		h.Log.Error("ロールの付与に失敗", "error", err, "userID", r.UserID, "roleID", rr.RoleID)
 	}
 }
 
@@ -426,12 +428,12 @@ func (h *EventHandler) handleReactionRemove(s *discordgo.Session, r *discordgo.M
 	rr, err := h.Store.GetReactionRole(r.GuildID, r.MessageID, r.Emoji.APIName())
 	if err != nil {
 		if err != sql.ErrNoRows {
-			logger.Error("リアクションロールのDB取得に失敗", "error", err, "guildID", r.GuildID)
+			h.Log.Error("リアクションロールのDB取得に失敗", "error", err, "guildID", r.GuildID)
 		}
 		return
 	}
 	if err = s.GuildMemberRoleRemove(r.GuildID, r.UserID, rr.RoleID); err != nil {
-		logger.Error("ロールの削除に失敗", "error", err, "userID", r.UserID, "roleID", rr.RoleID)
+		h.Log.Error("ロールの削除に失敗", "error", err, "userID", r.UserID, "roleID", rr.RoleID)
 	}
 }
 
@@ -453,7 +455,7 @@ func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo
 			Type: discordgo.ChannelTypeGuildVoice, ParentID: vcConfig.CategoryID,
 		})
 		if err != nil {
-			logger.Error("一時VCの作成に失敗", "error", err)
+			h.Log.Error("一時VCの作成に失敗", "error", err)
 			return
 		}
 		s.GuildMemberMove(e.GuildID, e.UserID, &newChannel.ID)
@@ -477,7 +479,7 @@ func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo
 			}
 			if !found {
 				if _, err := s.ChannelDelete(oldChannel.ID); err != nil {
-					logger.Error("一時VCの削除に失敗", "error", err)
+					h.Log.Error("一時VCの削除に失敗", "error", err)
 				}
 			}
 		}

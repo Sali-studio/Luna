@@ -12,24 +12,24 @@ import (
 	"luna/logger"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/robfig/cron/v3"
 )
 
 // Bot はDiscordボットのコアな状態とロジックを管理します。
 type Bot struct {
 	Session           *discordgo.Session
+	log               logger.Logger
 	dbStore           DataStore
-	scheduler         *cron.Cron
+	scheduler         Scheduler
 	commandHandlers   map[string]commands.CommandHandler
 	componentHandlers map[string]commands.CommandHandler
 	startTime         time.Time
 }
 
 // New は新しいBotインスタンスを作成します。
-func New(db DataStore) (*Bot, error) {
+func New(log logger.Logger, db DataStore, scheduler Scheduler) (*Bot, error) {
 	token := config.Cfg.Discord.Token
 	if token == "" || token == "YOUR_DISCORD_BOT_TOKEN_HERE" {
-		logger.Fatal("DiscordのBotトークンが設定されていません。config.yamlを確認してください。")
+		log.Fatal("DiscordのBotトークンが設定されていません。config.yamlを確認してください。")
 	}
 
 	dg, err := discordgo.New("Bot " + token)
@@ -43,8 +43,9 @@ func New(db DataStore) (*Bot, error) {
 
 	return &Bot{
 		Session:           dg,
+		log:               log,
 		dbStore:           db,
-		scheduler:         cron.New(),
+		scheduler:         scheduler,
 		commandHandlers:   make(map[string]commands.CommandHandler),
 		componentHandlers: make(map[string]commands.CommandHandler),
 		startTime:         time.Now(),
@@ -53,7 +54,7 @@ func New(db DataStore) (*Bot, error) {
 
 // Start はBotを起動し、Discordに接続します。
 func (b *Bot) Start() error {
-	eventHandler := handlers.NewEventHandler(b.dbStore)
+	eventHandler := handlers.NewEventHandler(b.dbStore, b.log)
 	eventHandler.RegisterAllHandlers(b.Session)
 
 	b.registerCommands()
@@ -73,28 +74,29 @@ func (b *Bot) Start() error {
 		scheduleCmd.LoadAndRegisterSchedules(b.Session)
 	}
 
-	logger.Info("Discord Botが起動しました。コマンドを登録します...")
+	b.log.Info("Discord Botが起動しました。コマンドを登録します...")
 	registeredCommands := make([]*discordgo.ApplicationCommand, 0, len(b.commandHandlers))
 	for _, handler := range b.commandHandlers {
 		registeredCommands = append(registeredCommands, handler.GetCommandDef())
 	}
 
 	if _, err := b.Session.ApplicationCommandBulkOverwrite(b.Session.State.User.ID, "", registeredCommands); err != nil {
-		logger.Fatal("コマンドの登録に失敗しました", "error", err)
+		b.log.Fatal("コマンドの登録に失敗しました", "error", err)
 	}
 
-	logger.Info("コマンドの登録が完了しました。Ctrl+Cで終了します。")
+	b.log.Info("コマンドの登録が完了しました。Ctrl+Cで終了します。")
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
-	logger.Info("Botをシャットダウンします...")
+	b.log.Info("Botをシャットダウンします...")
 	return nil
 }
 
 func (b *Bot) registerCommands() {
 	appContext := &commands.AppContext{
+		Log:       b.log,
 		Store:     b.dbStore,
 		Scheduler: b.scheduler,
 		StartTime: b.startTime,

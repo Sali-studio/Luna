@@ -19,7 +19,7 @@ type Config struct {
 var Cfg *Config
 
 // LoadConfig は設定ファイルから設定を読み込みます。
-func LoadConfig() error {
+func LoadConfig(log logger.Logger) error {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
@@ -32,6 +32,6 @@ func LoadConfig() error {
 		return err
 	}
 
-	logger.Info("設定ファイルを正常に読み込みました。")
+	log.Info("設定ファイルを正常に読み込みました。")
 	return nil
 }

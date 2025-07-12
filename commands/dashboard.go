@@ -2,13 +2,13 @@ package commands
 
 import (
 	"fmt"
+	"luna/bot"
 	"luna/logger"
 	"luna/storage"
 	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/robfig/cron/v3"
 )
 
 const (
@@ -17,8 +17,9 @@ const (
 )
 
 type DashboardCommand struct {
-	Store     *storage.DBStore
-	Scheduler *cron.Cron
+	Store     bot.DataStore
+	Scheduler bot.Scheduler
+	Log       logger.Logger
 }
 
 func (c *DashboardCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -36,7 +37,7 @@ func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		Title: "📊 ダッシュボード", Description: "統計情報を収集中...", Color: 0x3498db,
 	})
 	if err != nil {
-		logger.Error("ダッシュボードの初期送信に失敗", "error", err)
+		c.Log.Error("ダッシュボードの初期送信に失敗", "error", err)
 		content := "❌ ダッシュボードの作成に失敗しました。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
@@ -46,7 +47,7 @@ func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 	config.ChannelID = msg.ChannelID
 	config.MessageID = msg.ID
 	if err := c.Store.SaveConfig(i.GuildID, "dashboard_config", config); err != nil {
-		logger.Error("ダッシュボード設定の保存に失敗", "error", err, "guildID", i.GuildID)
+		c.Log.Error("ダッシュボード設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
 	}
 
@@ -136,7 +137,7 @@ func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string)
 	_, err = s.ChannelMessageEditComplex(editData)
 
 	if err != nil {
-		logger.Error("ダッシュボードの更新に失敗", "error", err)
+		c.Log.Error("ダッシュボードの更新に失敗", "error", err)
 	}
 }
 
@@ -220,3 +221,4 @@ func (c *DashboardCommand) GetComponentIDs() []string {
 	return []string{DashboardShowInfoButtonID, DashboardShowRolesButtonID}
 }
 func (c *DashboardCommand) GetCategory() string { return "管理" }
+

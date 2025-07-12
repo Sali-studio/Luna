@@ -1,19 +1,21 @@
 package servers
 
 import (
-	"log"
 	"os"
 	"os/exec"
+
+	"luna/logger"
 )
 
 // Manager holds and manages all the servers.
 type Manager struct {
 	servers []Server
+	log     logger.Logger
 }
 
 // NewManager creates a new server manager.
-func NewManager() *Manager {
-	return &Manager{}
+func NewManager(log logger.Logger) *Manager {
+	return &Manager{log: log}
 }
 
 // AddServer adds a new server to the manager.
@@ -24,22 +26,22 @@ func (m *Manager) AddServer(server Server) {
 // StartAll starts all registered servers.
 func (m *Manager) StartAll() {
 	for _, s := range m.servers {
-		log.Printf("Starting %s...", s.Name())
+		m.log.Info("Starting server", "name", s.Name())
 		if err := s.Start(); err != nil {
-			log.Fatalf("Failed to start %s: %v", s.Name(), err)
+			m.log.Fatal("Failed to start server", "name", s.Name(), "error", err)
 		}
-		log.Printf("%s started successfully.", s.Name())
+		m.log.Info("Server started successfully", "name", s.Name())
 	}
 }
 
 // StopAll stops all registered servers.
 func (m *Manager) StopAll() {
 	for _, s := range m.servers {
-		log.Printf("Stopping %s...", s.Name())
+		m.log.Info("Stopping server", "name", s.Name())
 		if err := s.Stop(); err != nil {
-			log.Printf("Failed to stop %s: %v", s.Name(), err)
+			m.log.Error("Failed to stop server", "name", s.Name(), "error", err)
 		}
-		log.Printf("%s stopped successfully.", s.Name())
+		m.log.Info("Server stopped successfully", "name", s.Name())
 	}
 }
 

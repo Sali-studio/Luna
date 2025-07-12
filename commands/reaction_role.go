@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"luna/bot"
 	"luna/logger"
 	"luna/storage"
 	"strings"
@@ -14,7 +15,8 @@ const (
 )
 
 type ReactionRoleCommand struct {
-	Store *storage.DBStore
+	Store bot.DataStore
+	Log   logger.Logger
 }
 
 func (c *ReactionRoleCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -54,7 +56,7 @@ func (c *ReactionRoleCommand) Handle(s *discordgo.Session, i *discordgo.Interact
 
 	messages, err := s.ChannelMessages(channel.ID, 25, "", "", "")
 	if err != nil {
-		logger.Error("リアクションロール用のメッセージ取得に失敗", "error", err, "channelID", channel.ID)
+		c.Log.Error("リアクションロール用のメッセージ取得に失敗", "error", err, "channelID", channel.ID)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: "❌ メッセージの取得に失敗しました。", Flags: discordgo.MessageFlagsEphemeral},
@@ -114,7 +116,7 @@ func (c *ReactionRoleCommand) Handle(s *discordgo.Session, i *discordgo.Interact
 		},
 	})
 	if err != nil {
-		logger.Error("メッセージ選択メニューの送信に失敗", "error", err)
+		c.Log.Error("メッセージ選択メニューの送信に失敗", "error", err)
 	}
 }
 
@@ -148,7 +150,7 @@ func (c *ReactionRoleCommand) HandleComponent(s *discordgo.Session, i *discordgo
 		RoleID:    roleID,
 	}
 	if err := c.Store.SaveReactionRole(rr); err != nil {
-		logger.Error("リアクションロール設定の保存に失敗", "error", err)
+		c.Log.Error("リアクションロール設定の保存に失敗", "error", err)
 		return
 	}
 
@@ -160,7 +162,7 @@ func (c *ReactionRoleCommand) HandleComponent(s *discordgo.Session, i *discordgo
 		},
 	})
 	if err != nil {
-		logger.Error("リアクションロール設定完了メッセージの編集に失敗", "error", err)
+		c.Log.Error("リアクションロール設定完了メッセージの編集に失敗", "error", err)
 	}
 
 	s.MessageReactionAdd(i.ChannelID, messageID, emojiInput)

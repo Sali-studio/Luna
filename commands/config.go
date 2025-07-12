@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"luna/bot"
 	"luna/logger"
 	"luna/storage"
 
@@ -13,7 +14,8 @@ func int64Ptr(v int64) *int64 {
 }
 
 type ConfigCommand struct {
-	Store *storage.DBStore
+	Store bot.DataStore
+	Log   logger.Logger
 }
 
 func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -73,7 +75,7 @@ func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.I
 	var config storage.LogConfig
 	config.ChannelID = options[0].ChannelValue(s).ID
 	if err := c.Store.SaveConfig(i.GuildID, "log_config", config); err != nil {
-		logger.Error("ログ設定の保存に失敗", "error", err, "guildID", i.GuildID)
+		c.Log.Error("ログ設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
 	}
 	content := fmt.Sprintf("✅ ログチャンネルを <#%s> に設定しました。", config.ChannelID)
@@ -85,7 +87,7 @@ func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.In
 	config.LobbyID = options[0].ChannelValue(s).ID
 	config.CategoryID = options[1].ChannelValue(s).ID
 	if err := c.Store.SaveConfig(i.GuildID, "temp_vc_config", config); err != nil {
-		logger.Error("一時VC設定の保存に失敗", "error", err, "guildID", i.GuildID)
+		c.Log.Error("一時VC設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
 	}
 	content := fmt.Sprintf("✅ 一時VC設定を更新しました。\n- ロビーチャンネル: <#%s>\n- 作成先カテゴリ: <#%s>", config.LobbyID, config.CategoryID)
@@ -98,7 +100,7 @@ func (c *ConfigCommand) handleBumpConfig(s *discordgo.Session, i *discordgo.Inte
 	config.ChannelID = options[1].ChannelValue(s).ID
 	config.RoleID = options[2].RoleValue(s, i.GuildID).ID
 	if err := c.Store.SaveConfig(i.GuildID, "bump_config", config); err != nil {
-		logger.Error("BUMPリマインダー設定の保存に失敗", "error", err, "guildID", i.GuildID)
+		c.Log.Error("BUMPリマインダー設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
 	}
 	content := fmt.Sprintf("✅ BUMPリマインダー設定を更新しました。\n- 有効: `%v`\n- チャンネル: <#%s>\n- ロール: <@&%s>", config.Reminder, config.ChannelID, config.RoleID)
@@ -111,3 +113,4 @@ func (c *ConfigCommand) GetComponentIDs() []string                              
 func (c *ConfigCommand) GetCategory() string {
 	return "管理"
 }
+
