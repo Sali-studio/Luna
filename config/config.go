@@ -2,7 +2,7 @@ package config
 
 import (
 	"github.com/spf13/viper"
-	"luna/logger"
+	"luna/interfaces"
 )
 
 // Config はアプリケーションの設定を保持します。
@@ -19,7 +19,7 @@ type Config struct {
 var Cfg *Config
 
 // LoadConfig は設定ファイルから設定を読み込みます。
-func LoadConfig(log logger.Logger) error {
+func LoadConfig(log interfaces.Logger) error {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")

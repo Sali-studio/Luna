@@ -4,17 +4,17 @@ import (
 	"os"
 	"os/exec"
 
-	"luna/logger"
+	"luna/interfaces"
 )
 
 // Manager holds and manages all the servers.
 type Manager struct {
 	servers []Server
-	log     logger.Logger
+	log     interfaces.Logger
 }
 
 // NewManager creates a new server manager.
-func NewManager(log logger.Logger) *Manager {
+func NewManager(log interfaces.Logger) *Manager {
 	return &Manager{log: log}
 }
 

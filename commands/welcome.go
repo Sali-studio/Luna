@@ -2,16 +2,15 @@ package commands
 
 import (
 	"fmt"
-	"luna/bot"
-	"luna/logger"
+	"luna/interfaces"
 	"luna/storage"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 type WelcomeCommand struct {
-	Store bot.DataStore
-	Log   logger.Logger
+	Store interfaces.DataStore
+	Log   interfaces.Logger
 }
 
 func (c *WelcomeCommand) GetCommandDef() *discordgo.ApplicationCommand {

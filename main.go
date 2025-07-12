@@ -6,6 +6,7 @@ import (
 	"luna/bot"
 	"luna/commands"
 	"luna/config"
+	"luna/handlers"
 	"luna/interfaces"
 	"luna/logger"
 	"luna/servers"
@@ -48,6 +49,10 @@ func main() {
 	if err != nil {
 		log.Fatal("Botの初期化に失敗しました", "error", err)
 	}
+
+	// イベントハンドラの登録
+	eventHandler := handlers.NewEventHandler(b.GetDBStore(), log)
+	eventHandler.RegisterAllHandlers(b.GetSession())
 
 	// コマンドの登録
 	commandHandlers := make(map[string]interfaces.CommandHandler)

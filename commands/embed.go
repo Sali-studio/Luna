@@ -1,18 +1,16 @@
 package commands
 
 import (
-	"luna/logger"
+	"luna/interfaces"
 	"strconv"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-const (
-	EmbedModalCustomID = "embed_creator_modal"
-)
+const EmbedModalCustomID = "embed_modal"
 
-type EmbedCommand struct{
-	Log logger.Logger
+type EmbedCommand struct {
+	Log interfaces.Logger
 }
 
 func (c *EmbedCommand) GetCommandDef() *discordgo.ApplicationCommand {

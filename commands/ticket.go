@@ -7,8 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"luna/bot"
-	"luna/logger"
+	"luna/interfaces"
 	"luna/storage"
 
 	"github.com/bwmarrin/discordgo"
@@ -22,8 +21,8 @@ const (
 )
 
 type TicketCommand struct {
-	Store bot.DataStore
-	Log   logger.Logger
+	Store interfaces.DataStore
+	Log   interfaces.Logger
 }
 
 func (c *TicketCommand) GetCommandDef() *discordgo.ApplicationCommand {

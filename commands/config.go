@@ -2,8 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"luna/bot"
-	"luna/logger"
+	"luna/interfaces"
 	"luna/storage"
 
 	"github.com/bwmarrin/discordgo"
@@ -14,8 +13,8 @@ func int64Ptr(v int64) *int64 {
 }
 
 type ConfigCommand struct {
-	Store bot.DataStore
-	Log   logger.Logger
+	Store interfaces.DataStore
+	Log   interfaces.Logger
 }
 
 func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {

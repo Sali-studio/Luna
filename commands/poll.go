@@ -2,14 +2,14 @@ package commands
 
 import (
 	"fmt"
-	"luna/logger"
+	"luna/interfaces"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-type PollCommand struct{
-	Log logger.Logger
+type PollCommand struct {
+	Log interfaces.Logger
 }
 
 func (c *PollCommand) GetCommandDef() *discordgo.ApplicationCommand {

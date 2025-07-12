@@ -2,8 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"luna/bot"
-	"luna/logger"
+	"luna/interfaces"
 	"luna/storage"
 
 	"github.com/bwmarrin/discordgo"
@@ -11,9 +10,9 @@ import (
 )
 
 type ScheduleCommand struct {
-	Scheduler bot.Scheduler
-	Store     bot.DataStore
-	Log       logger.Logger
+	Scheduler interfaces.Scheduler
+	Store     interfaces.DataStore
+	Log       interfaces.Logger
 }
 
 func (c *ScheduleCommand) GetCommandDef() *discordgo.ApplicationCommand {

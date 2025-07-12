@@ -3,6 +3,7 @@ package commands
 
 import (
 	"fmt"
+	"luna/interfaces"
 	"sort"
 	"strings"
 
@@ -10,7 +11,7 @@ import (
 )
 
 type HelpCommand struct {
-	AllCommands map[string]CommandHandler
+	AllCommands map[string]interfaces.CommandHandler
 }
 
 func (c *HelpCommand) GetCommandDef() *discordgo.ApplicationCommand {

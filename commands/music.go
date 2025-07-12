@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"luna/logger"
+	"luna/interfaces"
 	"net/http"
 	"sync"
 	"time"
@@ -15,31 +15,30 @@ import (
 	"github.com/jonas747/dca/v2"
 )
 
-// 各サーバーの音楽再生状態を管理
-var musicSessions = make(map[string]*MusicSession)
-var musicMutex = &sync.Mutex{}
+var (
+	musicSessions = make(map[string]*MusicSession)
+	musicMutex    sync.Mutex
+)
 
-// MusicSession は、1つのサーバーでの音楽再生セッションを表す
 type MusicSession struct {
 	GuildID         string
 	VoiceConnection *discordgo.VoiceConnection
 	Queue           []Song
 	NowPlaying      *Song
 	IsPlaying       bool
+	EncodeSession   *dca.EncodeSession
 	Mutex           sync.Mutex
-	EncodeSession   *dca.EncodeSession // 再生中のエンコードセッションを保持
-	Log             logger.Logger
+	Log             interfaces.Logger
 }
 
-// Song は再生する曲の情報を表す
 type Song struct {
-	Title     string
-	Query     string // ユーザーが入力したURLや検索ワード
-	StreamURL string // Pythonから取得した再生用URL
+	Title     string `json:"title"`
+	StreamURL string `json:"stream_url"`
+	Query     string
 }
 
-type MusicCommand struct{
-	Log logger.Logger
+type MusicCommand struct {
+	Log interfaces.Logger
 }
 
 func (c *MusicCommand) GetCommandDef() *discordgo.ApplicationCommand {

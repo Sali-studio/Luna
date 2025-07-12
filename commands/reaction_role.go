@@ -2,8 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"luna/bot"
-	"luna/logger"
+	"luna/interfaces"
 	"luna/storage"
 	"strings"
 
@@ -15,8 +14,8 @@ const (
 )
 
 type ReactionRoleCommand struct {
-	Store bot.DataStore
-	Log   logger.Logger
+	Store interfaces.DataStore
+	Log   interfaces.Logger
 }
 
 func (c *ReactionRoleCommand) GetCommandDef() *discordgo.ApplicationCommand {

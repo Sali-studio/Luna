@@ -2,7 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"luna/logger"
+	"luna/interfaces"
 	"strings"
 	"time"
 
@@ -16,7 +16,7 @@ const (
 )
 
 type ModerateCommand struct{
-	Log logger.Logger
+	Log interfaces.Logger
 }
 
 func (c *ModerateCommand) GetCommandDef() *discordgo.ApplicationCommand {

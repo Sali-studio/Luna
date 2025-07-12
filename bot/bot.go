@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"luna/config"
-	"luna/handlers"
 	"luna/interfaces"
 
 	"github.com/bwmarrin/discordgo"
@@ -50,9 +49,6 @@ func New(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Sc
 
 // Start はBotを起動し、Discordに接続します。
 func (b *Bot) Start(commandHandlers map[string]interfaces.CommandHandler, componentHandlers map[string]interfaces.CommandHandler) error {
-	eventHandler := handlers.NewEventHandler(b.dbStore, b.log)
-	eventHandler.RegisterAllHandlers(b.Session)
-
 	b.Session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:

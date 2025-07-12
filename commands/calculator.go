@@ -3,7 +3,7 @@ package commands
 import (
 	"errors"
 	"fmt"
-	"luna/logger"
+	"luna/interfaces"
 	"math"
 
 	"github.com/Knetic/govaluate"
@@ -11,7 +11,7 @@ import (
 )
 
 type CalculatorCommand struct {
-	Log logger.Logger
+	Log interfaces.Logger
 }
 
 func (c *CalculatorCommand) GetCommandDef() *discordgo.ApplicationCommand {

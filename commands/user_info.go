@@ -2,15 +2,15 @@ package commands
 
 import (
 	"fmt"
-	"luna/logger"
+	"luna/interfaces"
 	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-type UserInfoCommand struct{
-	Log logger.Logger
+type UserInfoCommand struct {
+	Log interfaces.Logger
 }
 
 func (c *UserInfoCommand) GetCommandDef() *discordgo.ApplicationCommand {
