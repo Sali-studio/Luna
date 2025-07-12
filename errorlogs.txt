@@ -464,3 +464,313 @@
 	"endColumn": 38,
 	"origin": "extHost1"
 }]
+
+### 2025-07-13-0:42
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/bot/bot.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"severity": 8,
+	"message": "import cycle not allowed: import stack: [luna luna/bot luna/handlers luna/bot]",
+	"source": "go list",
+	"startLineNumber": 1,
+	"startColumn": 1,
+	"endLineNumber": 1,
+	"endColumn": 1,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/bot/bot.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UnusedImport",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UnusedImport"
+		}
+	},
+	"severity": 8,
+	"message": "\"context\" imported and not used",
+	"source": "compiler",
+	"startLineNumber": 4,
+	"startColumn": 2,
+	"endLineNumber": 4,
+	"endColumn": 11,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/bot/bot.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: config",
+	"source": "compiler",
+	"startLineNumber": 28,
+	"startColumn": 11,
+	"endLineNumber": 28,
+	"endColumn": 17,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/bot/bot.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: CommandHandler",
+	"source": "compiler",
+	"startLineNumber": 52,
+	"startColumn": 48,
+	"endLineNumber": 52,
+	"endColumn": 62,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/bot/bot.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: CommandHandler",
+	"source": "compiler",
+	"startLineNumber": 52,
+	"startColumn": 93,
+	"endLineNumber": 52,
+	"endColumn": 107,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/bot/interfaces.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"severity": 8,
+	"message": "import cycle not allowed: import stack: [luna luna/bot luna/handlers luna/bot]",
+	"source": "go list",
+	"startLineNumber": 1,
+	"startColumn": 1,
+	"endLineNumber": 1,
+	"endColumn": 1,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/registry.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "MissingLitField",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "MissingLitField"
+		}
+	},
+	"severity": 8,
+	"message": "unknown field Log in struct literal of type AskCommand",
+	"source": "compiler",
+	"startLineNumber": 28,
+	"startColumn": 15,
+	"endLineNumber": 28,
+	"endColumn": 18,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/registry.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "MissingLitField",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "MissingLitField"
+		}
+	},
+	"severity": 8,
+	"message": "unknown field Log in struct literal of type PokemonCalculatorCommand",
+	"source": "compiler",
+	"startLineNumber": 33,
+	"startColumn": 29,
+	"endLineNumber": 33,
+	"endColumn": 32,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/registry.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "MissingLitField",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "MissingLitField"
+		}
+	},
+	"severity": 8,
+	"message": "unknown field Log in struct literal of type PowerConverterCommand",
+	"source": "compiler",
+	"startLineNumber": 35,
+	"startColumn": 26,
+	"endLineNumber": 35,
+	"endColumn": 29,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/registry.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "MissingLitField",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "MissingLitField"
+		}
+	},
+	"severity": 8,
+	"message": "unknown field Log in struct literal of type TranslateCommand",
+	"source": "compiler",
+	"startLineNumber": 36,
+	"startColumn": 21,
+	"endLineNumber": 36,
+	"endColumn": 24,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/registry.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "MissingLitField",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "MissingLitField"
+		}
+	},
+	"severity": 8,
+	"message": "unknown field Log in struct literal of type WeatherCommand",
+	"source": "compiler",
+	"startLineNumber": 38,
+	"startColumn": 57,
+	"endLineNumber": 38,
+	"endColumn": 60,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/registry.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "MissingLitField",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "MissingLitField"
+		}
+	},
+	"severity": 8,
+	"message": "unknown field Log in struct literal of type ImagineCommand",
+	"source": "compiler",
+	"startLineNumber": 40,
+	"startColumn": 19,
+	"endLineNumber": 40,
+	"endColumn": 22,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/registry.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "UndeclaredName",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "UndeclaredName"
+		}
+	},
+	"severity": 8,
+	"message": "undefined: QuizCommand",
+	"source": "compiler",
+	"startLineNumber": 42,
+	"startColumn": 4,
+	"endLineNumber": 42,
+	"endColumn": 15,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/handlers/event.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "BrokenImport",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "BrokenImport"
+		}
+	},
+	"severity": 8,
+	"message": "could not import luna/bot (missing metadata for import of \"luna/bot\")",
+	"source": "compiler",
+	"startLineNumber": 13,
+	"startColumn": 2,
+	"endLineNumber": 13,
+	"endColumn": 12,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/c:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/main.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "IncompatibleAssign",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "IncompatibleAssign"
+		}
+	},
+	"severity": 8,
+	"message": "cannot use commandHandlers (variable of type map[string]commands.CommandHandler) as map[string]invalid type value in argument to b.Start",
+	"source": "compiler",
+	"startLineNumber": 81,
+	"startColumn": 20,
+	"endLineNumber": 81,
+	"endColumn": 35,
+	"origin": "extHost1"
+}]
