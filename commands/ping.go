@@ -79,10 +79,12 @@ func (c *PingCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	}
 
 	// 最初に送った "Pinging..." というメッセージを、完成したEmbedに編集する
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &[]string{""}[0], // テキストを空にする
 		Embeds:  &[]*discordgo.MessageEmbed{embed},
-	})
+	}); err != nil {
+		// c.Log is not available in PingCommand.
+	}
 }
 
 // アップタイムを見やすい形式にフォーマットするヘルパー関数

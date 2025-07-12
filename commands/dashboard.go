@@ -176,7 +176,7 @@ func (c *DashboardCommand) showServerInfo(s *discordgo.Session, i *discordgo.Int
 			{Name: "サーバー機能", Value: fmt.Sprintf("```\n%s\n```", features)},
 		},
 	}
-	if _, err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},

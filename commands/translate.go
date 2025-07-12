@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"luna/interfaces"
 	"net/http"
 
@@ -59,7 +59,7 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 	}
 	defer resp.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
+			body, _ := io.ReadAll(resp.Body)
 	var textResp TextResponse
 			if err := json.Unmarshal(body, &textResp); err != nil {
 			c.Log.Error("Failed to unmarshal AI response", "error", err)

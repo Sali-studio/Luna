@@ -43,10 +43,9 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	prompt := i.ApplicationCommandData().Options[0].StringValue()
 
 	// 1. まず「生成中です...」と即時応答する (時間のかかる処理のため)
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-	})
-	if err != nil {
+	}); err != nil {
 		return
 	}
 
@@ -60,7 +59,9 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		c.Log.Error("画像生成サーバーへの接続に失敗", "error", err)
 		// Pythonサーバーに接続できなかった場合
 		content := "エラー: 画像生成サーバーに接続できませんでした。"
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+			c.Log.Error("Failed to edit error response", "error", err)
+		}
 		return
 	}
 	defer resp.Body.Close()
@@ -71,7 +72,9 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		ImagePath string `json:"image_path"`
 		Error     string `json:"error"`
 	}
-	json.Unmarshal(body, &imagineResp)
+	if err := json.Unmarshal(body, &imagineResp); err != nil {
+		c.Log.Error("Failed to unmarshal imagine response", "error", err)
+	}
 
 	// 5. 応答に応じてメッセージを編集
 	if imagineResp.Error != "" || resp.StatusCode != http.StatusOK {
@@ -89,7 +92,9 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	if err != nil {
 		c.Log.Error("生成された画像ファイルを開けませんでした", "error", err, "path", imagineResp.ImagePath)
 		content := "エラー: 生成された画像ファイルを開けませんでした。"
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+			c.Log.Error("Failed to edit error response", "error", err)
+		}
 		return
 	}
 	defer file.Close()

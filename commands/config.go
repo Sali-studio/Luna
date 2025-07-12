@@ -78,7 +78,9 @@ func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.I
 		return
 	}
 	content := fmt.Sprintf("✅ ログチャンネルを <#%s> に設定しました。", config.ChannelID)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}})
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
+		c.Log.Error("Failed to respond to interaction", "error", err)
+	}
 }
 
 func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
@@ -89,8 +91,10 @@ func (c *ConfigCommand) handleTempVCConfig(s *discordgo.Session, i *discordgo.In
 		c.Log.Error("一時VC設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
 	}
-	content := fmt.Sprintf("✅ 一時VC設定を更新しました。\n- ロビーチャンネル: <#%s>\n- 作成先カテゴリ: <#%s>", config.LobbyID, config.CategoryID)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}})
+	content := fmt.Sprintf("✅ 一時VC設定を更新しました.\n- ロビーチャンネル: <#%s>\n- 作成先カテゴリ: <#%s>", config.LobbyID, config.CategoryID)
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
+		c.Log.Error("Failed to respond to interaction", "error", err)
+	}
 }
 
 func (c *ConfigCommand) handleBumpConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
@@ -102,8 +106,10 @@ func (c *ConfigCommand) handleBumpConfig(s *discordgo.Session, i *discordgo.Inte
 		c.Log.Error("BUMPリマインダー設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		return
 	}
-	content := fmt.Sprintf("✅ BUMPリマインダー設定を更新しました。\n- 有効: `%v`\n- チャンネル: <#%s>\n- ロール: <@&%s>", config.Reminder, config.ChannelID, config.RoleID)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}})
+	content := fmt.Sprintf("✅ BUMPリマインダー設定を更新しました.\n- 有効: `%v`\n- チャンネル: <#%s>\n- ロール: <@&%s>", config.Reminder, config.ChannelID, config.RoleID)
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
+		c.Log.Error("Failed to respond to interaction", "error", err)
+	}
 }
 
 func (c *ConfigCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

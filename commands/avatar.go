@@ -39,6 +39,7 @@ func (c *AvatarCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 					Data: &discordgo.InteractionResponseData{Content: "❌ メンバー情報の取得に失敗しました。", Flags: discordgo.MessageFlagsEphemeral},
 				}); err != nil {
 					// Log the error, but we can't do much more
+					fmt.Printf("Failed to respond to interaction: %v\n", err)
 				}
 				return
 			}
@@ -87,6 +88,7 @@ func (c *AvatarCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 		},
 	}); err != nil {
 		// Log the error, but we can't do much more
+		fmt.Printf("Failed to respond to interaction: %v\n", err)
 	}
 }
 

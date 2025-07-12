@@ -174,11 +174,12 @@ func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}
 			s.mu.Lock()
 			tx, _ := s.db.Begin()
 			if err := s.upsertGuild(tx, guildID); err != nil {
-				if err := tx.Rollback(); err != nil {
-					// We can't do much if the rollback fails, so we'll just log it.
-				}
-				return err
-			}
+                if err := tx.Rollback(); err != nil {
+                    // We can't do much if the rollback fails, so we'll just log it.
+                    fmt.Printf("Failed to rollback transaction: %v\n", err)
+                }
+                return err
+            }
 			if err := tx.Commit(); err != nil {
 				return err
 			}

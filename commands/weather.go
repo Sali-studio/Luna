@@ -3,7 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"luna/interfaces"
 	"net/http"
 
@@ -39,10 +39,12 @@ func (c *WeatherCommand) GetCommandDef() *discordgo.ApplicationCommand {
 
 func (c *WeatherCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if c.APIKey == "" {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: "❌ 天気機能は現在利用できません。", Flags: discordgo.MessageFlagsEphemeral},
-		})
+		}); err != nil {
+			c.Log.Error("Failed to respond to interaction", "error", err)
+		}
 		return
 	}
 
@@ -57,16 +59,20 @@ func (c *WeatherCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: "❌ 都市が見つかりませんでした。", Flags: discordgo.MessageFlagsEphemeral},
-		})
+		}); err != nil {
+			c.Log.Error("Failed to respond to interaction", "error", err)
+		}
 		return
 	}
 
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	var data weatherResponse
-	json.Unmarshal(body, &data)
+	if err := json.Unmarshal(body, &data); err != nil {
+		c.Log.Error("Failed to unmarshal weather response", "error", err)
+	}
 
 	embed := &discordgo.MessageEmbed{
 		Title: fmt.Sprintf("%s の天気", data.Name),

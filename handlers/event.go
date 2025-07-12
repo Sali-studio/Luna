@@ -198,7 +198,9 @@ func (h *EventHandler) handleMessageUpdate(s *discordgo.Session, e *discordgo.Me
 			},
 		}
 	}
-	h.Store.CreateMessageCache(e.ID, e.Content, e.Author.ID)
+	if err := h.Store.CreateMessageCache(e.ID, e.Content, e.Author.ID); err != nil {
+		h.Log.Error("Failed to create message cache", "error", err)
+	}
 	h.sendLog(s, e.GuildID, embed)
 }
 

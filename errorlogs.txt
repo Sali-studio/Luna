@@ -1380,3 +1380,89 @@
 	"endColumn": 34,
 	"origin": "extHost1"
 }]
+
+### 2025-07-13-4:00
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/dashboard.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "WrongAssignCount",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "WrongAssignCount"
+		}
+	},
+	"severity": 8,
+	"message": "assignment mismatch: 2 variables but s.InteractionRespond returns 1 value",
+	"source": "compiler",
+	"startLineNumber": 179,
+	"startColumn": 15,
+	"endLineNumber": 185,
+	"endColumn": 4,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/registry.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "InvalidIfaceAssign",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "InvalidIfaceAssign"
+		}
+	},
+	"severity": 8,
+	"message": "cannot use &TicketCommand{…} (value of type *TicketCommand) as interfaces.CommandHandler value in array or slice literal: *TicketCommand does not implement interfaces.CommandHandler (missing method GetComponentIDs)",
+	"source": "compiler",
+	"startLineNumber": 25,
+	"startColumn": 3,
+	"endLineNumber": 25,
+	"endColumn": 49,
+	"origin": "extHost1"
+}]
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/ticket.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"severity": 8,
+	"message": "expected operand, found ']'",
+	"source": "syntax",
+	"startLineNumber": 255,
+	"startColumn": 44,
+	"endLineNumber": 255,
+	"endColumn": 44,
+	"origin": "extHost1"
+}]
+
+### 2025-07-13-4:03 ###
+
+[{
+	"resource": "/C:/Users/amuka/OneDrive/ドキュメント/Luna/Luna/commands/ticket.go",
+	"owner": "_generated_diagnostic_collection_name_#0",
+	"code": {
+		"value": "WrongAssignCount",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/internal/typesinternal",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "WrongAssignCount"
+		}
+	},
+	"severity": 8,
+	"message": "assignment mismatch: 2 variables but s.InteractionRespond returns 1 value",
+	"source": "compiler",
+	"startLineNumber": 60,
+	"startColumn": 16,
+	"endLineNumber": 68,
+	"endColumn": 4,
+	"origin": "extHost1"
+}]

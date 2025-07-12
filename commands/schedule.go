@@ -35,10 +35,12 @@ func (c *ScheduleCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	message := options[2].StringValue()
 
 	if _, err := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow).Parse(cronSpec); err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: fmt.Sprintf("❌ 無効なCron形式です: `%v`", err), Flags: discordgo.MessageFlagsEphemeral},
-		})
+		}); err != nil {
+			c.Log.Error("Failed to respond to interaction", "error", err)
+		}
 		return
 	}
 
@@ -50,15 +52,19 @@ func (c *ScheduleCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	}
 	if err := c.Store.SaveSchedule(schedule); err != nil {
 		c.Log.Error("スケジュールのDB保存に失敗", "error", err)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "スケジュールの保存に失敗しました。", Flags: discordgo.MessageFlagsEphemeral}})
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "スケジュールの保存に失敗しました。", Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
+			c.Log.Error("Failed to respond to interaction", "error", err)
+		}
 		return
 	}
 
-	c.Scheduler.AddFunc(cronSpec, func() {
+	if _, err := c.Scheduler.AddFunc(cronSpec, func() {
 		if _, err := s.ChannelMessageSend(channel.ID, message); err != nil {
 			c.Log.Error("予約メッセージの送信に失敗", "error", err, "channelID", channel.ID)
 		}
-	})
+	}); err != nil {
+		c.Log.Error("Failed to add cron job", "error", err)
+	}
 
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -76,9 +82,13 @@ func (c *ScheduleCommand) LoadAndRegisterSchedules(s *discordgo.Session) {
 	}
 	for _, sc := range schedules {
 		currentSchedule := sc
-		c.Scheduler.AddFunc(currentSchedule.CronSpec, func() {
-			s.ChannelMessageSend(currentSchedule.ChannelID, currentSchedule.Message)
-		})
+		if _, err := c.Scheduler.AddFunc(currentSchedule.CronSpec, func() {
+			if _, err := s.ChannelMessageSend(currentSchedule.ChannelID, currentSchedule.Message); err != nil {
+				c.Log.Error("Failed to send scheduled message", "error", err)
+			}
+		}); err != nil {
+			c.Log.Error("Failed to add cron job", "error", err)
+		}
 	}
 	c.Log.Info("DBからスケジュールを登録しました", "count", len(schedules))
 }
