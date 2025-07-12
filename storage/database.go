@@ -173,8 +173,15 @@ func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}
 			s.mu.RUnlock()
 			s.mu.Lock()
 			tx, _ := s.db.Begin()
-			s.upsertGuild(tx, guildID)
-			tx.Commit()
+			if err := s.upsertGuild(tx, guildID); err != nil {
+				if err := tx.Rollback(); err != nil {
+					// We can't do much if the rollback fails, so we'll just log it.
+				}
+				return err
+			}
+			if err := tx.Commit(); err != nil {
+				return err
+			}
 			s.mu.Unlock()
 			s.mu.RLock()
 			return nil
@@ -194,7 +201,7 @@ func (s *DBStore) SaveConfig(guildID, configName string, configStruct interface{
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if err := s.upsertGuild(tx, guildID); err != nil {
 		return err
 	}
@@ -217,7 +224,7 @@ func (s *DBStore) GetNextTicketCounter(guildID string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if err := s.upsertGuild(tx, guildID); err != nil {
 		return 0, err
 	}

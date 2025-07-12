@@ -22,10 +22,6 @@ github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+
 github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
-github.com/jonas747/dca/v2 v2.0.0 h1:27SRgmKjJFA6jequrkkAmpx1c7AZ8OsMbTzdxGLUiHw=
-github.com/jonas747/dca/v2 v2.0.0/go.mod h1:WDY2/zvnIu1JbKQUG4SJW9FcVRWYRKlGe+fz0ZR96BM=
-github.com/jonas747/ogg v0.0.0-20161220051205-b4f6f4cf3757 h1:Kyv+zTfWIGRNaz/4+lS+CxvuKVZSKFz/6G8E3BKKBRs=
-github.com/jonas747/ogg v0.0.0-20161220051205-b4f6f4cf3757/go.mod h1:cZnNmdLiLpihzgIVqiaQppi9Ts3D4qF/M45//yW35nI=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=

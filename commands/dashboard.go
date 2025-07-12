@@ -38,7 +38,9 @@ func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 	if err != nil {
 		c.Log.Error("ダッシュボードの初期送信に失敗", "error", err)
 		content := "❌ ダッシュボードの作成に失敗しました。"
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+			c.Log.Error("Failed to edit error response", "error", err)
+		}
 		return
 	}
 
@@ -50,11 +52,15 @@ func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-	c.Scheduler.AddFunc("@hourly", func() { c.updateDashboard(s, i.GuildID) })
+		if _, err := c.Scheduler.AddFunc("@hourly", func() { c.updateDashboard(s, i.GuildID) }); err != nil {
+		c.Log.Error("Failed to add cron job", "error", err)
+	}
 	c.updateDashboard(s, i.GuildID)
 
 	content := "✅ ダッシュボードを作成し、1時間ごとの自動更新をセットしました。"
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+		c.Log.Error("Failed to edit final response", "error", err)
+	}
 }
 
 func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string) {
@@ -170,13 +176,15 @@ func (c *DashboardCommand) showServerInfo(s *discordgo.Session, i *discordgo.Int
 			{Name: "サーバー機能", Value: fmt.Sprintf("```\n%s\n```", features)},
 		},
 	}
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if _, err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
 			Flags:  discordgo.MessageFlagsEphemeral,
 		},
-	})
+	}); err != nil {
+		c.Log.Error("Failed to send server info", "error", err)
+	}
 }
 
 func (c *DashboardCommand) showRolesList(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -189,13 +197,15 @@ func (c *DashboardCommand) showRolesList(s *discordgo.Session, i *discordgo.Inte
 		Title:       "ロール一覧",
 		Description: rolesStr.String(),
 	}
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
 			Flags:  discordgo.MessageFlagsEphemeral,
 		},
-	})
+	}); err != nil {
+		c.Log.Error("Failed to send roles list", "error", err)
+	}
 }
 
 func verificationLevelToString(level discordgo.VerificationLevel) string {

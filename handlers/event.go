@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"time"
@@ -112,7 +112,9 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 	}
 	if isMentioned {
 		go func() {
-			s.ChannelTyping(m.ChannelID)
+			if err := s.ChannelTyping(m.ChannelID); err != nil {
+				h.Log.Warn("Failed to send typing indicator", "error", err)
+			}
 			messages, err := s.ChannelMessages(m.ChannelID, 15, m.ID, "", "")
 			if err != nil {
 				h.Log.Error("会話履歴の取得に失敗", "error", err)
@@ -136,20 +138,29 @@ func (h *EventHandler) HandleMessageCreate(s *discordgo.Session, m *discordgo.Me
 
 			resp, err := http.Post(aiServerURL, "application/json", bytes.NewBuffer(reqJson))
 			if err != nil {
-				s.ChannelMessageSend(m.ChannelID, "すみません、AIサーバーへの接続に失敗したようです…。")
+				if _, err := s.ChannelMessageSend(m.ChannelID, "すみません、AIサーバーへの接続に失敗したようです…。"); err != nil {
+					h.Log.Error("Failed to send error message", "error", err)
+				}
 				h.Log.Error("Failed to connect to AI server", "error", err, "url", aiServerURL)
 				return
 			}
 			defer resp.Body.Close()
-			body, _ := ioutil.ReadAll(resp.Body)
+			body, _ := io.ReadAll(resp.Body)
 			var textResp TextResponse
-			json.Unmarshal(body, &textResp)
+			if err := json.Unmarshal(body, &textResp); err != nil {
+				h.Log.Error("Failed to unmarshal AI response", "error", err)
+				return
+			}
 			if textResp.Error != "" || resp.StatusCode != http.StatusOK {
-				s.ChannelMessageSend(m.ChannelID, "すみません、AIからの応答取得に失敗しました…。")
+				if _, err := s.ChannelMessageSend(m.ChannelID, "すみません、AIからの応答取得に失敗しました…。"); err != nil {
+					h.Log.Error("Failed to send error message", "error", err)
+				}
 				h.Log.Error("AI server returned an error or non-OK status", "status", resp.StatusCode, "response_error", textResp.Error)
 				return
 			}
-			s.ChannelMessageSend(m.ChannelID, textResp.Text)
+			if _, err := s.ChannelMessageSend(m.ChannelID, textResp.Text); err != nil {
+				h.Log.Error("Failed to send AI response", "error", err)
+			}
 		}()
 	}
 }
@@ -457,7 +468,9 @@ func (h *EventHandler) handleVoiceStateUpdate(s *discordgo.Session, e *discordgo
 			h.Log.Error("一時VCの作成に失敗", "error", err)
 			return
 		}
-		s.GuildMemberMove(e.GuildID, e.UserID, &newChannel.ID)
+		if err := s.GuildMemberMove(e.GuildID, e.UserID, &newChannel.ID); err != nil {
+			h.Log.Error("Failed to move member to new channel", "error", err)
+		}
 	}
 	if e.BeforeUpdate != nil && e.BeforeUpdate.ChannelID != "" && e.BeforeUpdate.ChannelID != vcConfig.LobbyID {
 		oldChannel, err := s.Channel(e.BeforeUpdate.ChannelID)

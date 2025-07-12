@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"luna/interfaces"
@@ -42,9 +42,12 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 	prompt := i.ApplicationCommandData().Options[0].StringValue()
 
 	// 「考え中...」と即時応答
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-	})
+	}); err != nil {
+		c.Log.Error("Failed to send initial response", "error", err)
+		return
+	}
 
 	// AIに役割を指示するシステムプロンプト（ペルソナ）を定義
 	persona := "あなたは「Luna Assistant」という高性能で親切なAIアシスタントです。Googleによってトレーニングされた、という前置きは不要です。あなた自身の言葉で、ユーザーの質問に直接的かつ簡潔に回答してください。"
@@ -63,26 +66,35 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 	if err != nil {
 		c.Log.Error("AIサーバーへの接続に失敗", "error", err)
 		content := "エラー: AIサーバーへの接続に失敗しました。"
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+			c.Log.Error("Failed to edit error response", "error", err)
+		}
 		return
 	}
 	defer resp.Body.Close()
 
 	// レスポンスを読み取りJSONをパース
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	var textResp TextResponse
-	json.Unmarshal(body, &textResp)
+	if err := json.Unmarshal(body, &textResp); err != nil {
+		c.Log.Error("Failed to unmarshal AI response", "error", err)
+		return
+	}
 
 	if textResp.Error != "" || resp.StatusCode != http.StatusOK {
 		c.Log.Error("Luna Assistantからの応答取得に失敗", "error", textResp.Error, "status_code", resp.StatusCode)
 		content := fmt.Sprintf("エラー: Luna Assistantからの応答取得に失敗しました。\n`%s`", textResp.Error)
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+			c.Log.Error("Failed to edit error response", "error", err)
+		}
 		return
 	}
 
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &textResp.Text,
-	})
+	}); err != nil {
+		c.Log.Error("Failed to edit final response", "error", err)
+	}
 }
 
 func (c *AskCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"luna/interfaces"
 	"net/http"
 	"os"
@@ -66,7 +66,7 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	defer resp.Body.Close()
 
 	// 4. Pythonサーバーからの応答を読み取る
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	var imagineResp struct {
 		ImagePath string `json:"image_path"`
 		Error     string `json:"error"`
@@ -78,7 +78,9 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		c.Log.Error("画像の生成に失敗", "error", imagineResp.Error, "status_code", resp.StatusCode)
 		// Pythonサーバー側でエラーが発生した場合
 		content := fmt.Sprintf("エラー: 画像の生成に失敗しました。\n`%s`", imagineResp.Error)
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+			c.Log.Error("Failed to edit error response", "error", err)
+		}
 		return
 	}
 
@@ -109,7 +111,7 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		Color: 0x824ff1, // Gemini Purple
 	}
 
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Embeds: &[]*discordgo.MessageEmbed{embed},
 		Files: []*discordgo.File{
 			{
@@ -117,7 +119,9 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 				Reader: file,
 			},
 		},
-	})
+	}); err != nil {
+		c.Log.Error("Failed to edit final response", "error", err)
+	}
 }
 
 func (c *ImagineCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

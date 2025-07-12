@@ -57,7 +57,7 @@ func (c *TicketCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 		Description: "お問い合わせやサポートが必要な場合は、下のボタンを押してチケットを作成してください。",
 		Color:       0x5865F2,
 	}
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		if _, err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
@@ -65,7 +65,9 @@ func (c *TicketCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 				discordgo.Button{Label: "チケットを作成", Style: discordgo.SuccessButton, CustomID: CreateTicketButtonID, Emoji: &discordgo.ComponentEmoji{Name: "✉️"}},
 			}}},
 		},
-	})
+	}); err != nil {
+		c.Log.Error("Failed to send ticket panel", "error", err)
+	}
 }
 
 func (c *TicketCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -108,7 +110,10 @@ func (c *TicketCommand) showTicketModal(s *discordgo.Session, i *discordgo.Inter
 }
 
 func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}})
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
+		c.Log.Error("Failed to send initial response", "error", err)
+		return
+	}
 
 	data := i.ModalSubmitData()
 	subject := data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
@@ -158,7 +163,9 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 	})
 
 	content := fmt.Sprintf("✅ チケットを作成しました: <#%s>", ch.ID)
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+		c.Log.Error("Failed to edit final response", "error", err)
+	}
 
 	go func() {
 		s.ChannelTyping(ch.ID)
@@ -183,7 +190,10 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 
 		body, _ := ioutil.ReadAll(resp.Body)
 		var textResp TextResponse
-		json.Unmarshal(body, &textResp)
+		if err := json.Unmarshal(body, &textResp); err != nil {
+			c.Log.Error("Failed to unmarshal AI response", "error", err)
+			return
+		}
 
 		if textResp.Error != "" || resp.StatusCode != http.StatusOK {
 			c.Log.Error("Luna Assistantからの応答取得に失敗", "error", textResp.Error)
@@ -219,8 +229,7 @@ func (c *TicketCommand) confirmCloseTicket(s *discordgo.Session, i *discordgo.In
 }
 
 func (c *TicketCommand) archiveTicket(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}})
-	if err != nil {
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
 		return
 	}
 	edit := &discordgo.ChannelEdit{
@@ -230,12 +239,18 @@ func (c *TicketCommand) archiveTicket(s *discordgo.Session, i *discordgo.Interac
 	if err != nil {
 		c.Log.Error("チケットのアーカイブに失敗", "error", err, "channelID", i.ChannelID)
 		content := "❌ アーカイブに失敗しました。BOTの権限が不足している可能性があります。"
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+			c.Log.Error("Failed to edit error response", "error", err)
+		}
 		return
 	}
-	c.Store.CloseTicketRecord(i.ChannelID)
+			if err := c.Store.CloseTicketRecord(i.ChannelID); err != nil {
+			c.Log.Error("Failed to close ticket record", "error", err)
+		}
 	content := "チケットはアーカイブされました。"
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content, Components: &[]discordgo.MessageComponent{}})}
+	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content, Components: &[]discordgo.MessageComponent{}}); err != nil {
+		c.Log.Error("Failed to edit final response", "error", err)
+	}
 
 func (c *TicketCommand) GetComponentIDs() []string {
 	return []string{CreateTicketButtonID, SubmitTicketModalID, CloseTicketButtonID, ArchiveTicketButtonID}

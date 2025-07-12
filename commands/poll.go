@@ -70,7 +70,9 @@ func (c *PollCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	}
 
 	for i := 0; i < len(options); i++ {
-		s.MessageReactionAdd(msg.ChannelID, msg.ID, emojis[i])
+				if err := s.MessageReactionAdd(msg.ChannelID, msg.ID, emojis[i]); err != nil {
+			c.Log.Warn("Failed to add reaction", "error", err)
+		}
 	}
 }
 

@@ -85,7 +85,9 @@ func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.Interactio
 	if err != nil {
 		c.Log.Error("数式の解析に失敗", "error", err, "expression", expressionStr)
 		errorMessage := fmt.Sprintf("❌ 無効な数式です: `%s`\n**エラー:** `%v`", expressionStr, err)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: errorMessage, Flags: discordgo.MessageFlagsEphemeral}})
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: errorMessage, Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
+			c.Log.Error("Failed to send error response", "error", err)
+		}
 		return
 	}
 
@@ -93,7 +95,9 @@ func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.Interactio
 	if err != nil {
 		c.Log.Error("数式の計算に失敗", "error", err, "expression", expressionStr)
 		errorMessage := fmt.Sprintf("❌ 数式の計算中にエラーが発生しました: `%s`\n**エラー:** `%v`", expressionStr, err)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: errorMessage, Flags: discordgo.MessageFlagsEphemeral}})
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: errorMessage, Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
+			c.Log.Error("Failed to send error response", "error", err)
+		}
 		return
 	}
 
@@ -106,7 +110,9 @@ func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.Interactio
 		Color: 0x57F287,
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}}})
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}}}); err != nil {
+		c.Log.Error("Failed to send response", "error", err)
+	}
 }
 
 func (c *CalculatorCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

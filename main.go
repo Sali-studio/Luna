@@ -31,7 +31,6 @@ func main() {
 	// --- サーバー群の自動起動 ---
 	serverManager := servers.NewManager(log)
 	serverManager.AddServer(servers.NewGenericServer("Python AI Server", "python", []string{"python_server.py"}, ""))
-	serverManager.AddServer(servers.NewGenericServer("Python Music Server", "python", []string{"./music_player/player.py"}, ""))
 	// serverManager.AddServer(servers.NewGenericServer("C# OCR Server", "dotnet", []string{"run"}, "./csharp_server"))
 
 	serverManager.StartAll()
@@ -77,7 +76,9 @@ func main() {
 	defer func() {
 		log.Info("Removing commands...")
 		// Overwrite with empty slice to remove all commands
-		session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", []*discordgo.ApplicationCommand{})
+				if _, err := session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", []*discordgo.ApplicationCommand{}); err != nil {
+			log.Error("Failed to remove commands", "error", err)
+		}
 	}()
 
 	if _, err = session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", registeredCommands); err != nil {

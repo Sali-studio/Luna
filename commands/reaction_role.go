@@ -164,7 +164,9 @@ func (c *ReactionRoleCommand) HandleComponent(s *discordgo.Session, i *discordgo
 		c.Log.Error("リアクションロール設定完了メッセージの編集に失敗", "error", err)
 	}
 
-	s.MessageReactionAdd(i.ChannelID, messageID, emojiInput)
+		if err := s.MessageReactionAdd(i.ChannelID, messageID, emojiInput); err != nil {
+		c.Log.Warn("Failed to add reaction", "error", err)
+	}
 }
 
 func (c *ReactionRoleCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {}

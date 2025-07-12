@@ -60,10 +60,12 @@ func (c *ScheduleCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 		}
 	})
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{Content: fmt.Sprintf("✅ メッセージを予約しました。\n- **時間:** `%s`\n- **チャンネル:** <#%s>", cronSpec, channel.ID), Flags: discordgo.MessageFlagsEphemeral},
-	})
+	}); err != nil {
+		c.Log.Error("Failed to send response", "error", err)
+	}
 }
 
 func (c *ScheduleCommand) LoadAndRegisterSchedules(s *discordgo.Session) {

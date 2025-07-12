@@ -61,12 +61,17 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 
 	body, _ := ioutil.ReadAll(resp.Body)
 	var textResp TextResponse
-	json.Unmarshal(body, &textResp)
+			if err := json.Unmarshal(body, &textResp); err != nil {
+			c.Log.Error("Failed to unmarshal AI response", "error", err)
+			return
+		}
 
 	if textResp.Error != "" || resp.StatusCode != http.StatusOK {
 		c.Log.Error("翻訳に失敗", "error", textResp.Error, "status_code", resp.StatusCode)
 		content := fmt.Sprintf("エラー: 翻訳に失敗しました。\n`%s`", textResp.Error)
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+			c.Log.Error("Failed to edit error response", "error", err)
+		}
 		return
 	}
 
@@ -78,9 +83,11 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 			{Name: "翻訳先 (" + targetLang + ")", Value: "```\n" + textResp.Text + "\n```"},
 		},
 	}
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Embeds: &[]*discordgo.MessageEmbed{embed},
-	})
+	}); err != nil {
+		c.Log.Error("Failed to edit final response", "error", err)
+	}
 }
 
 func (c *TranslateCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

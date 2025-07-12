@@ -34,10 +34,12 @@ func (c *AvatarCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 		if err != nil {
 			m, err = s.GuildMember(i.GuildID, targetUser.ID)
 			if err != nil {
-				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{Content: "❌ メンバー情報の取得に失敗しました。", Flags: discordgo.MessageFlagsEphemeral},
-				})
+				}); err != nil {
+					// Log the error, but we can't do much more
+				}
 				return
 			}
 		}
@@ -78,12 +80,14 @@ func (c *AvatarCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{Name: "バナー画像URL", Value: fmt.Sprintf("[リンク](%s)", bannerURL)})
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
 		},
-	})
+	}); err != nil {
+		// Log the error, but we can't do much more
+	}
 }
 
 func (c *AvatarCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

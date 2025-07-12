@@ -79,10 +79,12 @@ func (c *WeatherCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		Thumbnail: &discordgo.MessageEmbedThumbnail{URL: fmt.Sprintf("http://openweathermap.org/img/wn/%s@2x.png", data.Weather[0].Icon)},
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}},
-	})
+	}); err != nil {
+		c.Log.Error("Failed to send weather response", "error", err)
+	}
 }
 
 func (c *WeatherCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

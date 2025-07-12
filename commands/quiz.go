@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"luna/interfaces"
 	"net/http"
 
@@ -68,9 +68,12 @@ func (c *QuizCommand) handleQuiz(s *discordgo.Session, i *discordgo.InteractionC
 		topic = "ランダムなトピック"
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-	})
+	}); err != nil {
+		c.Log.Error("Failed to send initial response", "error", err)
+		return
+	}
 
 	persona := "あなたはクイズマスターです。ユーザーに楽しくてためになるクイズを出題してください。"
 	prompt := fmt.Sprintf("システムインストラクション（あなたの役割）: %s\n\n[ユーザーからのリクエスト]\n「%s」に関する面白い4択クイズを1問出題してください。答えと簡単な解説はDiscordのネタバレ機能(`||hoge||`)を使って隠してください。", persona, topic)
@@ -86,9 +89,12 @@ func (c *QuizCommand) handleTrivia(s *discordgo.Session, i *discordgo.Interactio
 		topic = "何か"
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-	})
+	}); err != nil {
+		c.Log.Error("Failed to send initial response", "error", err)
+		return
+	}
 
 	persona := "あなたは知識の泉です。ユザーが「へぇ！」と驚くような面白い豆知識を教えてあげてください。"
 	prompt := fmt.Sprintf("システムインストラクション（あなたの役割）: %s\n\n[ユーザーからのリクエスト]\n「%s」に関する面白い豆知識を一つ、簡潔に教えてください。", persona, topic)
@@ -105,19 +111,26 @@ func (c *QuizCommand) generateAndSend(s *discordgo.Session, i *discordgo.Interac
 	if err != nil {
 		c.Log.Error("Luna Assistantサーバーへの接続に失敗", "error", err)
 		content := "エラー: Luna Assistantサーバーへの接続に失敗しました。"
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+			c.Log.Error("Failed to edit error response", "error", err)
+		}
 		return
 	}
 	defer resp.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	var textResp TextResponse
-	json.Unmarshal(body, &textResp)
+	if err := json.Unmarshal(body, &textResp); err != nil {
+		c.Log.Error("Failed to unmarshal AI response", "error", err)
+		return
+	}
 
 	if textResp.Error != "" || resp.StatusCode != http.StatusOK {
 		c.Log.Error("Luna Assistantからの応答取得に失敗", "error", textResp.Error, "status_code", resp.StatusCode)
 		content := fmt.Sprintf("エラー: Luna Assistantからの応答取得に失敗しました。\n`%s`", textResp.Error)
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+			c.Log.Error("Failed to edit error response", "error", err)
+		}
 		return
 	}
 
@@ -127,9 +140,11 @@ func (c *QuizCommand) generateAndSend(s *discordgo.Session, i *discordgo.Interac
 		Color:       0x4a8cf7,
 	}
 
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Embeds: &[]*discordgo.MessageEmbed{embed},
-	})
+	}); err != nil {
+		c.Log.Error("Failed to edit final response", "error", err)
+	}
 }
 
 func (c *QuizCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
