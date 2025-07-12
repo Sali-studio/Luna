@@ -6,7 +6,7 @@ import (
 	"luna/bot"
 	"luna/commands"
 	"luna/config"
-	"luna/handlers"
+	"luna/handlers/events"
 	"luna/interfaces"
 	"luna/logger"
 	"luna/servers"
@@ -50,8 +50,10 @@ func main() {
 	}
 
 	// イベントハンドラの登録
-	eventHandler := handlers.NewEventHandler(b.GetDBStore(), log)
-	eventHandler.RegisterAllHandlers(b.GetSession())
+	events.NewMessageHandler(log, b.GetDBStore()).Register(b.GetSession())
+	events.NewMemberHandler(log, b.GetDBStore()).Register(b.GetSession())
+	events.NewReactionHandler(log, b.GetDBStore()).Register(b.GetSession())
+	events.NewVoiceHandler(log, b.GetDBStore()).Register(b.GetSession())
 
 	// コマンドの登録
 	commandHandlers := make(map[string]interfaces.CommandHandler)
