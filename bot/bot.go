@@ -1,15 +1,15 @@
 package bot
 
 import (
-	"context"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
 
+	"luna/config"
 	"luna/handlers"
-	"luna/logger"
+	"luna/interfaces"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -17,14 +17,14 @@ import (
 // Bot はDiscordボットのコアな状態とロジックを管理します。
 type Bot struct {
 	Session   *discordgo.Session
-	log       logger.Logger
-	dbStore   DataStore
-	scheduler Scheduler
+	log       interfaces.Logger
+	dbStore   interfaces.DataStore
+	scheduler interfaces.Scheduler
 	startTime time.Time
 }
 
 // New は新しいBotインスタンスを作成します。
-func New(log logger.Logger, db DataStore, scheduler Scheduler) (*Bot, error) {
+func New(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Scheduler) (*Bot, error) {
 	token := config.Cfg.Discord.Token
 	if token == "" || token == "YOUR_DISCORD_BOT_TOKEN_HERE" {
 		log.Fatal("DiscordのBotトークンが設定されていません。config.yamlを確認してください。")
@@ -49,7 +49,7 @@ func New(log logger.Logger, db DataStore, scheduler Scheduler) (*Bot, error) {
 }
 
 // Start はBotを起動し、Discordに接続します。
-func (b *Bot) Start(commandHandlers map[string]CommandHandler, componentHandlers map[string]CommandHandler) error {
+func (b *Bot) Start(commandHandlers map[string]interfaces.CommandHandler, componentHandlers map[string]interfaces.CommandHandler) error {
 	eventHandler := handlers.NewEventHandler(b.dbStore, b.log)
 	eventHandler.RegisterAllHandlers(b.Session)
 
@@ -95,11 +95,11 @@ func (b *Bot) Start(commandHandlers map[string]CommandHandler, componentHandlers
 	return nil
 }
 
-func (b *Bot) GetDBStore() DataStore {
+func (b *Bot) GetDBStore() interfaces.DataStore {
 	return b.dbStore
 }
 
-func (b *Bot) GetScheduler() Scheduler {
+func (b *Bot) GetScheduler() interfaces.Scheduler {
 	return b.scheduler
 }
 

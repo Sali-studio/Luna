@@ -1,15 +1,23 @@
-package bot
+package interfaces
 
 import (
 	"context"
 	"luna/storage"
+	"time"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/robfig/cron/v3"
 )
 
+// Logger は、アプリケーション全体で使用されるロガーのインターフェースを定義します。
+type Logger interface {
+	Info(msg string, args ...any)
+	Warn(msg string, args ...any)
+	Error(msg string, args ...any)
+	Fatal(msg string, args ...any)
+}
+
 // DataStore は、ボットが依存するデータベース操作のインターフェースを定義します。
-// これにより、ボットと具体的なデータベース実装との結合を疎にし、
-// テストやメンテナンスを容易にすることができます。
 type DataStore interface {
 	Close()
 	PingDB() error
@@ -31,4 +39,14 @@ type Scheduler interface {
 	Start()
 	Stop() context.Context
 	AddFunc(spec string, cmd func()) (cron.EntryID, error)
+}
+
+// CommandHandler は、すべてのボットコマンドが実装すべきインターフェースを定義します。
+type CommandHandler interface {
+	GetCommandDef() *discordgo.ApplicationCommand
+	Handle(s *discordgo.Session, i *discordgo.InteractionCreate)
+	HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate)
+	HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)
+	GetComponentIDs() []string
+	GetCategory() string
 }

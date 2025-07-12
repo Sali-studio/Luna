@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"luna/interfaces"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,7 +19,9 @@ type ImagineRequest struct {
 	Prompt string `json:"prompt"`
 }
 
-type ImagineCommand struct{}
+type ImagineCommand struct{
+	Log interfaces.Logger
+}
 
 func (c *ImagineCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
@@ -54,6 +57,7 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	// 3. PythonサーバーにHTTP POSTリクエストを送信
 	resp, err := http.Post("http://localhost:5001/generate-image", "application/json", bytes.NewBuffer(reqJson))
 	if err != nil {
+		c.Log.Error("画像生成サーバーへの接続に失敗", "error", err)
 		// Pythonサーバーに接続できなかった場合
 		content := "エラー: 画像生成サーバーに接続できませんでした。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
@@ -71,6 +75,7 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 
 	// 5. 応答に応じてメッセージを編集
 	if imagineResp.Error != "" || resp.StatusCode != http.StatusOK {
+		c.Log.Error("画像の生成に失敗", "error", imagineResp.Error, "status_code", resp.StatusCode)
 		// Pythonサーバー側でエラーが発生した場合
 		content := fmt.Sprintf("エラー: 画像の生成に失敗しました。\n`%s`", imagineResp.Error)
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
@@ -80,6 +85,7 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	// 6. Pythonから教えられたパスの画像ファイルを開く
 	file, err := os.Open(imagineResp.ImagePath)
 	if err != nil {
+		c.Log.Error("生成された画像ファイルを開けませんでした", "error", err, "path", imagineResp.ImagePath)
 		content := "エラー: 生成された画像ファイルを開けませんでした。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"luna/interfaces"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -18,7 +19,9 @@ var conversionRatesToRF = map[string]float64{
 	"if": 1.0,        // IFはRFと等価
 }
 
-type PowerConverterCommand struct{}
+type PowerConverterCommand struct{
+	Log interfaces.Logger
+}
 
 func (c *PowerConverterCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{

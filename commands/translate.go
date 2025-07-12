@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"luna/interfaces"
 	"net/http"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-type TranslateCommand struct{}
+type TranslateCommand struct{
+	Log interfaces.Logger
+}
 
 func (c *TranslateCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
@@ -49,6 +52,7 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 
 	resp, err := http.Post("http://localhost:5001/generate-text", "application/json", bytes.NewBuffer(reqJson))
 	if err != nil {
+		c.Log.Error("Luna Assistantサーバーへの接続に失敗", "error", err)
 		content := "エラー: Luna Assistantサーバーへの接続に失敗しました。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
@@ -60,6 +64,7 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 	json.Unmarshal(body, &textResp)
 
 	if textResp.Error != "" || resp.StatusCode != http.StatusOK {
+		c.Log.Error("翻訳に失敗", "error", textResp.Error, "status_code", resp.StatusCode)
 		content := fmt.Sprintf("エラー: 翻訳に失敗しました。\n`%s`", textResp.Error)
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return

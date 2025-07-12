@@ -4,21 +4,20 @@ import (
 	"os"
 	"time"
 
-	"luna/bot"
-	"luna/logger"
+	"luna/interfaces"
 )
 
 // AppContext provides dependencies to commands.
 type AppContext struct {
-	Log       logger.Logger
-	Store     bot.DataStore
-	Scheduler bot.Scheduler
+	Log       interfaces.Logger
+	Store     interfaces.DataStore
+	Scheduler interfaces.Scheduler
 	StartTime time.Time
 }
 
 // RegisterAllCommands initializes and returns all command handlers.
-func RegisterAllCommands(ctx *AppContext, allCommands map[string]CommandHandler) []CommandHandler {
-	return []CommandHandler{
+func RegisterAllCommands(ctx *AppContext, allCommands map[string]interfaces.CommandHandler) []interfaces.CommandHandler {
+	return []interfaces.CommandHandler{
 		&ConfigCommand{Store: ctx.Store, Log: ctx.Log},
 		&DashboardCommand{Store: ctx.Store, Scheduler: ctx.Scheduler, Log: ctx.Log},
 		&ReactionRoleCommand{Store: ctx.Store, Log: ctx.Log},

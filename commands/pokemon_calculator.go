@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"luna/interfaces"
 	"math"
 
 	"github.com/bwmarrin/discordgo"
@@ -28,7 +29,9 @@ var typeChart = map[string]map[string]float64{
 	"フェアリー": {"かくとう": 2, "どく": 0.5, "ドラゴン": 2, "あく": 2, "はがね": 0.5},
 }
 
-type PokemonCalculatorCommand struct{}
+type PokemonCalculatorCommand struct{
+	Log interfaces.Logger
+}
 
 func (c *PokemonCalculatorCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	float64Ptr := func(f float64) *float64 { return &f }
@@ -38,7 +41,7 @@ func (c *PokemonCalculatorCommand) GetCommandDef() *discordgo.ApplicationCommand
 	}
 	return &discordgo.ApplicationCommand{
 		Name:        "calc-pokemon",
-		Description: "ポケモンの各種数値を計算します。",
+		Description: "ポケモンの���種数値を計算します。",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "stats",
@@ -70,7 +73,7 @@ func (c *PokemonCalculatorCommand) GetCommandDef() *discordgo.ApplicationCommand
 					{Type: discordgo.ApplicationCommandOptionInteger, Name: "level", Description: "攻撃側のレベル", Required: true, MinValue: float64Ptr(1), MaxValue: 100},
 				},
 			},
-			{Name: "type", Description: "タイプ相性を計算します", Type: discordgo.ApplicationCommandOptionSubCommand,
+			{Name: "type", Description: "タイプ���性を計算します", Type: discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionString, Name: "attack_type", Description: "攻撃側の技タイプ", Required: true, Choices: typeChoices},
 					{Type: discordgo.ApplicationCommandOptionString, Name: "defense_type1", Description: "防御側のタイプ1", Required: true, Choices: typeChoices},
@@ -186,7 +189,7 @@ func (c *PokemonCalculatorCommand) handleStatsCalc(s *discordgo.Session, i *disc
 	embed := &discordgo.MessageEmbed{
 		Title: "ポケモン ステータス実数値 計算結果", Color: 0xFF0000,
 		Fields: []*discordgo.MessageEmbedField{
-			{Name: "入力値", Value: fmt.Sprintf("種族値: %d, 個体値: %d, 努力値: %d, Lv: %d", baseStat, iv, ev, level)},
+			{Name: "入力値", Value: fmt.Sprintf("種族値: %d, 個体値: %d, 努��値: %d, Lv: %d", baseStat, iv, ev, level)},
 			{Name: "補正", Value: fmt.Sprintf("性格補正: x%.1f, ランク: %+d (x%.2f)", natureCorrection, rank, rankMagnification)},
 			{Name: "計算結果 (補正前)", Value: fmt.Sprintf("実数値: %d", int(result))},
 			{Name: "持ち物", Value: itemEffectText, Inline: true},
@@ -267,7 +270,7 @@ func (c *PokemonCalculatorCommand) handleTypeCalc(s *discordgo.Session, i *disco
 	case totalMagnification > 0.25:
 		resultText = "こうかは いまひとつだ… (0.5倍)"
 	case totalMagnification > 0:
-		resultText = "こうかは いまひとつだ… (0.25倍)"
+		resultText = "こうかは い���ひとつだ… (0.25倍)"
 	case totalMagnification == 0:
 		resultText = "こうか が ない みたいだ… (0倍)"
 	default:

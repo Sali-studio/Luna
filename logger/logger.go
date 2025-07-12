@@ -5,17 +5,10 @@ import (
 	"log/slog"
 	"os"
 
+	"luna/interfaces"
+
 	"gopkg.in/natefinch/lumberjack.v2"
 )
-
-// Logger は、アプリケーション全体で使用されるロガーのインターフェースを定義します。
-// これにより、ロガーの実装を注入することができ、テストが容易になります。
-type Logger interface {
-	Info(msg string, args ...any)
-	Warn(msg string, args ...any)
-	Error(msg string, args ...any)
-	Fatal(msg string, args ...any)
-}
 
 // slogLogger は、標準ライブラリのslogをラップしたLoggerの実装です。
 type slogLogger struct {
@@ -23,7 +16,7 @@ type slogLogger struct {
 }
 
 // New は、新しいLoggerインスタンスを生成して返します。
-func New() Logger {
+func New() interfaces.Logger {
 	logFile := &lumberjack.Logger{
 		Filename:   "luna.log",
 		MaxSize:    10, // megabytes

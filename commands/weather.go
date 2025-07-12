@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"luna/interfaces"
 	"net/http"
 
 	"github.com/bwmarrin/discordgo"
@@ -23,6 +24,7 @@ type weatherResponse struct {
 
 type WeatherCommand struct {
 	APIKey string
+	Log    interfaces.Logger
 }
 
 func (c *WeatherCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -49,6 +51,7 @@ func (c *WeatherCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 
 	resp, err := http.Get(url)
 	if err != nil {
+		c.Log.Error("天気情報の取得に失敗", "error", err, "city", city)
 		return
 	}
 	defer resp.Body.Close()

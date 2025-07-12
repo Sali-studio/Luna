@@ -6,6 +6,7 @@ import (
 	"luna/bot"
 	"luna/commands"
 	"luna/config"
+	"luna/interfaces"
 	"luna/logger"
 	"luna/servers"
 	"luna/storage"
@@ -49,8 +50,8 @@ func main() {
 	}
 
 	// コマンドの登録
-	commandHandlers := make(map[string]commands.CommandHandler)
-	componentHandlers := make(map[string]commands.CommandHandler)
+	commandHandlers := make(map[string]interfaces.CommandHandler)
+	componentHandlers := make(map[string]interfaces.CommandHandler)
 	appContext := &commands.AppContext{
 		Log:       log,
 		Store:     b.GetDBStore(),

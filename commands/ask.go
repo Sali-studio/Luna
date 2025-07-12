@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"luna/interfaces"
+
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -21,7 +23,9 @@ type TextResponse struct {
 	Error string `json:"error"`
 }
 
-type AskCommand struct{}
+type AskCommand struct{
+	Log interfaces.Logger
+}
 
 func (c *AskCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
@@ -57,6 +61,7 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 
 	// エラーハンドリング
 	if err != nil {
+		c.Log.Error("AIサーバーへの接続に失敗", "error", err)
 		content := "エラー: AIサーバーへの接続に失敗しました。"
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
@@ -69,6 +74,7 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 	json.Unmarshal(body, &textResp)
 
 	if textResp.Error != "" || resp.StatusCode != http.StatusOK {
+		c.Log.Error("Luna Assistantからの応答取得に失敗", "error", textResp.Error, "status_code", resp.StatusCode)
 		content := fmt.Sprintf("エラー: Luna Assistantからの応答取得に失敗しました。\n`%s`", textResp.Error)
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return

@@ -10,8 +10,7 @@ import (
 	"os"
 	"time"
 
-	"luna/bot"
-	"luna/logger"
+	"luna/interfaces"
 	"luna/storage"
 
 	"github.com/bwmarrin/discordgo"
@@ -26,11 +25,11 @@ type TextResponse struct {
 }
 
 type EventHandler struct {
-	Store bot.DataStore
-	Log   logger.Logger
+	Store interfaces.DataStore
+	Log   interfaces.Logger
 }
 
-func NewEventHandler(store bot.DataStore, log logger.Logger) *EventHandler {
+func NewEventHandler(store interfaces.DataStore, log interfaces.Logger) *EventHandler {
 	return &EventHandler{Store: store, Log: log}
 }
 
