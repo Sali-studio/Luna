@@ -28,6 +28,7 @@ type MusicSession struct {
 	IsPlaying       bool
 	Mutex           sync.Mutex
 	EncodeSession   *dca.EncodeSession // 再生中のエンコードセッションを保持
+	Log             logger.Logger
 }
 
 // Song は再生する曲の情報を表す
@@ -37,7 +38,9 @@ type Song struct {
 	StreamURL string // Pythonから取得した再生用URL
 }
 
-type MusicCommand struct{}
+type MusicCommand struct{
+	Log logger.Logger
+}
 
 func (c *MusicCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
@@ -85,7 +88,7 @@ func (c *MusicCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	}
 }
 
-func getOrCreateSession(guildID string) *MusicSession {
+func (c *MusicCommand) getOrCreateSession(guildID string) *MusicSession {
 	musicMutex.Lock()
 	defer musicMutex.Unlock()
 
@@ -96,6 +99,7 @@ func getOrCreateSession(guildID string) *MusicSession {
 	musicSessions[guildID] = &MusicSession{
 		GuildID: guildID,
 		Queue:   make([]Song, 0),
+		Log:     c.Log,
 	}
 	return musicSessions[guildID]
 }
@@ -104,7 +108,7 @@ func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.Interaction
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource})
 
 	query := i.ApplicationCommandData().Options[0].Options[0].StringValue()
-	session := getOrCreateSession(i.GuildID)
+	session := c.getOrCreateSession(i.GuildID)
 
 	vs, err := s.State.VoiceState(i.GuildID, i.Member.User.ID)
 	if err != nil {
@@ -143,7 +147,7 @@ func (c *MusicCommand) handlePlay(s *discordgo.Session, i *discordgo.Interaction
 	} else {
 		vc, err := s.ChannelVoiceJoin(i.GuildID, vs.ChannelID, false, true)
 		if err != nil {
-			logger.Error("Failed to join voice channel", "error", err)
+			c.Log.Error("Failed to join voice channel", "error", err)
 			return
 		}
 		session.VoiceConnection = vc
@@ -243,7 +247,7 @@ func playMusic(session *MusicSession) {
 
 		encodingSession, err := dca.EncodeFile(song.StreamURL, opts)
 		if err != nil {
-			logger.Error("エンコードセッションの作成に失敗しました。", "error", err)
+			session.Log.Error("エンコードセッションの作成に失敗しました。", "error", err)
 			continue
 		}
 		session.EncodeSession = encodingSession
@@ -256,7 +260,7 @@ func playMusic(session *MusicSession) {
 			frame, err := encodingSession.OpusFrame()
 			if err != nil {
 				if !errors.Is(err, io.EOF) {
-					logger.Error("Opusフレームの読み取りに失敗しました。", "error", err)
+					session.Log.Error("Opusフレームの読み取りに失敗しました。", "error", err)
 				}
 				break
 			}

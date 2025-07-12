@@ -8,7 +8,9 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-type PollCommand struct{}
+type PollCommand struct{
+	Log logger.Logger
+}
 
 func (c *PollCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
@@ -57,13 +59,13 @@ func (c *PollCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}},
 	})
 	if err != nil {
-		logger.Error("投票の送信に失敗", "error", err)
+		c.Log.Error("投票の送信に失敗", "error", err)
 		return
 	}
 
 	msg, err := s.InteractionResponse(i.Interaction)
 	if err != nil {
-		logger.Error("投票メッセージの取得に失敗", "error", err)
+		c.Log.Error("投票メッセージの取得に失敗", "error", err)
 		return
 	}
 

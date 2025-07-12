@@ -9,7 +9,9 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-type UserInfoCommand struct{}
+type UserInfoCommand struct{
+	Log logger.Logger
+}
 
 func (c *UserInfoCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
@@ -34,7 +36,7 @@ func (c *UserInfoCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	if err != nil {
 		member, err = s.GuildMember(i.GuildID, targetUser.ID)
 		if err != nil {
-			logger.Error("メンバー情報の取得に失敗", "error", err, "userID", targetUser.ID)
+			c.Log.Error("メンバー情報の取得に失敗", "error", err, "userID", targetUser.ID)
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{Content: "❌ メンバー情報の取得に失敗しました。", Flags: discordgo.MessageFlagsEphemeral},

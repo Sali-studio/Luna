@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"luna/storage"
 
 	"github.com/robfig/cron/v3"
@@ -28,6 +29,6 @@ type DataStore interface {
 // Scheduler は、タスクのスケジューリング機能のインターフェースを定義します。
 type Scheduler interface {
 	Start()
-	Stop()
+	Stop() context.Context
 	AddFunc(spec string, cmd func()) (cron.EntryID, error)
 }

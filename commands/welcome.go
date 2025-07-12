@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"luna/bot"
 	"luna/logger"
 	"luna/storage"
 
@@ -9,7 +10,8 @@ import (
 )
 
 type WelcomeCommand struct {
-	Store *storage.DBStore
+	Store bot.DataStore
+	Log   logger.Logger
 }
 
 func (c *WelcomeCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -54,7 +56,7 @@ func (c *WelcomeCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	}
 
 	if err := c.Store.SaveConfig(i.GuildID, "welcome_config", config); err != nil {
-		logger.Error("ウェルカムメッセージ設定の保存に失敗", "error", err, "guildID", i.GuildID)
+		c.Log.Error("ウェルカムメッセージ設定の保存に失敗", "error", err, "guildID", i.GuildID)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: "❌ 設定の保存に失敗しました。", Flags: discordgo.MessageFlagsEphemeral},

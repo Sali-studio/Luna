@@ -15,7 +15,9 @@ const (
 	modalTimeoutPrefix = "moderate_timeout_confirm:"
 )
 
-type ModerateCommand struct{}
+type ModerateCommand struct{
+	Log logger.Logger
+}
 
 func (c *ModerateCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
@@ -93,7 +95,7 @@ func (c *ModerateCommand) executeKick(s *discordgo.Session, i *discordgo.Interac
 	reason := i.ModalSubmitData().Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
 	err := s.GuildMemberDeleteWithReason(i.GuildID, userID, reason)
 	if err != nil {
-		logger.Error("Kickの実行に失敗", "error", err, "guildID", i.GuildID, "userID", userID)
+		c.Log.Error("Kickの実行に失敗", "error", err, "guildID", i.GuildID, "userID", userID)
 		return
 	}
 	response := fmt.Sprintf("✅ ユーザー <@%s> を理由「%s」でサーバーから追放しました。", userID, reason)
@@ -123,7 +125,7 @@ func (c *ModerateCommand) executeBan(s *discordgo.Session, i *discordgo.Interact
 	reason := i.ModalSubmitData().Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
 	err := s.GuildBanCreateWithReason(i.GuildID, userID, reason, 0)
 	if err != nil {
-		logger.Error("BANの実行に失敗", "error", err, "guildID", i.GuildID, "userID", userID)
+		c.Log.Error("BANの実行に失敗", "error", err, "guildID", i.GuildID, "userID", userID)
 		return
 	}
 	response := fmt.Sprintf("✅ ユーザー <@%s> を理由「%s」でサーバーからBANしました。", userID, reason)
@@ -157,15 +159,15 @@ func (c *ModerateCommand) executeTimeout(s *discordgo.Session, i *discordgo.Inte
 
 	duration, err := time.ParseDuration(durationStr)
 	if err != nil {
-		logger.Error("期間の解析に失敗", "error", err, "durationStr", durationStr)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "期間の形式が正しくありません。(例: 5m, 1h, 3d)", Flags: discordgo.MessageFlagsEphemeral}})
+		c.Log.Error("期間の解析に失敗", "error", err, "durationStr", durationStr)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "期間の形式が正しくあり��せん。(例: 5m, 1h, 3d)", Flags: discordgo.MessageFlagsEphemeral}})
 		return
 	}
 	until := time.Now().Add(duration)
 
 	err = s.GuildMemberTimeout(i.GuildID, userID, &until)
 	if err != nil {
-		logger.Error("Timeoutの実行に失敗", "error", err, "guildID", i.GuildID, "userID", userID)
+		c.Log.Error("Timeoutの実行に失敗", "error", err, "guildID", i.GuildID, "userID", userID)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: "タイムアウトの実行に失敗しました。BOTの権限が不足している可能性があります。", Flags: discordgo.MessageFlagsEphemeral}})
 		return
 	}

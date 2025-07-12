@@ -4,11 +4,13 @@ import (
 	"os"
 
 	"luna/bot"
+	"luna/commands"
 	"luna/config"
 	"luna/logger"
 	"luna/servers"
 	"luna/storage"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/robfig/cron/v3"
 )
 
@@ -46,7 +48,37 @@ func main() {
 		log.Fatal("Botの初期化に失敗しました", "error", err)
 	}
 
-	if err := b.Start(); err != nil {
+	// コマンドの登録
+	commandHandlers := make(map[string]commands.CommandHandler)
+	componentHandlers := make(map[string]commands.CommandHandler)
+	appContext := &commands.AppContext{
+		Log:       log,
+		Store:     b.GetDBStore(),
+		Scheduler: b.GetScheduler(),
+		StartTime: b.GetStartTime(),
+	}
+	registeredCommands := make([]*discordgo.ApplicationCommand, 0)
+	for _, cmd := range commands.RegisterAllCommands(appContext, commandHandlers) {
+		def := cmd.GetCommandDef()
+		commandHandlers[def.Name] = cmd
+		for _, id := range cmd.GetComponentIDs() {
+			componentHandlers[id] = cmd
+		}
+		registeredCommands = append(registeredCommands, def)
+	}
+
+	session := b.GetSession()
+	defer func() {
+		log.Info("Removing commands...")
+		// Overwrite with empty slice to remove all commands
+		session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", []*discordgo.ApplicationCommand{})
+	}()
+
+	if _, err = session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", registeredCommands); err != nil {
+		log.Fatal("コマンドの登録に失敗しました", "error", err)
+	}
+
+	if err := b.Start(commandHandlers, componentHandlers); err != nil {
 		log.Fatal("Botの起動に失敗しました", "error", err)
 	}
 }

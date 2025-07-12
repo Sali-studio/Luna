@@ -11,7 +11,9 @@ const (
 	EmbedModalCustomID = "embed_creator_modal"
 )
 
-type EmbedCommand struct{}
+type EmbedCommand struct{
+	Log logger.Logger
+}
 
 func (c *EmbedCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
@@ -41,7 +43,7 @@ func (c *EmbedCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 		},
 	})
 	if err != nil {
-		logger.Error("Embedモーダルの表示に失敗", "error", err)
+		c.Log.Error("Embedモーダルの表示に失敗", "error", err)
 	}
 }
 
