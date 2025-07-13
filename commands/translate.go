@@ -57,7 +57,9 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 	if err != nil {
 		c.Log.Error("Luna Assistantサーバーへの接続に失敗", "error", err)
 		content := "エラー: Luna Assistantサーバーへの接続に失敗しました。"
-		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+			c.Log.Error("Failed to edit error response", "error", err)
+		}
 		return
 	}
 	defer resp.Body.Close()

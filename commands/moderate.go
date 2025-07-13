@@ -99,7 +99,9 @@ func (c *ModerateCommand) executeKick(s *discordgo.Session, i *discordgo.Interac
 		return
 	}
 	response := fmt.Sprintf("✅ ユーザー <@%s> を理由「%s」でサーバーから追放しました。", userID, reason)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: response, Flags: discordgo.MessageFlagsEphemeral}})
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: response, Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
+		c.Log.Error("Failed to send kick response", "error", err)
+	}
 }
 
 func (c *ModerateCommand) showBanModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -129,7 +131,9 @@ func (c *ModerateCommand) executeBan(s *discordgo.Session, i *discordgo.Interact
 		return
 	}
 	response := fmt.Sprintf("✅ ユーザー <@%s> を理由「%s」でサーバーからBANしました。", userID, reason)
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: response, Flags: discordgo.MessageFlagsEphemeral}})
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: response, Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
+		c.Log.Error("Failed to send ban response", "error", err)
+	}
 }
 
 func (c *ModerateCommand) showTimeoutModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -140,7 +144,7 @@ func (c *ModerateCommand) showTimeoutModal(s *discordgo.Session, i *discordgo.In
 	if len(options) > 2 {
 		reason = options[2].StringValue()
 	}
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseModal,
 		Data: &discordgo.InteractionResponseData{
 			CustomID: fmt.Sprintf("%s%s:%s", modalTimeoutPrefix, userID, durationStr), Title: "Timeout実行確認",
@@ -148,7 +152,9 @@ func (c *ModerateCommand) showTimeoutModal(s *discordgo.Session, i *discordgo.In
 				discordgo.TextInput{CustomID: "reason", Label: "理由（変更可能）", Style: discordgo.TextInputParagraph, Value: reason, Required: true},
 			}}},
 		},
-	})
+	}); err != nil {
+		c.Log.Error("Failed to show timeout modal", "error", err)
+	}
 }
 
 func (c *ModerateCommand) executeTimeout(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -172,7 +178,9 @@ func (c *ModerateCommand) executeTimeout(s *discordgo.Session, i *discordgo.Inte
 		return
 	}
 	response := fmt.Sprintf("✅ ユーザー <@%s> を理由「%s」で %s までタイムアウトしました。", userID, reason, until.Format("2006/01/02 15:04"))
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: response, Flags: discordgo.MessageFlagsEphemeral}})
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: response, Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
+		c.Log.Error("Failed to send timeout response", "error", err)
+	}
 }
 
 func (c *ModerateCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
