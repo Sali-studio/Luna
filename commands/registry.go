@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"os"
 	"time"
 
 	"luna/interfaces"
@@ -20,8 +19,6 @@ func RegisterAllCommands(ctx *AppContext, allCommands map[string]interfaces.Comm
 	return []interfaces.CommandHandler{
 		&ConfigCommand{Store: ctx.Store, Log: ctx.Log},
 		&DashboardCommand{Store: ctx.Store, Scheduler: ctx.Scheduler, Log: ctx.Log},
-		&ReactionRoleCommand{Store: ctx.Store, Log: ctx.Log},
-		&ScheduleCommand{Scheduler: ctx.Scheduler, Store: ctx.Store, Log: ctx.Log},
 		&TicketCommand{Store: ctx.Store, Log: ctx.Log},
 		&PingCommand{StartTime: ctx.StartTime, Store: ctx.Store},
 		&AskCommand{Log: ctx.Log},
@@ -34,7 +31,6 @@ func RegisterAllCommands(ctx *AppContext, allCommands map[string]interfaces.Comm
 		&PowerConverterCommand{Log: ctx.Log},
 		&TranslateCommand{Log: ctx.Log},
 		&UserInfoCommand{Log: ctx.Log},
-		&WeatherCommand{APIKey: os.Getenv("WEATHER_API_KEY"), Log: ctx.Log},
 		&HelpCommand{AllCommands: allCommands},
 		&ImagineCommand{Log: ctx.Log},
 		&QuizCommand{Log: ctx.Log},

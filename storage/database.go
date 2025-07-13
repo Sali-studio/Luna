@@ -96,13 +96,6 @@ func (s *DBStore) initTables() error {
 			user_id TEXT,
 			status TEXT
 		);`,
-		`CREATE TABLE IF NOT EXISTS reaction_roles (
-			message_id TEXT, emoji_id TEXT, guild_id TEXT, role_id TEXT,
-			PRIMARY KEY (message_id, emoji_id)
-		);`,
-		`CREATE TABLE IF NOT EXISTS schedules (
-			id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, channel_id TEXT, cron_spec TEXT, message TEXT
-		);`,
 		`CREATE TABLE IF NOT EXISTS message_cache (
 			message_id TEXT PRIMARY KEY,
 			content TEXT,
@@ -254,46 +247,4 @@ func (s *DBStore) CloseTicketRecord(channelID string) error {
 	defer s.mu.Unlock()
 	_, err := s.db.Exec("UPDATE tickets SET status = 'closed' WHERE channel_id = ?", channelID)
 	return err
-}
-
-func (s *DBStore) GetReactionRole(guildID, messageID, emojiID string) (ReactionRole, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	var rr ReactionRole
-	err := s.db.QueryRow("SELECT role_id FROM reaction_roles WHERE guild_id = ? AND message_id = ? AND emoji_id = ?", guildID, messageID, emojiID).Scan(&rr.RoleID)
-	rr.GuildID, rr.MessageID, rr.EmojiID = guildID, messageID, emojiID
-	return rr, err
-}
-
-func (s *DBStore) SaveReactionRole(rr ReactionRole) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	_, err := s.db.Exec("INSERT OR REPLACE INTO reaction_roles (message_id, emoji_id, guild_id, role_id) VALUES (?, ?, ?, ?)", rr.MessageID, rr.EmojiID, rr.GuildID, rr.RoleID)
-	return err
-}
-
-func (s *DBStore) SaveSchedule(schedule Schedule) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	_, err := s.db.Exec("INSERT INTO schedules (guild_id, channel_id, cron_spec, message) VALUES (?, ?, ?, ?)", schedule.GuildID, schedule.ChannelID, schedule.CronSpec, schedule.Message)
-	return err
-}
-
-func (s *DBStore) GetAllSchedules() ([]Schedule, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	rows, err := s.db.Query("SELECT id, guild_id, channel_id, cron_spec, message FROM schedules")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var schedules []Schedule
-	for rows.Next() {
-		var sc Schedule
-		if err := rows.Scan(&sc.ID, &sc.GuildID, &sc.ChannelID, &sc.CronSpec, &sc.Message); err != nil {
-			return nil, err
-		}
-		schedules = append(schedules, sc)
-	}
-	return schedules, nil
 }

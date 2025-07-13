@@ -29,7 +29,7 @@ var typeChart = map[string]map[string]float64{
 	"フェアリー": {"かくとう": 2, "どく": 0.5, "ドラゴン": 2, "あく": 2, "はがね": 0.5},
 }
 
-type PokemonCalculatorCommand struct{
+type PokemonCalculatorCommand struct {
 	Log interfaces.Logger
 }
 
@@ -73,7 +73,7 @@ func (c *PokemonCalculatorCommand) GetCommandDef() *discordgo.ApplicationCommand
 					{Type: discordgo.ApplicationCommandOptionInteger, Name: "level", Description: "攻撃側のレベル", Required: true, MinValue: float64Ptr(1), MaxValue: 100},
 				},
 			},
-			{Name: "type", Description: "タイプ���性を計算します", Type: discordgo.ApplicationCommandOptionSubCommand,
+			{Name: "type", Description: "タイプ相性を計算します", Type: discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionString, Name: "attack_type", Description: "攻撃側の技タイプ", Required: true, Choices: typeChoices},
 					{Type: discordgo.ApplicationCommandOptionString, Name: "defense_type1", Description: "防御側のタイプ1", Required: true, Choices: typeChoices},

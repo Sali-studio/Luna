@@ -99,7 +99,7 @@ func (c *TicketCommand) showTicketModal(s *discordgo.Session, i *discordgo.Inter
 					discordgo.TextInput{CustomID: "subject", Label: "件名", Style: discordgo.TextInputShort, Placeholder: "どのようなご用件ですか？", Required: true, MaxLength: 100},
 				}},
 				discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-					discordgo.TextInput{CustomID: "details", Label: "詳細", Style: discordgo.TextInputParagraph, Placeholder: "問題の詳細や質問内容をできるけ詳しくご記入ください。", Required: true, MaxLength: 2000},
+					discordgo.TextInput{CustomID: "details", Label: "詳細", Style: discordgo.TextInputParagraph, Placeholder: "問題の詳細や質問内容をできるだけ詳しくご記入ください。", Required: true, MaxLength: 2000},
 				}},
 			},
 		},
@@ -160,8 +160,8 @@ func (c *TicketCommand) createTicket(s *discordgo.Session, i *discordgo.Interact
 		Content: fmt.Sprintf("<@%s>, <@&%s>", i.Member.User.ID, config.StaffRoleID),
 		Embeds:  []*discordgo.MessageEmbed{initialEmbed},
 		Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{
-				discordgo.Button{Label: "チケットを閉じる", Style: discordgo.DangerButton, CustomID: CloseTicketButtonID, Emoji: &discordgo.ComponentEmoji{Name: "🔒"}},
-			}}},
+			discordgo.Button{Label: "チケットを閉じる", Style: discordgo.DangerButton, CustomID: CloseTicketButtonID, Emoji: &discordgo.ComponentEmoji{Name: "🔒"}},
+		}}},
 	}); err != nil {
 		c.Log.Error("Failed to send initial ticket message", "error", err)
 	}

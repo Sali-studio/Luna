@@ -25,10 +25,6 @@ type DataStore interface {
 	GetNextTicketCounter(guildID string) (int, error)
 	CreateTicketRecord(channelID, guildID, userID string) error
 	CloseTicketRecord(channelID string) error
-	GetReactionRole(guildID, messageID, emojiID string) (storage.ReactionRole, error)
-	SaveReactionRole(rr storage.ReactionRole) error
-	SaveSchedule(schedule storage.Schedule) error
-	GetAllSchedules() ([]storage.Schedule, error)
 	CreateMessageCache(messageID, content, authorID string) error
 	GetMessageCache(messageID string) (*storage.CachedMessage, error)
 }
