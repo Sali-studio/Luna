@@ -48,7 +48,14 @@ func New(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Sc
 }
 
 // Start はBotを起動し、Discordに接続します。
-func (b *Bot) Start(commandHandlers map[string]interfaces.CommandHandler, componentHandlers map[string]interfaces.CommandHandler) error {
+func (b *Bot) Start(commandHandlers map[string]interfaces.CommandHandler, componentHandlers map[string]interfaces.CommandHandler, registeredCommands []*discordgo.ApplicationCommand) error {
+	b.Session.AddHandlerOnce(func(s *discordgo.Session, r *discordgo.Ready) {
+		b.log.Info("Bot is ready.")
+		if _, err := s.ApplicationCommandBulkOverwrite(s.State.User.ID, "", registeredCommands); err != nil {
+			b.log.Fatal("Failed to register commands", "error", err)
+		}
+	})
+
 	b.Session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:

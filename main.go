@@ -73,20 +73,7 @@ func main() {
 		registeredCommands = append(registeredCommands, def)
 	}
 
-	session := b.GetSession()
-	// defer func() {
-	// 	log.Info("Removing commands...")
-	// 	// Overwrite with empty slice to remove all commands
-	// 				if _, err := session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", []*discordgo.ApplicationCommand{}); err != nil {
-	// 			log.Error("Failed to remove commands", "error", err)
-	// 	}
-	// }()
-
-	if _, err = session.ApplicationCommandBulkOverwrite(session.State.User.ID, "", registeredCommands); err != nil {
-		log.Fatal("コマンドの登録に失敗しました", "error", err)
-	}
-
-	if err := b.Start(commandHandlers, componentHandlers); err != nil {
+	if err := b.Start(commandHandlers, componentHandlers, registeredCommands); err != nil {
 		log.Fatal("Botの起動に失敗しました", "error", err)
 	}
 }
