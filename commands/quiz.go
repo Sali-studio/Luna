@@ -11,7 +11,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-type QuizCommand struct{
+type QuizCommand struct {
 	Log interfaces.Logger
 }
 

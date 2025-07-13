@@ -81,7 +81,7 @@ func (c *AvatarCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{Name: "バナー画像URL", Value: fmt.Sprintf("[リンク](%s)", bannerURL)})
 	}
 
-		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},

@@ -23,7 +23,7 @@ type TextResponse struct {
 	Error string `json:"error"`
 }
 
-type AskCommand struct{
+type AskCommand struct {
 	Log interfaces.Logger
 }
 

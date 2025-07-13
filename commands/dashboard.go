@@ -52,7 +52,7 @@ func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-		if _, err := c.Scheduler.AddFunc("@hourly", func() { c.updateDashboard(s, i.GuildID) }); err != nil {
+	if _, err := c.Scheduler.AddFunc("@hourly", func() { c.updateDashboard(s, i.GuildID) }); err != nil {
 		c.Log.Error("Failed to add cron job", "error", err)
 	}
 	c.updateDashboard(s, i.GuildID)
@@ -129,7 +129,6 @@ func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string)
 		},
 	}
 
-	// ★★★ エラーの修正箇所 ★★★
 	// 1. まずEmbedのスライスを作成します
 	embeds := []*discordgo.MessageEmbed{embed}
 	// 2. MessageEdit構造体には、そのスライスへのポインタを渡します
@@ -230,4 +229,3 @@ func (c *DashboardCommand) GetComponentIDs() []string {
 	return []string{DashboardShowInfoButtonID, DashboardShowRolesButtonID}
 }
 func (c *DashboardCommand) GetCategory() string { return "管理" }
-

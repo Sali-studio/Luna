@@ -19,7 +19,7 @@ var conversionRatesToRF = map[string]float64{
 	"if": 1.0,        // IFはRFと等価
 }
 
-type PowerConverterCommand struct{
+type PowerConverterCommand struct {
 	Log interfaces.Logger
 }
 

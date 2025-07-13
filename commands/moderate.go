@@ -15,7 +15,7 @@ const (
 	modalTimeoutPrefix = "moderate_timeout_confirm:"
 )
 
-type ModerateCommand struct{
+type ModerateCommand struct {
 	Log interfaces.Logger
 }
 

@@ -12,8 +12,8 @@ const (
 	ColorTeal   = 0x58d68d
 
 	// Config Keys
-	ConfigKeyLog       = "log_config"
-	ConfigKeyTempVC    = "temp_vc_config"
+	ConfigKeyLog    = "log_config"
+	ConfigKeyTempVC = "temp_vc_config"
 
 	// AI Server
 	EnvPythonAIServerURL = "PYTHON_AI_SERVER_URL"

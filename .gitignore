@@ -17,6 +17,9 @@
 # Database file
 *.db
 
+#imagine files
+generated_images
+
 # key
 google-credentials.json
 config.yaml

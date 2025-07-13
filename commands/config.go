@@ -118,4 +118,3 @@ func (c *ConfigCommand) GetComponentIDs() []string                              
 func (c *ConfigCommand) GetCategory() string {
 	return "管理"
 }
-

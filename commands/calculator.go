@@ -110,7 +110,7 @@ func (c *CalculatorCommand) Handle(s *discordgo.Session, i *discordgo.Interactio
 		Color: 0x57F287,
 	}
 
-		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}}}); err != nil {
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}}}); err != nil {
 		c.Log.Error("Failed to send response", "error", err)
 	}
 }

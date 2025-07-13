@@ -19,7 +19,7 @@ type ImagineRequest struct {
 	Prompt string `json:"prompt"`
 }
 
-type ImagineCommand struct{
+type ImagineCommand struct {
 	Log interfaces.Logger
 }
 
@@ -116,7 +116,7 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		Color: 0x824ff1, // Gemini Purple
 	}
 
-			if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Embeds: &[]*discordgo.MessageEmbed{embed},
 		Files: []*discordgo.File{
 			{
