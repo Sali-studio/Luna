@@ -30,7 +30,7 @@ func (c *DashboardCommand) GetCommandDef() *discordgo.ApplicationCommand {
 }
 
 func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
 		c.Log.Error("Failed to respond to interaction", "error", err)
 		return
 	}

@@ -79,7 +79,7 @@ func (c *PingCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	}
 
 	// 最初に送った "Pinging..." というメッセージを、完成したEmbedに編集する
-		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: new(string), // テキストを空にする
 		Embeds:  &[]*discordgo.MessageEmbed{embed},
 	}); err != nil {

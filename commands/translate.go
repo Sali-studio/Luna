@@ -41,7 +41,7 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 	text := options[0].StringValue()
 	targetLang := options[1].StringValue()
 
-		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	}); err != nil {
 		c.Log.Error("Failed to send deferred response", "error", err)

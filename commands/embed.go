@@ -65,7 +65,7 @@ func (c *EmbedCommand) HandleModal(s *discordgo.Session, i *discordgo.Interactio
 		Author:      &discordgo.MessageEmbedAuthor{Name: i.Member.User.Username, IconURL: i.Member.User.AvatarURL("")},
 	}
 
-		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
