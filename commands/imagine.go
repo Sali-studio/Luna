@@ -31,7 +31,7 @@ func (c *ImagineCommand) GetCommandDef() *discordgo.ApplicationCommand {
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "prompt",
-				Description: "生成したい画像の説明 (必ず英語で指示を出してください。) (例: The Bear Swimming in Space)",
+				Description: "生成したい画像の説明(例: The Bear Swimming in Space)",
 				Required:    true,
 			},
 		},

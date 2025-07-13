@@ -2,8 +2,8 @@ import os
 import flask
 from flask import request, jsonify
 import vertexai
-from vertexai.preview.vision_models import ImageGenerationModel, VideoGenerationModel
-from vertexai.generative_models import GenerativeModel
+from vertexai.preview.vision_models import ImageGenerationModel
+from vertexai.generative_models import GenerativeModel, GenerationResponse
 
 import time
 
@@ -17,15 +17,19 @@ if not os.path.exists(VIDEO_DIR):
 
 # --- FlaskアプリとVertex AIの初期化 ---
 app = flask.Flask(__name__)
-vertexai.init() # .envの認証情報を自動で読み込みま���
+vertexai.init() # .envの認証情報を自動で読み込みます
 
 # --- モデルのロード ---
 # 画像生成モデル
-image_model = ImageGenerationModel.from_pretrained("imagen-4.0-generate-preview-06-06")
-# 動画生成モデル (注意: モデル名はプレースホルダーです。正式なVEO-3のモデル名に置き換えてください)
-video_model = VideoGenerationModel.from_pretrained("veo-1.0-generate-preview-05-20")
+image_model = ImageGenerationModel.from_pretrained("imagen-4.0-generate-preview-06-06") 
 
+# テキスト生成モデル
 text_model = GenerativeModel("gemini-2.5-flash-preview-05-20")
+
+# 動画生成モデル
+# VEOはまだプレビュー段階のため、GenerativeModel経由で呼び出します。
+# 注意: モ���ル名はプレースホルダーです。正式なVEO-3のモデル名に置き換えてください。
+video_model = GenerativeModel("veo-1.0-generate-preview-05-20")
 
 # --- APIエンドポイントの定義 ---
 # 画像生成用のエンドポイント
@@ -70,8 +74,9 @@ def generate_video():
 
     try:
         print("⏳ Generating video...")
-        # 注意: generate_videosメソッドの引数はモデルによって異なる可能性があります
-        video_data = video_model.generate(prompt=prompt)
+        response: GenerationResponse = video_model.generate_content([prompt])
+        video_data = response.candidates[0].content.parts[0].blob.data
+
         print("✅ Video generated.")
 
         filename = f"{int(time.time())}.mp4"
