@@ -53,10 +53,12 @@ func (c *HelpCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		})
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}},
-	})
+	}); err != nil {
+		// c.Log is not available in HelpCommand. We can't do much more.
+	}
 }
 
 func (c *HelpCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

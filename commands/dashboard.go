@@ -30,7 +30,10 @@ func (c *DashboardCommand) GetCommandDef() *discordgo.ApplicationCommand {
 }
 
 func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}})
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
+		c.Log.Error("Failed to respond to interaction", "error", err)
+		return
+	}
 
 	msg, err := s.ChannelMessageSendEmbed(i.ChannelID, &discordgo.MessageEmbed{
 		Title: "📊 ダッシュボード", Description: "統計情報を収集中...", Color: 0x3498db,

@@ -65,12 +65,14 @@ func (c *EmbedCommand) HandleModal(s *discordgo.Session, i *discordgo.Interactio
 		Author:      &discordgo.MessageEmbedAuthor{Name: i.Member.User.Username, IconURL: i.Member.User.AvatarURL("")},
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
 		},
-	})
+	}); err != nil {
+		c.Log.Error("Failed to send embed response", "error", err)
+	}
 }
 
 func (c *EmbedCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}

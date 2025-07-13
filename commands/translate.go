@@ -41,9 +41,12 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 	text := options[0].StringValue()
 	targetLang := options[1].StringValue()
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-	})
+	}); err != nil {
+		c.Log.Error("Failed to send deferred response", "error", err)
+		return
+	}
 
 	prompt := fmt.Sprintf("以下のテキストを「%s」に翻訳してください。翻訳結果のテキストだけを返してください。\n\n[翻訳元テキスト]\n%s", targetLang, text)
 
