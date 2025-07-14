@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
@@ -96,20 +95,20 @@ function App() {
             <AuthButton />
           </Toolbar>
         </AppBar>
-        <Grid container spacing={3}>
-          <Grid item xs={12} sm={6} md={3}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+          <Box sx={{ flex: '1 1 200px' }}>
             <SummaryCard title="Total Users" value={data?.totalUsers.toLocaleString() || 'Loading...'} icon={<PeopleIcon sx={{ fontSize: 32, color: 'primary.main' }} />} />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          </Box>
+          <Box sx={{ flex: '1 1 200px' }}>
             <SummaryCard title="Online Users" value={data?.onlineUsers.toLocaleString() || 'Loading...'} icon={<OnlinePredictionIcon sx={{ fontSize: 32, color: 'primary.main' }} />} />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          </Box>
+          <Box sx={{ flex: '1 1 200px' }}>
             <SummaryCard title="Total Servers" value={data?.totalServers.toLocaleString() || 'Loading...'} icon={<DnsIcon sx={{ fontSize: 32, color: 'primary.main' }} />} />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          </Box>
+          <Box sx={{ flex: '1 1 200px' }}>
             <SummaryCard title="Commands Executed" value={data?.commandsExecuted.toLocaleString() || 'Loading...'} icon={<TerminalIcon sx={{ fontSize: 32, color: 'primary.main' }} />} />
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Box>
     </Box>
   );
