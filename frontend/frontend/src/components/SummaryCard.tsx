@@ -12,18 +12,23 @@ interface SummaryCardProps {
 
 const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, icon }) => {
   return (
-    <Card sx={{ display: 'flex', alignItems: 'center', p: 2 }}>
-      <Box sx={{ flexShrink: 0, mr: 2 }}>
-        {icon}
-      </Box>
-      <Box>
-        <Typography color="text.secondary" gutterBottom>
-          {title}
-        </Typography>
-        <Typography variant="h5" component="div">
+    <Card sx={{ height: '100%' }}>
+      <CardContent sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'space-between', 
+        height: '100%' 
+      }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Typography variant="body1" color="text.secondary">
+            {title}
+          </Typography>
+          {icon}
+        </Box>
+        <Typography variant="h4" component="div" fontWeight="700" sx={{ mt: 2 }}>
           {value}
         </Typography>
-      </Box>
+      </CardContent>
     </Card>
   );
 };
