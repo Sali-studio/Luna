@@ -59,7 +59,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	session.Values["oauth_state"] = oauthState
 	session.Save(r, w)
 
-	http.Redirect(w, r, oauth2Config.AuthCodeURL(oauthState), http.StatusTemporaryRedirect)
+	url := oauth2Config.AuthCodeURL(oauthState)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"redirect_url": url})
 }
 
 // Callback はDiscordからのコールバックを処理します。

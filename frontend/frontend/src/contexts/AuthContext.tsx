@@ -32,7 +32,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = () => {
-    window.location.href = '/api/auth/login';
+    fetch('/api/auth/login')
+      .then(res => res.json())
+      .then(data => {
+        if (data.redirect_url) {
+          window.location.href = data.redirect_url;
+        }
+      })
+      .catch(err => console.error("Login failed:", err));
   };
 
   const logout = () => {
