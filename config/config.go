@@ -14,6 +14,12 @@ type Config struct {
 		ProjectID       string `mapstructure:"project_id"`
 		CredentialsPath string `mapstructure:"credentials_path"`
 	}
+	Web struct {
+		ClientID      string `mapstructure:"client_id"`
+		ClientSecret  string `mapstructure:"client_secret"`
+		RedirectURI   string `mapstructure:"redirect_uri"`
+		SessionSecret string `mapstructure:"session_secret"`
+	}
 }
 
 var Cfg *Config

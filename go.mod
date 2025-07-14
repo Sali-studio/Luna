@@ -5,6 +5,7 @@ go 1.24.4
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/bwmarrin/discordgo v0.29.0
+	github.com/gorilla/mux v1.8.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/viper v1.20.1
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1

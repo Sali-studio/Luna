@@ -49,6 +49,15 @@ func main() {
 		log.Fatal("Botの初期化に失敗しました", "error", err)
 	}
 
+	// Webサーバーのセットアップと起動
+	webServer := servers.NewWebServer(log, db)
+	go func() {
+		if err := webServer.Start(); err != nil {
+			log.Fatal("Webサーバーの起動に失敗しました", "error", err)
+		}
+	}()
+	defer webServer.Stop()
+
 	// イベントハンドラの登録
 	events.NewMessageHandler(log, b.GetDBStore()).Register(b.GetSession())
 	events.NewMemberHandler(log, b.GetDBStore()).Register(b.GetSession())
