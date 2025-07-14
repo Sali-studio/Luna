@@ -90,21 +90,23 @@ function App() {
             </Toolbar>
           </AppBar>
           <Grid container spacing={3}>
-            <Grid item xs={12} lg={8}>
+            <Grid xs={12} lg={8}>
               <CommandUsageChart data={data?.commandUsage} />
             </Grid>
-            <Grid item container xs={12} lg={4} spacing={3} direction={{ xs: 'row', lg: 'column' }}>
-              <Grid item xs={12} sm={6} lg={12}>
-                <SummaryCard title="Total Users" value={data?.totalUsers.toLocaleString() || 'Loading...'} icon={<PeopleIcon sx={{ fontSize: 32, color: 'primary.main' }} />} />
-              </Grid>
-              <Grid item xs={12} sm={6} lg={12}>
-                <SummaryCard title="Online Users" value={data?.onlineUsers.toLocaleString() || 'Loading...'} icon={<OnlinePredictionIcon sx={{ fontSize: 32, color: 'primary.main' }} />} />
-              </Grid>
-              <Grid item xs={12} sm={6} lg={12}>
-                <SummaryCard title="Total Servers" value={data?.totalServers.toLocaleString() || 'Loading...'} icon={<DnsIcon sx={{ fontSize: 32, color: 'primary.main' }} />} />
-              </Grid>
-              <Grid item xs={12} sm={6} lg={12}>
-                <SummaryCard title="Commands Executed" value={data?.commandsExecuted.toLocaleString() || 'Loading...'} icon={<TerminalIcon sx={{ fontSize: 32, color: 'primary.main' }} />} />
+            <Grid item xs={12} lg={4}>
+              <Grid container spacing={3} direction={{ xs: 'row', lg: 'column' }}>
+                <Grid xs={12} sm={6} lg={12}>
+                  <SummaryCard title="Total Users" value={data?.totalUsers.toLocaleString() || 'Loading...'} icon={<PeopleIcon sx={{ fontSize: 32, color: 'primary.main' }} />} />
+                </Grid>
+                <Grid xs={12} sm={6} lg={12}>
+                  <SummaryCard title="Online Users" value={data?.onlineUsers.toLocaleString() || 'Loading...'} icon={<OnlinePredictionIcon sx={{ fontSize: 32, color: 'primary.main' }} />} />
+                </Grid>
+                <Grid xs={12} sm={6} lg={12}>
+                  <SummaryCard title="Total Servers" value={data?.totalServers.toLocaleString() || 'Loading...'} icon={<DnsIcon sx={{ fontSize: 32, color: 'primary.main' }} />} />
+                </Grid>
+                <Grid xs={12} sm={6} lg={12}>
+                  <SummaryCard title="Commands Executed" value={data?.commandsExecuted.toLocaleString() || 'Loading...'} icon={<TerminalIcon sx={{ fontSize: 32, color: 'primary.main' }} />} />
+                </Grid>
               </Grid>
             </Grid>
           </Grid>
