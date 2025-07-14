@@ -116,6 +116,67 @@ def describe_image():
         return jsonify({'error': str(e)}), 500
 
 
+# ★★★ 新しいエンドポイント: JSON形式でクイズを生成 ★★★
+@app.route('/generate-quiz', methods=['POST'])
+def generate_quiz():
+    data = request.get_json()
+    if not data or 'topic' not in data:
+        return jsonify({'error': 'topic is required'}), 400
+
+    topic = data.get('topic', 'ランダムなトピック')
+    history = data.get('history', []) # 過去の質問リストを受け取る
+
+    print(f"✅ Received Quiz request for topic: {topic}")
+    print(f"📖 Received history with {len(history)} questions.")
+
+    history_prompt = ""
+    if history:
+        history_prompt = "ただし、以下のリストにある質問絶対に出題しないでください。\n- " + "\n- ".join(history)
+
+    prompt = f"""
+「{topic}」に関する、ユニークで面白い4択クイズを1問生成してください。
+あなたの応答は、必ず以下のJSON形式に従ってください。他のテキストは一切含めないでください。
+
+{{
+  "question": "ここに問題文",
+  "options": [
+    "選択肢A",
+    "選択肢B",
+    "選択肢C",
+    "選択肢D"
+  ],
+  "correct_answer_index": 2, 
+  "explanation": "ここに簡単な解説"
+}}
+
+{history_prompt}
+"""
+
+    try:
+        print("⏳ Generating new quiz...")
+        response = multimodal_model.generate_content(prompt)
+        print("✅ Quiz generated.")
+        
+        # AIの出力からJSON部分だけを抽出する（念のため）
+        json_text = response.text.strip()
+        if json_text.startswith("```json"):
+            json_text = json_text[7:-4].strip()
+
+        # JSONとしてパースできるか検証
+        import json
+        json.loads(json_text) 
+
+        return app.response_class(
+            response=json_text,
+            status=200,
+            mimetype='application/json'
+        )
+
+    except Exception as e:
+        print(f"❌ Error generating quiz: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # 画像を配信するためのエンドポイント
 @app.route('/images/<filename>')
 def get_image(filename):

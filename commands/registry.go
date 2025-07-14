@@ -33,7 +33,7 @@ func RegisterAllCommands(ctx *AppContext, allCommands map[string]interfaces.Comm
 		&UserInfoCommand{Log: ctx.Log},
 		&HelpCommand{AllCommands: allCommands},
 		&ImagineCommand{Log: ctx.Log},
-		&QuizCommand{Log: ctx.Log},
+		&QuizCommand{Log: ctx.Log, Store: ctx.Store},
 		&DescribeImageCommand{Log: ctx.Log},
 		// To add a new command, simply add it to this list.
 	}

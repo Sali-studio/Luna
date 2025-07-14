@@ -102,6 +102,13 @@ func (s *DBStore) initTables() error {
 			author_id TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);`,
+		`CREATE TABLE IF NOT EXISTS quiz_history (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			guild_id TEXT NOT NULL,
+			topic TEXT NOT NULL,
+			question TEXT NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);`,
 	}
 	for _, table := range tables {
 		if _, err := s.db.Exec(table); err != nil {
@@ -247,4 +254,37 @@ func (s *DBStore) CloseTicketRecord(channelID string) error {
 	defer s.mu.Unlock()
 	_, err := s.db.Exec("UPDATE tickets SET status = 'closed' WHERE channel_id = ?", channelID)
 	return err
+}
+
+// --- Quiz History --- 
+
+// SaveQuizQuestion saves a new quiz question to the history.
+func (s *DBStore) SaveQuizQuestion(guildID, topic, question string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, err := s.db.Exec("INSERT INTO quiz_history (guild_id, topic, question) VALUES (?, ?, ?)", guildID, topic, question)
+	return err
+}
+
+// GetRecentQuizQuestions retrieves the most recent questions for a given guild and topic.
+func (s *DBStore) GetRecentQuizQuestions(guildID, topic string, limit int) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	rows, err := s.db.Query("SELECT question FROM quiz_history WHERE guild_id = ? AND topic = ? ORDER BY created_at DESC LIMIT ?", guildID, topic, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var questions []string
+	for rows.Next() {
+		var question string
+		if err := rows.Scan(&question); err != nil {
+			return nil, err
+		}
+		questions = append(questions, question)
+	}
+
+	return questions, nil
 }

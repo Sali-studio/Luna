@@ -13,15 +13,15 @@ import (
 )
 
 // Pythonサーバーに送るテキスト生成リクエストの構造体
-type TextRequest struct {
-	Prompt string `json:"prompt"`
-}
+// type TextRequest struct {
+// 	Prompt string `json:"prompt"`
+// }
 
 // Pythonサーバーから返ってくるテキスト生成レスポンスの構造体
-type TextResponse struct {
-	Text  string `json:"text"`
-	Error string `json:"error"`
-}
+// type TextResponse struct {
+// 	Text  string `json:"text"`
+// 	Error string `json:"error"`
+// }
 
 type AskCommand struct {
 	Log interfaces.Logger

@@ -27,6 +27,8 @@ type DataStore interface {
 	CloseTicketRecord(channelID string) error
 	CreateMessageCache(messageID, content, authorID string) error
 	GetMessageCache(messageID string) (*storage.CachedMessage, error)
+	SaveQuizQuestion(guildID, topic, question string) error
+	GetRecentQuizQuestions(guildID, topic string, limit int) ([]string, error)
 }
 
 // Scheduler は、タスクのスケジューリング機能のインターフェースを定義します。
