@@ -1,5 +1,3 @@
-
-// servers/web_server.go
 package servers
 
 import (
@@ -23,27 +21,26 @@ type WebServer struct {
 
 // NewWebServer は新しいWebServerインスタンスを作成します。
 func NewWebServer(log interfaces.Logger, db interfaces.DataStore) *WebServer {
-	r := mux.NewRouter()
-
-	// APIハンドラのインスタンスを作成
-	authHandler := web.NewAuthHandler(log)
-
-	// ルーティングを設定
-	r.HandleFunc("/api/auth/login", authHandler.Login).Methods("GET")
-	r.HandleFunc("/api/auth/callback", authHandler.Callback).Methods("GET")
-
-	r.HandleFunc("/api/dashboard", s.DashboardHandler).Methods("GET")
-
-	// TODO: 他のAPIエンドポイントをここに追加
-
-	return &WebServer{
+	ws := &WebServer{
 		log: log,
 		db:  db,
-		http: &http.Server{
-			Addr:    ":8080", // ポートは後で設定ファイルから読み込むように変更
-			Handler: r,
-		},
 	}
+
+	r := mux.NewRouter()
+	authHandler := web.NewAuthHandler(log)
+
+	r.HandleFunc("/api/auth/login", authHandler.Login).Methods("GET")
+	r.HandleFunc("/api/auth/callback", authHandler.Callback).Methods("GET")
+	r.HandleFunc("/api/auth/logout", authHandler.Logout).Methods("GET")
+	r.HandleFunc("/api/auth/user", authHandler.GetUser).Methods("GET")
+	r.HandleFunc("/api/dashboard", ws.DashboardHandler).Methods("GET")
+
+	ws.http = &http.Server{
+		Addr:    ":8080",
+		Handler: r,
+	}
+
+	return ws
 }
 
 // Start はWebサーバーを起動します。
@@ -54,7 +51,12 @@ func (s *WebServer) Start() error {
 
 // Stop はWebサーバーをシャットダウンします。
 func (s *WebServer) Stop() {
-	// ... (Stop method implementation)
+	s.log.Info("Webサーバーをシャットダウンします...")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.http.Shutdown(ctx); err != nil {
+		s.log.Error("Webサーバーのシャットダウンに失敗しました", "error", err)
+	}
 }
 
 // DashboardHandler はダッシュボードのサマリーデータを返します。
@@ -66,25 +68,8 @@ func (s *WebServer) DashboardHandler(w http.ResponseWriter, r *http.Request) {
 		"onlineUsers":     567,
 		"totalServers":    12,
 		"commandsExecuted": 8901,
-		"commandUsage": []map[string]interface{}{
-			{"name": "/ask", "count": 4000},
-			{"name": "/imagine", "count": 3000},
-			{"name": "/quiz", "count": 2000},
-			{"name": "/poll", "count": 2780},
-			{"name": "/ping", "count": 1890},
-			{"name": "/help", "count": 2390},
-			{"name": "/avatar", "count": 3490},
-		},
 	}
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		s.log.Error("Failed to encode dashboard data", "error", err)
-	}
-}
-
-	s.log.Info("Webサーバーをシャットダウンします...")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := s.http.Shutdown(ctx); err != nil {
-		s.log.Error("Webサーバーのシャットダウンに失敗しました", "error", err)
 	}
 }

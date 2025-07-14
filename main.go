@@ -7,6 +7,7 @@ import (
 	"luna/commands"
 	"luna/config"
 	"luna/handlers/events"
+	"luna/handlers/web"
 	"luna/interfaces"
 	"luna/logger"
 	"luna/servers"
@@ -22,6 +23,9 @@ func main() {
 	if err := config.LoadConfig(log); err != nil {
 		log.Fatal("設定ファイルの読み込みに失敗しました", "error", err)
 	}
+
+	// 認証システムの初期化
+	web.InitAuth(config.Cfg)
 
 	// Google Cloudの認証情報を環境変数に設定
 	if config.Cfg.Google.CredentialsPath != "" {
