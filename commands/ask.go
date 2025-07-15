@@ -99,7 +99,7 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 			IconURL: i.Member.User.AvatarURL(""),
 		},
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "Powered by Gemini",
+			Text: "Powered by Luna",
 		},
 	}
 
