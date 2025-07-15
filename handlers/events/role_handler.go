@@ -3,7 +3,6 @@ package events
 import (
 	"fmt"
 	"luna/interfaces"
-	"luna/storage"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -61,12 +60,14 @@ func (h *RoleHandler) onRoleDelete(s *discordgo.Session, e *discordgo.GuildRoleD
 }
 
 func (h *RoleHandler) onRoleUpdate(s *discordgo.Session, e *discordgo.GuildRoleUpdate) {
-	if e.BeforeUpdate == nil {
+	before, err := s.State.Role(e.GuildID, e.Role.ID)
+	if err != nil {
+		// If we can't get the before state, we can't compare.
 		return
 	}
 
 	// For now, we only log name changes.
-	if e.Role.Name == e.BeforeUpdate.Name {
+	if e.Role.Name == before.Name {
 		return
 	}
 
@@ -83,7 +84,7 @@ func (h *RoleHandler) onRoleUpdate(s *discordgo.Session, e *discordgo.GuildRoleU
 			{Name: "ロール", Value: fmt.Sprintf("<@&%s>", e.Role.ID), Inline: false},
 			{Name: "変更内容", Value: "名前の変更", Inline: true},
 			{Name: "実行者", Value: executorMention, Inline: true},
-			{Name: "変更前", Value: e.BeforeUpdate.Name, Inline: false},
+			{Name: "変更前", Value: before.Name, Inline: false},
 			{Name: "変更後", Value: e.Role.Name, Inline: false},
 		},
 	}

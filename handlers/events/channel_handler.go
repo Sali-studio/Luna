@@ -3,7 +3,6 @@ package events
 import (
 	"fmt"
 	"luna/interfaces"
-	"luna/storage"
 
 	"github.com/bwmarrin/discordgo"
 )
