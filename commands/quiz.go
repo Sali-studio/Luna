@@ -112,7 +112,9 @@ func (c *QuizCommand) handleQuiz(s *discordgo.Session, i *discordgo.InteractionC
 	history, err := c.Store.GetRecentQuizQuestions(i.GuildID, topic, 20)
 	if err != nil {
 		c.Log.Warn("Failed to get quiz history from DB", "error", err)
-		// Ensure history is not nil, even if there's an error
+	}
+	// Ensure history is never nil to prevent JSON marshaling to `null`
+	if history == nil {
 		history = []string{}
 	}
 
