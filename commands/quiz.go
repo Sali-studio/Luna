@@ -112,7 +112,8 @@ func (c *QuizCommand) handleQuiz(s *discordgo.Session, i *discordgo.InteractionC
 	history, err := c.Store.GetRecentQuizQuestions(i.GuildID, topic, 20)
 	if err != nil {
 		c.Log.Warn("Failed to get quiz history from DB", "error", err)
-		// Continue anyway, just without history
+		// Ensure history is not nil, even if there's an error
+		history = []string{}
 	}
 
 	// 2. Send request to the new /generate-quiz endpoint
