@@ -58,22 +58,39 @@ func GetExecutor(s *discordgo.Session, guildID string, targetID string, action d
 
 // GetMessageDeleteExecutor is a special version of GetExecutor for message delete events.
 func GetMessageDeleteExecutor(s *discordgo.Session, guildID, authorID, channelID string, log interfaces.Logger) string {
-	time.Sleep(500 * time.Millisecond)
-	auditLog, err := s.GuildAuditLog(guildID, "", "", int(discordgo.AuditLogActionMessageDelete), 5)
+	log.Info("Attempting to get message delete executor", "guildID", guildID, "authorID", authorID, "channelID", channelID)
+	time.Sleep(1000 * time.Millisecond) // Increase sleep time
+
+	auditLog, err := s.GuildAuditLog(guildID, "", "", int(discordgo.AuditLogActionMessageDelete), 20) // Increase limit
 	if err != nil {
 		log.Error("Failed to get audit log for message delete", "error", err, "guildID", guildID)
 		return ""
 	}
 
+	log.Info("Audit log entries fetched", "count", len(auditLog.AuditLogEntries))
 	for _, entry := range auditLog.AuditLogEntries {
+		logTime, _ := discordgo.SnowflakeTimestamp(entry.ID)
+		log.Info("Audit log entry details",
+			"entryID", entry.ID,
+			"entryUserID", entry.UserID,
+			"entryTargetID", entry.TargetID,
+			"entryOptionsChannelID", entry.Options.ChannelID,
+			
+			"timeSinceLog", time.Since(logTime).String(),
+			"reason", entry.Reason,
+		)
+
 		// For message delete, TargetID is the user whose message was deleted.
 		if entry.TargetID == authorID && entry.Options.ChannelID == channelID {
-			logTime, _ := discordgo.SnowflakeTimestamp(entry.ID)
-			if time.Since(logTime) < 15*time.Second {
+			if time.Since(logTime) < 5*time.Minute { // Increase time window to 5 minutes
+				log.Info("Found matching audit log entry for message delete", "executorID", entry.UserID)
 				return entry.UserID
+			} else {
+				log.Info("Matching audit log entry found, but too old", "timeSinceLog", time.Since(logTime).String())
 			}
 		}
 	}
+	log.Info("No matching audit log entry found for message delete.")
 	return ""
 }
 
