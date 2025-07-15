@@ -160,39 +160,36 @@ func (h *MessageHandler) onMessageUpdate(s *discordgo.Session, e *discordgo.Mess
 func (h *MessageHandler) onMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
 	cachedMsg, err := h.Store.GetMessageCache(e.ID)
 	if err != nil || cachedMsg == nil {
+		// We don't have info, so just log the ID
 		embed := &discordgo.MessageEmbed{
-			Title: "🗑️ メッセージ削除 (内容不明)", Description: fmt.Sprintf("<#%s> でメッセージが削除されました。", e.ChannelID),
-			Color: ColorGray, Fields: []*discordgo.MessageEmbedField{{Name: "メッセージID", Value: e.ID}},
+			Title:       "🗑️ メッセージ削除 (内容不明)",
+			Description: fmt.Sprintf("<#%s> でメッセージが削除されました。", e.ChannelID),
+			Color:       ColorGray,
+			Fields:      []*discordgo.MessageEmbedField{{Name: "メッセージID", Value: e.ID}},
 		}
-		h.sendLog(s, e.GuildID, embed)
+		SendLog(s, e.GuildID, h.Store, h.Log, embed)
 		return
 	}
+
 	author, err := s.User(cachedMsg.AuthorID)
 	if err != nil {
 		author = &discordgo.User{Username: "不明なユーザー", ID: cachedMsg.AuthorID}
 	}
+
 	deleterMention := "不明"
-	auditLog, err := s.GuildAuditLog(e.GuildID, "", "", int(discordgo.AuditLogActionMessageDelete), 5)
-	if err == nil {
-		for _, entry := range auditLog.AuditLogEntries {
-			if entry.TargetID == cachedMsg.AuthorID && entry.Options.ChannelID == e.ChannelID {
-				logTime, _ := discordgo.SnowflakeTimestamp(entry.ID)
-				if time.Since(logTime) < AuditLogTimeWindow {
-					if entry.UserID == author.ID {
-						deleterMention = "本人"
-					} else {
-						deleter, err := s.User(entry.UserID)
-						if err == nil {
-							deleterMention = deleter.Mention()
-						}
-					}
-					break
-				}
-			}
+	// GetExecutorForMessageDelete is a special function to find who deleted the message
+	deleterID := GetMessageDeleteExecutor(s, e.GuildID, cachedMsg.AuthorID, e.ChannelID, h.Log)
+	if deleterID != "" {
+		if deleterID == author.ID {
+			deleterMention = "本人"
+		} else {
+			deleterMention = fmt.Sprintf("<@%s>", deleterID)
 		}
 	}
+
 	embed := &discordgo.MessageEmbed{
-		Title: "🗑️ メッセージ削除", Color: ColorRed,
+		Title:  "🗑️ メッセージ削除",
+		Color:  ColorRed,
 		Author: &discordgo.MessageEmbedAuthor{Name: author.String(), IconURL: author.AvatarURL("")},
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "投稿者", Value: author.Mention(), Inline: true},
@@ -201,7 +198,7 @@ func (h *MessageHandler) onMessageDelete(s *discordgo.Session, e *discordgo.Mess
 			{Name: "内容", Value: "```\n" + cachedMsg.Content + "\n```", Inline: false},
 		},
 	}
-	h.sendLog(s, e.GuildID, embed)
+	SendLog(s, e.GuildID, h.Store, h.Log, embed)
 }
 
 // sendLog and getExecutor are helper functions that might be used by other handlers as well.

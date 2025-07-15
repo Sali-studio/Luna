@@ -32,18 +32,26 @@ func (h *MemberHandler) Register(s *discordgo.Session) {
 }
 
 func (h *MemberHandler) onGuildMemberAdd(s *discordgo.Session, e *discordgo.GuildMemberAdd) {
+	createdAt, _ := discordgo.SnowflakeTimestamp(e.User.ID)
 	embed := &discordgo.MessageEmbed{
-		Title:       "✅ メンバー参加",
+		Title: "✅ メンバー参加",
+		Author: &discordgo.MessageEmbedAuthor{
+			Name:    e.User.String(),
+			IconURL: e.User.AvatarURL(""),
+		},
 		Description: fmt.Sprintf("**<@%s>** がサーバーに参加しました。", e.User.ID),
-		Author:      &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
-		Color:       ColorGreen,
+		Fields: []*discordgo.MessageEmbedField{
+			{Name: "アカウント作成日", Value: fmt.Sprintf("<t:%d:F>", createdAt.Unix())},
+		},
+		Color: ColorGreen,
 	}
-	h.sendLog(s, e.GuildID, embed)
+	SendLog(s, e.GuildID, h.Store, h.Log, embed)
 }
 
 func (h *MemberHandler) onGuildMemberRemove(s *discordgo.Session, e *discordgo.GuildMemberRemove) {
-	executorID := h.getExecutor(s, e.GuildID, e.User.ID, discordgo.AuditLogActionMemberKick)
+	executorID := GetExecutor(s, e.GuildID, e.User.ID, discordgo.AuditLogActionMemberKick, h.Log)
 	if executorID != "" {
+		// Kick event
 		auditLog, _ := s.GuildAuditLog(e.GuildID, "", "", int(discordgo.AuditLogActionMemberKick), 1)
 		reason := "理由なし"
 		if len(auditLog.AuditLogEntries) > 0 && auditLog.AuditLogEntries[0].Reason != "" {
@@ -59,15 +67,28 @@ func (h *MemberHandler) onGuildMemberRemove(s *discordgo.Session, e *discordgo.G
 				{Name: "理由", Value: reason, Inline: true},
 			},
 		}
-		h.sendLog(s, e.GuildID, embed)
+		SendLog(s, e.GuildID, h.Store, h.Log, embed)
 	} else {
+		// Leave event
+		roles := "不明"
+		if e.Member != nil && len(e.Member.Roles) > 0 {
+			roleMentions := []string{}
+			for _, roleID := range e.Member.Roles {
+				roleMentions = append(roleMentions, fmt.Sprintf("<@&%s>", roleID))
+			}
+			roles = strings.Join(roleMentions, " ")
+		}
+
 		embed := &discordgo.MessageEmbed{
 			Title:       "🚪 メンバー退出",
 			Color:       ColorGray,
 			Author:      &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 			Description: fmt.Sprintf("**<@%s>** がサーバーから退出しました。", e.User.ID),
+			Fields: []*discordgo.MessageEmbedField{
+				{Name: "保有していたロール", Value: roles},
+			},
 		}
-		h.sendLog(s, e.GuildID, embed)
+		SendLog(s, e.GuildID, h.Store, h.Log, embed)
 	}
 }
 

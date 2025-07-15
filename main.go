@@ -65,7 +65,9 @@ func main() {
 	// イベントハンドラの登録
 	events.NewMessageHandler(log, b.GetDBStore()).Register(b.GetSession())
 	events.NewMemberHandler(log, b.GetDBStore()).Register(b.GetSession())
-	events.NewVoiceHandler(log, b.GetDBStore()).Register(b.GetSession())
+	// events.NewVoiceHandler(log, b.GetDBStore()).Register(b.GetSession())
+	events.NewChannelHandler(log, b.GetDBStore()).Register(b.GetSession())
+	events.NewRoleHandler(log, b.GetDBStore()).Register(b.GetSession())
 
 	// コマンドの登録
 	commandHandlers := make(map[string]interfaces.CommandHandler)
