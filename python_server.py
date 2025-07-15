@@ -21,7 +21,7 @@ vertexai.init() # .envの認証情報を自動で読み込みます
 # 画像生成モデル
 image_model = ImageGenerationModel.from_pretrained("imagen-4.0-generate-preview-06-06") 
 # テキスト生成・画像認識モデル (多モーダル)
-multimodal_model = GenerativeModel("gemini-2.5-pro")
+multimodal_model = GenerativeModel("gemini-2.5-flash")
 
 # --- APIエンドポイントの定義 ---
 # 画像生成用のエンドポイント
