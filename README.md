@@ -1,4 +1,4 @@
-# Luna 2.0.0-dev1
+# Luna 2.0.0-dev2
 
 <p align="center">
   <em>あなたのサーバー運営をサポートする多機能Bot。</em>
