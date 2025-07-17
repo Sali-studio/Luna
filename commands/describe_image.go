@@ -24,32 +24,33 @@ type DescribeImageCommand struct {
 
 func (c *DescribeImageCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
-		Name:        "describe-image",
-		Description: "AIが画像を説明します",
-		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Type:        discordgo.ApplicationCommandOptionAttachment,
-				Name:        "image",
-				Description: "説明してほしい画像",
-				Required:    true,
-			},
-		},
+		Name: "この画像を説明して", // メッセージコンテキストメニューに表示される名前
+		Type: discordgo.MessageApplicationCommand,
 	}
 }
 
 func (c *DescribeImageCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// オプションから画像を取得
-	attachmentID := i.ApplicationCommandData().Options[0].Value.(string)
-	attachment := i.ApplicationCommandData().Resolved.Attachments[attachmentID]
-	imageURL := attachment.URL
+	targetMessage := i.ApplicationCommandData().Resolved.Messages[i.ApplicationCommandData().TargetID]
 
-	// AIに画像を説明させる
-	SendDescribeRequest(s, i, imageURL, c.Log)
-}
+	var imageURL string
+	if len(targetMessage.Attachments) > 0 && len(targetMessage.Attachments[0].ContentType) > 5 && targetMessage.Attachments[0].ContentType[0:5] == "image" {
+		imageURL = targetMessage.Attachments[0].URL
+	} else if len(targetMessage.Embeds) > 0 && targetMessage.Embeds[0].Image != nil {
+		imageURL = targetMessage.Embeds[0].Image.URL
+	} else {
+		content := "エラー: 対象のメッセージに画像が見つかりませんでした。"
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: content,
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		}); err != nil {
+			c.Log.Error("Failed to send error response", "error", err)
+		}
+		return
+	}
 
-// SendDescribeRequest は画像URLを受け取り、AIサーバーに説明をリクエストして結果をDiscordに送信します。
-// この関数はコンテキストメニューコマンドからも利用されます。
-func SendDescribeRequest(s *discordgo.Session, i *discordgo.InteractionCreate, imageURL string, log interfaces.Logger) {
 	// AIに渡すプロンプトを定義（文字起こしメイン）
 	prompt := "この画像に文字が書かれている場合は、その内容を正確に書き出してください。文字がない、または読み取れない場合は、画像の内容を簡潔に説明してください。"
 
@@ -57,12 +58,12 @@ func SendDescribeRequest(s *discordgo.Session, i *discordgo.InteractionCreate, i
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	}); err != nil {
-		log.Error("Failed to send initial response", "error", err)
+		c.Log.Error("Failed to send initial response", "error", err)
 		return
 	}
 
 	// Pythonサーバーに送信するデータを作成
-	reqData := DescribeImageRequest{ImageURL: imageURL, Prompt: prompt} // プロンプトを追加
+	reqData := DescribeImageRequest{ImageURL: imageURL, Prompt: prompt}
 	reqJson, _ := json.Marshal(reqData)
 
 	// Pythonサーバーの画像認識エンドポイントにリクエストを送信
@@ -70,10 +71,10 @@ func SendDescribeRequest(s *discordgo.Session, i *discordgo.InteractionCreate, i
 
 	// エラーハンドリング
 	if err != nil {
-		log.Error("AIサーバーへの接続に失敗", "error", err)
+		c.Log.Error("AIサーバーへの接続に失敗", "error", err)
 		content := "エラー: AIサーバーへの接続に失敗しました。"
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
-			log.Error("Failed to edit error response", "error", err)
+			c.Log.Error("Failed to edit error response", "error", err)
 		}
 		return
 	}
@@ -83,21 +84,21 @@ func SendDescribeRequest(s *discordgo.Session, i *discordgo.InteractionCreate, i
 	body, _ := io.ReadAll(resp.Body)
 	var textResp TextResponse
 	if err := json.Unmarshal(body, &textResp); err != nil {
-		log.Error("Failed to unmarshal AI response", "error", err)
+		c.Log.Error("Failed to unmarshal AI response", "error", err)
 		return
 	}
 
 	if textResp.Error != "" || resp.StatusCode != http.StatusOK {
-		log.Error("Luna Assistantからの応答取得に失敗", "error", textResp.Error, "status_code", resp.StatusCode)
+		c.Log.Error("Luna Assistantからの応答取得に失敗", "error", textResp.Error, "status_code", resp.StatusCode)
 		content := fmt.Sprintf("エラー: Luna Assistantからの応答取得に失敗しました。\n`%s`", textResp.Error)
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
-			log.Error("Failed to edit error response", "error", err)
+			c.Log.Error("Failed to edit error response", "error", err)
 		}
 		return
 	}
 
 	embed := &discordgo.MessageEmbed{
-		Title:       "🖼️ 画像の説明",
+		Title:       "🖼️ 画像の文字起こし・説明",
 		Description: textResp.Text,
 		Color:       0x824ff1, // Gemini Purple
 		Author: &discordgo.MessageEmbedAuthor{
@@ -115,7 +116,7 @@ func SendDescribeRequest(s *discordgo.Session, i *discordgo.InteractionCreate, i
 	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Embeds: &[]*discordgo.MessageEmbed{embed},
 	}); err != nil {
-		log.Error("Failed to edit final response", "error", err)
+		c.Log.Error("Failed to edit final response", "error", err)
 	}
 }
 
