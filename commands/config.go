@@ -23,7 +23,6 @@ func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {
 		Description:              "サーバー固有の設定を管理します",
 		DefaultMemberPermissions: int64Ptr(discordgo.PermissionManageGuild),
 		Options: []*discordgo.ApplicationCommandOption{
-			// ★★★ /config ticket の定義をここから削除 ★★★
 			{
 				Name:        "logging",
 				Description: "ログ出力チャンネルを設定します",
@@ -58,7 +57,6 @@ func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {
 func (c *ConfigCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	options := i.ApplicationCommandData().Options[0].Options
 	switch i.ApplicationCommandData().Options[0].Name {
-	// ★★★ /config ticket の処理をここから削除 ★★★
 	case "logging":
 		c.handleLoggingConfig(s, i, options)
 	case "temp-vc":
@@ -67,8 +65,6 @@ func (c *ConfigCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 		c.handleBumpConfig(s, i, options)
 	}
 }
-
-// ★★★ handleTicketConfig 関数全体を削除 ★★★
 
 func (c *ConfigCommand) handleLoggingConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
 	var config storage.LogConfig
