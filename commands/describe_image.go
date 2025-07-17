@@ -1,4 +1,3 @@
-// commands/describe_image.go
 package commands
 
 import (
@@ -109,7 +108,7 @@ func (c *DescribeImageCommand) Handle(s *discordgo.Session, i *discordgo.Interac
 			URL: imageURL,
 		},
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "Powered by Gemini",
+			Text: "Powered by Luna Assistant",
 		},
 	}
 
@@ -120,7 +119,8 @@ func (c *DescribeImageCommand) Handle(s *discordgo.Session, i *discordgo.Interac
 	}
 }
 
-func (c *DescribeImageCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
-func (c *DescribeImageCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
-func (c *DescribeImageCommand) GetComponentIDs() []string                                            { return []string{} }
-func (c *DescribeImageCommand) GetCategory() string                                                  { return "AI" }
+func (c *DescribeImageCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
+}
+func (c *DescribeImageCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {}
+func (c *DescribeImageCommand) GetComponentIDs() []string                                        { return []string{} }
+func (c *DescribeImageCommand) GetCategory() string                                              { return "AI" }
