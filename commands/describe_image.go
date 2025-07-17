@@ -15,6 +15,7 @@ import (
 // Pythonサーバーに送る画像認識リクエストの構造体
 type DescribeImageRequest struct {
 	ImageURL string `json:"image_url"`
+	Prompt   string `json:"prompt"`
 }
 
 type DescribeImageCommand struct {
@@ -42,16 +43,26 @@ func (c *DescribeImageCommand) Handle(s *discordgo.Session, i *discordgo.Interac
 	attachment := i.ApplicationCommandData().Resolved.Attachments[attachmentID]
 	imageURL := attachment.URL
 
+	// AIに画像を説明させる
+	SendDescribeRequest(s, i, imageURL, c.Log)
+}
+
+// SendDescribeRequest は画像URLを受け取り、AIサーバーに説明をリクエストして結果をDiscordに送信します。
+// この関数はコンテキストメニューコマンドからも利用されます。
+func SendDescribeRequest(s *discordgo.Session, i *discordgo.InteractionCreate, imageURL string, log interfaces.Logger) {
+	// AIに渡すプロンプトを定義（文字起こしメイン）
+	prompt := "この画像に文字が書かれている場合は、その内容を正確に書き出してください。文字がない、または読み取れない場合は、画像の内容を簡潔に説明してください。"
+
 	// 「考え中...」と即時応答
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	}); err != nil {
-		c.Log.Error("Failed to send initial response", "error", err)
+		log.Error("Failed to send initial response", "error", err)
 		return
 	}
 
 	// Pythonサーバーに送信するデータを作成
-	reqData := DescribeImageRequest{ImageURL: imageURL}
+	reqData := DescribeImageRequest{ImageURL: imageURL, Prompt: prompt} // プロンプトを追加
 	reqJson, _ := json.Marshal(reqData)
 
 	// Pythonサーバーの画像認識エンドポイントにリクエストを送信
@@ -59,10 +70,10 @@ func (c *DescribeImageCommand) Handle(s *discordgo.Session, i *discordgo.Interac
 
 	// エラーハンドリング
 	if err != nil {
-		c.Log.Error("AIサーバーへの接続に失敗", "error", err)
+		log.Error("AIサーバーへの接続に失敗", "error", err)
 		content := "エラー: AIサーバーへの接続に失敗しました。"
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
-			c.Log.Error("Failed to edit error response", "error", err)
+			log.Error("Failed to edit error response", "error", err)
 		}
 		return
 	}
@@ -72,15 +83,15 @@ func (c *DescribeImageCommand) Handle(s *discordgo.Session, i *discordgo.Interac
 	body, _ := io.ReadAll(resp.Body)
 	var textResp TextResponse
 	if err := json.Unmarshal(body, &textResp); err != nil {
-		c.Log.Error("Failed to unmarshal AI response", "error", err)
+		log.Error("Failed to unmarshal AI response", "error", err)
 		return
 	}
 
 	if textResp.Error != "" || resp.StatusCode != http.StatusOK {
-		c.Log.Error("Luna Assistantからの応答取得に失敗", "error", textResp.Error, "status_code", resp.StatusCode)
+		log.Error("Luna Assistantからの応答取得に失敗", "error", textResp.Error, "status_code", resp.StatusCode)
 		content := fmt.Sprintf("エラー: Luna Assistantからの応答取得に失敗しました。\n`%s`", textResp.Error)
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
-			c.Log.Error("Failed to edit error response", "error", err)
+			log.Error("Failed to edit error response", "error", err)
 		}
 		return
 	}
@@ -104,7 +115,7 @@ func (c *DescribeImageCommand) Handle(s *discordgo.Session, i *discordgo.Interac
 	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Embeds: &[]*discordgo.MessageEmbed{embed},
 	}); err != nil {
-		c.Log.Error("Failed to edit final response", "error", err)
+		log.Error("Failed to edit final response", "error", err)
 	}
 }
 

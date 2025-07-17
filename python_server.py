@@ -82,8 +82,11 @@ def describe_image():
     if not data or 'image_url' not in data:
         return jsonify({'error': 'image_url is required'}), 400
 
-    image_url = data['image_url']
+    # リクエストからプロンプトを取得（なければデフォルト値を使用）
+    prompt = data.get('prompt', 'この画像について、写っているものを詳細に、客観的に説明してください。')
+
     print(f"✅ Received Image URL: {image_url}")
+    print(f"📝 Received Prompt: {prompt}")
 
     try:
         # URLから画像データをダウンロード
