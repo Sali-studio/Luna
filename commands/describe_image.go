@@ -23,35 +23,24 @@ type DescribeImageCommand struct {
 
 func (c *DescribeImageCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
-		Name: "Luna Assistantで画像を説明",
-		Type: discordgo.MessageApplicationCommand, // メッセージコマンドとして定義
+		Name:        "describe-image",
+		Description: "AIが画像を説明します",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionAttachment,
+				Name:        "image",
+				Description: "説明してほしい画像",
+				Required:    true,
+			},
+		},
 	}
 }
 
 func (c *DescribeImageCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// 対象のメッセージを取得
-	targetMessage := i.ApplicationCommandData().Resolved.Messages[i.ApplicationCommandData().TargetID]
-
-	// メッセージに画像が含まれているかチェック
-	var imageURL string
-	if len(targetMessage.Attachments) > 0 && len(targetMessage.Attachments[0].ContentType) > 5 && targetMessage.Attachments[0].ContentType[0:5] == "image" {
-		imageURL = targetMessage.Attachments[0].URL
-	} else if len(targetMessage.Embeds) > 0 && targetMessage.Embeds[0].Image != nil {
-		imageURL = targetMessage.Embeds[0].Image.URL
-	} else {
-		// 画像が見つからない場合
-		content := "エラー: 対象のメッセージに画像が見つかりませんでした。"
-		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: content,
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		}); err != nil {
-			c.Log.Error("Failed to send error response", "error", err)
-		}
-		return
-	}
+	// オプションから画像を取得
+	attachmentID := i.ApplicationCommandData().Options[0].Value.(string)
+	attachment := i.ApplicationCommandData().Resolved.Attachments[attachmentID]
+	imageURL := attachment.URL
 
 	// 「考え中...」と即時応答
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
