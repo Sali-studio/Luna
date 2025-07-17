@@ -177,6 +177,42 @@ def generate_quiz():
         return jsonify({'error': str(e)}), 500
 
 
+# ★★★ 新しいエンドポイント: ユーザー活動分析 ★★★
+@app.route('/analyze-user-activity', methods=['POST'])
+def analyze_user_activity():
+    data = request.get_json()
+    if not data or 'user_id' not in data or 'username' not in data or 'joined_at' not in data or 'roles' not in data:
+        return jsonify({'error': 'user_id, username, joined_at, and roles are required'}), 400
+
+    user_id = data['user_id']
+    username = data['username']
+    joined_at = data['joined_at']
+    roles = data['roles']
+
+    print(f"✅ Received User Activity Analysis request for {username} ({user_id})")
+
+    # Geminiに渡すプロンプトを作成
+    prompt = f"""
+以下のDiscordユーザーの情報を元に、そのユーザーの活動傾向を簡潔に分析してください。
+ユーザー名: {username}
+参加日時: {joined_at}
+ロール: {', '.join(roles) if roles else 'なし'}
+
+分析は、ユーザーの一般的な活動傾向、サーバーへの貢献度、興味の可能性などに焦点を当ててください。
+「このユーザーは...」という形式で始めてください。
+"""
+
+    try:
+        print("⏳ Analyzing user activity...")
+        response = multimodal_model.generate_content(prompt)
+        print("✅ User activity analyzed.")
+        return jsonify({'text': response.text})
+
+    except Exception as e:
+        print(f"❌ Error analyzing user activity: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # 画像を配信するためのエンドポイント
 @app.route('/images/<filename>')
 def get_image(filename):
