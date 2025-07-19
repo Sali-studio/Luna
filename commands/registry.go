@@ -42,6 +42,8 @@ func RegisterAllCommands(ctx *AppContext, allCommands map[string]interfaces.Comm
 		&RouletteCommand{Log: ctx.Log},
 		&JoinCommand{Player: ctx.Player, Log: ctx.Log},
 		&PlayCommand{Player: ctx.Player, Log: ctx.Log},
+		&StopCommand{Player: ctx.Player, Log: ctx.Log},
+		&SkipCommand{Player: ctx.Player, Log: ctx.Log},
 		// To add a new command, simply add it to this list.
 	}
 }

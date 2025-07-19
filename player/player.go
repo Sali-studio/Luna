@@ -148,116 +148,144 @@ func (p *Player) playNextSong(guildID string) {
 		options.Bitrate = 96 // 音質設定
 		options.Application = "lowdelay"
 
-		// YouTubeからのストリームを取得
-		// TODO: ここにYouTubeダウンロードロジックを実装
-		// 現状はダミーとして、dcaのサンプルにあるような直接URLを渡す形
-		// 実際にはyt-dlpなどを利用してオーディオストリームを取得する必要がある
-		encodeSession, err := dca.EncodeFile(song.URL, options)
-		if err != nil {
-			p.Log.Error("音声のエンコードに失敗しました", "error", err, "url", song.URL)
-			continue
-		}
-		defer encodeSession.Cleanup()
+        // YouTubeからのストリームを取得
+        // TODO: ここにYouTubeダウンロードロジックを実装
+        // 現状はダミーとして、dcaのサンプルにあるような直接URLを渡す形
+        // 実際にはyt-dlpなどを利用してオーディオストリームを取得する必要がある
+        // encodeSession, err := dca.EncodeFile(song.URL, options)
 
-		gp.Encoder = encodeSession
-		gp.Stream = dca.NewStream(encodeSession)
+        // yt-dlp を使用してオーディオストリームのURLを取得
+        streamURL, err := p.getAudioStreamURL(song.URL)
+        if err != nil {
+            p.Log.Error("Failed to get audio stream URL from yt-dlp", "error", err, "url", song.URL)
+            continue
+        }
 
-		// 音声データをDiscordに送信
-		for {
-			select {
-			case <-gp.Quit:
-				p.Log.Info("再生停止シグナルを受信しました", "guildID", guildID)
-				return // 停止シグナルを受け取ったら終了
-			case err := <-gp.Stream.Error():
-				if err != nil && err != io.EOF {
-					p.Log.Error("ストリームエラー", "error", err, "guildID", guildID)
-				}
-				return // エラーまたはEOFで終了
-			case <-gp.Stream.Done():
-				p.Log.Info("曲の再生が終了しました", "guildID", guildID, "title", song.Title)
-				return // 曲の終了で終了
-			case pcm := <-gp.Stream.PCM:
-				if gp.VoiceConnection != nil && gp.VoiceConnection.Ready {
-					gp.VoiceConnection.OpusSend <- pcm
-				}
-			}
-		}
-	}
+        encodeSession, err := dca.EncodeFile(streamURL, options)
+        if err != nil {
+            p.Log.Error("音声のエンコードに失敗しました", "error", err, "url", streamURL)
+            continue
+        }
+        defer encodeSession.Cleanup()
+
+        gp.Encoder = encodeSession
+        gp.Stream = dca.NewStream(encodeSession)
+
+        // 音声データをDiscordに送信
+        for {
+            select {
+            case <-gp.Quit:
+                p.Log.Info("再生停止シグナルを受信しました", "guildID", guildID)
+                return // 停止シグナルを受け取ったら終了
+            case err := <-gp.Stream.Error():
+                if err != nil && err != io.EOF {
+                    p.Log.Error("ストリームエラー", "error", err, "guildID", guildID)
+                }
+                return // エラーまたはEOFで終了
+            case <-gp.Stream.Done():
+                p.Log.Info("曲の再生が終了しました", "guildID", guildID, "title", song.Title)
+                return // 曲の終了で終了
+            case pcm := <-gp.Stream.PCM:
+                if gp.VoiceConnection != nil && gp.VoiceConnection.Ready {
+                    gp.VoiceConnection.OpusSend <- pcm
+                }
+            }
+        }
+    }
+}
+
+// getAudioStreamURL はyt-dlpを使用してオーディオストリームのURLを取得します。
+func (p *Player) getAudioStreamURL(url string) (string, error) {
+    cmd := exec.Command("yt-dlp", "-f", "bestaudio[ext=webm]/bestaudio", "--get-url", url)
+    var stdout, stderr bytes.Buffer
+    cmd.Stdout = &stdout
+    cmd.Stderr = &stderr
+
+    err := cmd.Run()
+    if err != nil {
+        return "", fmt.Errorf("yt-dlpの実行に失敗しました: %w\n%s", err, stderr.String())
+    }
+
+    streamURL := strings.TrimSpace(stdout.String())
+    if streamURL == "" {
+        return "", fmt.Errorf("yt-dlpからオーディオストリームのURLを取得できませんでした: %s", stderr.String())
+    }
+    return streamURL, nil
 }
 
 // Stop は現在の再生を停止し、キューをクリアします。
 func (p *Player) Stop(guildID string) {
-	gp := p.GetGuildPlayer(guildID)
-	gp.mu.Lock()
-	defer gp.mu.Unlock()
+    gp := p.GetGuildPlayer(guildID)
+    gp.mu.Lock()
+    defer gp.mu.Unlock()
 
-	if gp.Stream != nil {
-		gp.Stream.SetPaused(true)
-		gp.Stream.Cleanup()
-		gp.Stream = nil
-	}
-	if gp.Encoder != nil {
-		gp.Encoder.Cleanup()
-		gp.Encoder = nil
-	}
-	gp.Playing = false
-	gp.Queue = make([]*Song, 0) // キューをクリア
-	select {
-	case gp.Quit <- true:
-	default:
-	}
+    if gp.Stream != nil {
+        gp.Stream.SetPaused(true)
+        gp.Stream.Cleanup()
+        gp.Stream = nil
+    }
+    if gp.Encoder != nil {
+        gp.Encoder.Cleanup()
+        gp.Encoder = nil
+    }
+    gp.Playing = false
+    gp.Queue = make([]*Song, 0) // キューをクリア
+    select {
+    case gp.Quit <- true:
+    default:
+    }
 }
 
 // Skip は現在の曲をスキップし、次の曲を再生します。
 func (p *Player) Skip(guildID string) {
-	gp := p.GetGuildPlayer(guildID)
-	gp.mu.Lock()
-	defer gp.mu.Unlock()
+    gp := p.GetGuildPlayer(guildID)
+    gp.mu.Lock()
+    defer gp.mu.Unlock()
 
-	// 現在再生中のストリームを停止
-	if gp.Stream != nil {
-		gp.Stream.SetPaused(true)
-		gp.Stream.Cleanup()
-		gp.Stream = nil
-	}
-	if gp.Encoder != nil {
-		gp.Encoder.Cleanup()
-		gp.Encoder = nil
-	}
-	// 再生中の場合は停止シグナルを送る
-	select {
-	case gp.Quit <- true:
-	default:
-	}
+    // 現在再生中のストリームを停止
+    if gp.Stream != nil {
+        gp.Stream.SetPaused(true)
+        gp.Stream.Cleanup()
+        gp.Stream = nil
+    }
+    if gp.Encoder != nil {
+        gp.Encoder.Cleanup()
+        gp.Encoder = nil
+    }
+    // 再生中の場合は停止シグナルを送る
+    select {
+    case gp.Quit <- true:
+    default:
+    }
 
-	// 次の曲を再生
-	if len(gp.Queue) > 0 {
-		go p.playNextSong(guildID)
-	} else {
-		gp.Playing = false
-	}
+    // 次の曲を再生
+    if len(gp.Queue) > 0 {
+        go p.playNextSong(guildID)
+    } else {
+        gp.Playing = false
+    }
 }
 
 // GetQueue は現在の再生キューを取得します。
 func (p *Player) GetQueue(guildID string) []*Song {
-	gp := p.GetGuildPlayer(guildID)
-	gp.mu.Lock()
-	defer gp.mu.Unlock()
-	// キューのコピーを返す（外部からの変更を防ぐため）
-	queueCopy := make([]*Song, len(gp.Queue))
-	copy(queueCopy, gp.Queue)
-	return queueCopy
+    gp := p.GetGuildPlayer(guildID)
+    gp.mu.Lock()
+    defer gp.mu.Unlock()
+    // キューのコピーを返す（外部からの変更を防ぐため）
+    queueCopy := make([]*Song, len(gp.Queue))
+    copy(queueCopy, gp.Queue)
+    return queueCopy
 }
 
 // NowPlaying は現在再生中の曲を取得します。
 func (p *Player) NowPlaying(guildID string) *Song {
-	gp := p.GetGuildPlayer(guildID)
-	gp.mu.Lock()
-	defer gp.mu.Unlock()
+    gp := p.GetGuildPlayer(guildID)
+    gp.mu.Lock()
+    defer gp.mu.Unlock()
 
-	if len(gp.Queue) > 0 && gp.Playing {
-		// キューの先頭が現在再生中の曲とみなす
-		return gp.Queue[0]
-	}
-	return nil
+    if len(gp.Queue) > 0 && gp.Playing {
+        // キューの先頭が現在再生中の曲とみなす
+        return gp.Queue[0]
+    }
+    return nil
 }
