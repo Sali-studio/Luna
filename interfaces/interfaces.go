@@ -32,6 +32,9 @@ type DataStore interface {
 	IncrementWordCount(guildID, userID, word string) error
 	GetWordCount(guildID, userID, word string) (int, error)
 	GetWordCountRanking(guildID, word string, limit int) ([]storage.WordCount, error)
+	AddCountableWord(guildID, word string) error
+	RemoveCountableWord(guildID, word string) error
+	GetCountableWords(guildID string) ([]string, error)
 }
 
 // Scheduler は、タスクのスケジューリング機能のインターフェースを定義します。

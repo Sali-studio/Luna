@@ -53,14 +53,26 @@ func (h *MessageHandler) onMessageCreate(s *discordgo.Session, m *discordgo.Mess
 	}
 
 	// --- Word Count ---
-	// TODO: 将来的にはサーバーごとに設定できるようにする
-	if m.Content == "えぇ" {
-		go func() {
-			if err := h.Store.IncrementWordCount(m.GuildID, m.Author.ID, "えぇ"); err != nil {
-				h.Log.Error("Failed to increment word count", "error", err, "guildID", m.GuildID, "userID", m.Author.ID)
+	go func() {
+		// サーバーでカウント対象に設定されている単語リストを取得
+		countableWords, err := h.Store.GetCountableWords(m.GuildID)
+		if err != nil {
+			h.Log.Error("Failed to get countable words", "error", err, "guildID", m.GuildID)
+			return
+		}
+
+		// メッセージがカウント対象の単語のいずれかと一致するかチェック
+		for _, word := range countableWords {
+			// TODO: 将来的には部分一致なども設定できるようにする
+			if m.Content == word {
+				if err := h.Store.IncrementWordCount(m.GuildID, m.Author.ID, word); err != nil {
+					h.Log.Error("Failed to increment word count", "error", err, "guildID", m.GuildID, "userID", m.Author.ID, "word", word)
+				}
+				// 一致したらループを抜ける（複数の単語に一致してもカウントは1回）
+				break
 			}
-		}()
-	}
+		}
+	}()
 	// --- End Word Count ---
 
 	if err := h.Store.CreateMessageCache(m.ID, m.Content, m.Author.ID); err != nil {
