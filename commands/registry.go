@@ -36,6 +36,8 @@ func RegisterAllCommands(ctx *AppContext, allCommands map[string]interfaces.Comm
 		&QuizCommand{Log: ctx.Log, Store: ctx.Store},
 		&DescribeImageCommand{Log: ctx.Log},
 		&AnalyzeUserActivityCommand{Log: ctx.Log},
+		&WordCountCommand{Store: ctx.Store, Log: ctx.Log},
+		&WordRankingCommand{Store: ctx.Store, Log: ctx.Log},
 		// To add a new command, simply add it to this list.
 	}
 }

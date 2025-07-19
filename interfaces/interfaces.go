@@ -29,6 +29,9 @@ type DataStore interface {
 	GetMessageCache(messageID string) (*storage.CachedMessage, error)
 	SaveQuizQuestion(guildID, topic, question string) error
 	GetRecentQuizQuestions(guildID, topic string, limit int) ([]string, error)
+	IncrementWordCount(guildID, userID, word string) error
+	GetWordCount(guildID, userID, word string) (int, error)
+	GetWordCountRanking(guildID, word string, limit int) ([]storage.WordCount, error)
 }
 
 // Scheduler は、タスクのスケジューリング機能のインターフェースを定義します。

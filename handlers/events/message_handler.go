@@ -52,6 +52,17 @@ func (h *MessageHandler) onMessageCreate(s *discordgo.Session, m *discordgo.Mess
 		return
 	}
 
+	// --- Word Count ---
+	// TODO: 将来的にはサーバーごとに設定できるようにする
+	if m.Content == "えぇ" {
+		go func() {
+			if err := h.Store.IncrementWordCount(m.GuildID, m.Author.ID, "えぇ"); err != nil {
+				h.Log.Error("Failed to increment word count", "error", err, "guildID", m.GuildID, "userID", m.Author.ID)
+			}
+		}()
+	}
+	// --- End Word Count ---
+
 	if err := h.Store.CreateMessageCache(m.ID, m.Content, m.Author.ID); err != nil {
 		h.Log.Error("Failed to cache message in DB", "error", err)
 	}

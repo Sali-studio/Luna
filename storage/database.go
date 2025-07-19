@@ -1,4 +1,3 @@
-// storage/database.go
 package storage
 
 import (
@@ -58,6 +57,13 @@ type WelcomeConfig struct {
 	Message   string `json:"message"`
 }
 
+// WordCount はユーザーごとの単語カウントを保持する構造体です
+type WordCount struct {
+	UserID string
+	Word   string
+	Count  int
+}
+
 type DBStore struct {
 	db *sql.DB
 	mu sync.RWMutex
@@ -108,6 +114,13 @@ func (s *DBStore) initTables() error {
 			topic TEXT NOT NULL,
 			question TEXT NOT NULL,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE TABLE IF NOT EXISTS word_counts (
+			guild_id TEXT NOT NULL,
+			user_id TEXT NOT NULL,
+			word TEXT NOT NULL,
+			count INTEGER DEFAULT 0,
+			PRIMARY KEY (guild_id, user_id, word)
 		);`,
 	}
 	for _, table := range tables {
@@ -176,7 +189,8 @@ func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}
 			if err := s.upsertGuild(tx, guildID); err != nil {
 				if err := tx.Rollback(); err != nil {
 					// We can't do much if the rollback fails, so we'll just log it.
-					fmt.Printf("Failed to rollback transaction: %v\n", err)
+					fmt.Printf("Failed to rollback transaction: %v
+", err)
 				}
 				return err
 			}
@@ -287,4 +301,54 @@ func (s *DBStore) GetRecentQuizQuestions(guildID, topic string, limit int) ([]st
 	}
 
 	return questions, nil
+}
+
+// --- Word Count ---
+
+// IncrementWordCount は指定されたユーザーの単語のカウントを1増やします。
+func (s *DBStore) IncrementWordCount(guildID, userID, word string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	query := "INSERT INTO word_counts (guild_id, user_id, word, count) VALUES (?, ?, ?, 1) ON CONFLICT(guild_id, user_id, word) DO UPDATE SET count = count + 1;"
+	_, err := s.db.Exec(query, guildID, userID, word)
+	return err
+}
+
+// GetWordCount は指定されたユーザーの単語のカウントを取得します。
+func (s *DBStore) GetWordCount(guildID, userID, word string) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var count int
+	query := "SELECT count FROM word_counts WHERE guild_id = ? AND user_id = ? AND word = ?"
+	err := s.db.QueryRow(query, guildID, userID, word).Scan(&count)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil // レコードがない場合は0を返す
+		}
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetWordCountRanking は指定された単語のサーバー内ランキングを取得します。
+func (s *DBStore) GetWordCountRanking(guildID, word string, limit int) ([]WordCount, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	query := `SELECT user_id, count FROM word_counts WHERE guild_id = ? AND word = ? ORDER BY count DESC LIMIT ?;`
+	rows, err := s.db.Query(query, guildID, word, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ranking []WordCount
+	for rows.Next() {
+		var wc WordCount
+		wc.Word = word
+		if err := rows.Scan(&wc.UserID, &wc.Count); err != nil {
+			return nil, err
+		}
+		ranking = append(ranking, wc)
+	}
+	return ranking, nil
 }
