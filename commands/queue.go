@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"luna/interfaces"
 	"strings"
-	luna/player"
+	"luna/player"
 
 	"github.com/bwmarrin/discordgo"
 )
