@@ -17,6 +17,8 @@ import (
 func main() {
 	log := logger.New()
 
+	var musicPlayer *player.Player // musicPlayerをここで宣言
+
 	if err := config.LoadConfig(log); err != nil {
 		log.Fatal("設定ファイルの読み込みに失敗しました", "error", err)
 	}
@@ -45,7 +47,7 @@ func main() {
 	scheduler := cron.New()
 
 	// 音楽プレイヤーのインスタンスを先に生成 (Sessionは後で設定)
-	musicPlayer = player.NewPlayer(nil, log, db)
+		musicPlayer = player.NewPlayer(nil, log, db)
 
 	// Botに依存性を注入
 	b, err := bot.New(log, db, scheduler, musicPlayer)

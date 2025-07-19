@@ -7,6 +7,7 @@ import (
 	"io"
 	"luna/interfaces"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
@@ -51,7 +52,7 @@ func NewPlayer(s *discordgo.Session, log interfaces.Logger, store interfaces.Dat
 }
 
 // GetGuildPlayer は指定されたサーバーのGuildPlayerを取得します。存在しない場合は作成します。
-func (p *Player) GetGuildPlayer(guildID string) *GuildPlayer {
+func (p *Player) GetGuildPlayer(guildID string) interface{} {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if gp, ok := p.Guilds[guildID]; ok {
@@ -67,7 +68,7 @@ func (p *Player) GetGuildPlayer(guildID string) *GuildPlayer {
 
 // JoinVC はボイスチャンネルに接続します。
 func (p *Player) JoinVC(guildID, channelID string) error {
-	gp := p.GetGuildPlayer(guildID)
+	gp := p.GetGuildPlayer(guildID).(*GuildPlayer)
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
 
@@ -83,7 +84,7 @@ func (p *Player) JoinVC(guildID, channelID string) error {
 
 // LeaveVC はボイスチャンネルから切断します。
 func (p *Player) LeaveVC(guildID string) {
-	gp := p.GetGuildPlayer(guildID)
+	gp := p.GetGuildPlayer(guildID).(*GuildPlayer)
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
 
@@ -113,7 +114,7 @@ func (p *Player) LeaveVC(guildID string) {
 
 // Play はURLから音声を再生します。
 func (p *Player) Play(guildID string, url, title, author string) error {
-	gp := p.GetGuildPlayer(guildID)
+	gp := p.GetGuildPlayer(guildID).(*GuildPlayer)
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
 
@@ -133,7 +134,7 @@ func (p *Player) Play(guildID string, url, title, author string) error {
 
 // playNextSong はキューから次の曲を再生します。
 func (p *Player) playNextSong(guildID string) {
-	gp := p.GetGuildPlayer(guildID)
+	gp := p.GetGuildPlayer(guildID).(*GuildPlayer)
 	for {
 		gp.mu.Lock()
 		if len(gp.Queue) == 0 {
@@ -152,12 +153,14 @@ func (p *Player) playNextSong(guildID string) {
 		options.Bitrate = 96 // 音質設定
 		options.Application = "lowdelay"
 
-		// yt-dlp を使用してオーディオストリームのURLを取得
-		streamURL, err := p.getAudioStreamURL(song.URL)
+		// yt-dlp を使用してオーディオストリームのURLとメタデータを取得
+		streamURL, title, author, err := p.GetAudioStreamURL(song.URL)
 		if err != nil {
 			p.Log.Error("Failed to get audio stream URL from yt-dlp", "error", err, "url", song.URL)
 			continue
 		}
+		song.Title = title
+		song.Author = author
 
 		encodeSession, err := dca.EncodeFile(streamURL, options)
 		if err != nil {
@@ -192,7 +195,7 @@ func (p *Player) playNextSong(guildID string) {
 	}
 }
 
-// getAudioStreamURL はyt-dlpを使用してオーディオストリームのURLとメタデータを取得します。
+// GetAudioStreamURL はyt-dlpを使用してオーディオストリームのURLとメタデータを取得します。
 func (p *Player) GetAudioStreamURL(url string) (streamURL, title, author string, err error) {
 	cmd := exec.Command("yt-dlp", "-f", "bestaudio[ext=webm]/bestaudio", "--dump-json", url)
 	var stdout, stderr bytes.Buffer
@@ -223,7 +226,7 @@ func (p *Player) GetAudioStreamURL(url string) (streamURL, title, author string,
 
 // Stop は現在の再生を停止し、キューをクリアします。
 func (p *Player) Stop(guildID string) {
-	gp := p.GetGuildPlayer(guildID)
+	gp := p.GetGuildPlayer(guildID).(*GuildPlayer)
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
 
@@ -246,7 +249,7 @@ func (p *Player) Stop(guildID string) {
 
 // Skip は現在の曲をスキップし、次の曲を再生します。
 func (p *Player) Skip(guildID string) {
-	gp := p.GetGuildPlayer(guildID)
+	gp := p.GetGuildPlayer(guildID).(*GuildPlayer)
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
 
@@ -276,11 +279,11 @@ func (p *Player) Skip(guildID string) {
 
 // GetQueue は現在の再生キューを取得します。
 func (p *Player) GetQueue(guildID string) []struct{ URL, Title, Author string } {
-	gp := p.GetGuildPlayer(guildID)
+	gp := p.GetGuildPlayer(guildID).(*GuildPlayer)
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
 	// キューのコピーを返す（外部からの変更を防ぐため）
-	queueCopy := make([]struct{ URL, Title, Author string }, len(gp.Queue))
+	queueCopy := make([]struct{ URL, Title, Author string }, len(gp.Queue)
 	for i, song := range gp.Queue {
 		queueCopy[i] = struct{ URL, Title, Author string }{URL: song.URL, Title: song.Title, Author: song.Author}
 	}
@@ -289,7 +292,7 @@ func (p *Player) GetQueue(guildID string) []struct{ URL, Title, Author string } 
 
 // NowPlaying は現在再生中の曲を取得します。
 func (p *Player) NowPlaying(guildID string) *struct{ URL, Title, Author string } {
-	gp := p.GetGuildPlayer(guildID)
+	gp := p.GetGuildPlayer(guildID).(*GuildPlayer)
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
 
