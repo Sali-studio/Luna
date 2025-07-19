@@ -46,9 +46,10 @@ func main() {
 		log.Fatal("データベースの初期化に失敗しました", "error", err)
 	}
 	scheduler := cron.New()
+	musicPlayer := player.NewPlayer(b.GetSession(), log, db)
 
 	// Botに依存性を注入
-	b, err := bot.New(log, db, scheduler)
+	b, err := bot.New(log, db, scheduler, musicPlayer)
 	if err != nil {
 		log.Fatal("Botの初期化に失敗しました", "error", err)
 	}
