@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 	"luna/interfaces"
-	"luna/player"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -35,7 +34,7 @@ func (c *PlayCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 
 	// ボットがボイスチャンネルに接続しているか確認
 	gp := c.Player.GetGuildPlayer(i.GuildID)
-	if gp.VoiceConnection == nil {
+	if gp == nil || gp.(*player.GuildPlayer).VoiceConnection == nil {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -46,15 +45,8 @@ func (c *PlayCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		return
 	}
 
-	// Song構造体を作成 (タイトルと作者は仮)
-	song := &player.Song{
-		URL:    url,
-		Title:  "不明なタイトル", // TODO: URLからタイトルを取得するロジックを追加
-		Author: "不明な作者",   // TODO: URLから作者を取得するロジックを追加
-	}
-
 	// 再生キューに追加
-	err := c.Player.Play(i.GuildID, song)
+	err := c.Player.Play(i.GuildID, url, "不明なタイトル", "不明な作者") // タイトルと作者は仮
 	if err != nil {
 		c.Log.Error("Failed to play music", "error", err, "guildID", i.GuildID, "url", url)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -70,7 +62,7 @@ func (c *PlayCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	// 成功メッセージをEmbedで送信
 	embed := &discordgo.MessageEmbed{
 		Title:       "🎵 再生キューに追加しました！",
-		Description: fmt.Sprintf("**[%s](%s)** を再生キューに追加しました。", song.Title, song.URL),
+		Description: fmt.Sprintf("**[%s](%s)** を再生キューに追加しました。", "不明なタイトル", url),
 		Color:       0x3498db, // Blue
 	}
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{

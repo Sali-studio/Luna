@@ -46,13 +46,13 @@ func main() {
 		log.Fatal("データベースの初期化に失敗しました", "error", err)
 	}
 	scheduler := cron.New()
-	musicPlayer := player.NewPlayer(b.GetSession(), log, db)
 
 	// Botに依存性を注入
 	b, err := bot.New(log, db, scheduler, musicPlayer)
 	if err != nil {
 		log.Fatal("Botの初期化に失敗しました", "error", err)
 	}
+	musicPlayer := player.NewPlayer(b.GetSession(), log, db)
 
 	// Webサーバーのセットアップと起動
 	webServer := servers.NewWebServer(log, db)
@@ -78,6 +78,7 @@ func main() {
 		Store:     b.GetDBStore(),
 		Scheduler: b.GetScheduler(),
 		StartTime: b.GetStartTime(),
+		Player:    musicPlayer,
 	}
 	registeredCommands := make([]*discordgo.ApplicationCommand, 0)
 	for _, cmd := range commands.RegisterAllCommands(appContext, commandHandlers) {

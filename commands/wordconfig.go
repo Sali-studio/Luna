@@ -152,4 +152,4 @@ func sendErrorResponse(s *discordgo.Session, i *discordgo.InteractionCreate, mes
 func (c *WordConfigCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *WordConfigCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *WordConfigCommand) GetComponentIDs() []string                                            { return []string{} }
-func (c *WordCodeConfigCommand) GetCategory() string                                                  { return "管理" }
+func (c *WordConfigCommand) GetCategory() string                                                  { return "管理" }

@@ -58,9 +58,10 @@ type CommandHandler interface {
 type MusicPlayer interface {
 	JoinVC(guildID, channelID string) error
 	LeaveVC(guildID string)
-	Play(guildID string, song *player.Song) error
+	Play(guildID string, url, title, author string) error // Song構造体ではなく、必要なフィールドを直接渡す
 	Stop(guildID string)
 	Skip(guildID string)
-	GetQueue(guildID string) []*player.Song
-	NowPlaying(guildID string) *player.Song
+	GetQueue(guildID string) []struct{ URL, Title, Author string } // Song構造体ではなく、匿名構造体で返す
+	NowPlaying(guildID string) *struct{ URL, Title, Author string } // Song構造体ではなく、匿名構造体で返す
+	GetGuildPlayer(guildID string) interface{} // player.GuildPlayerの代わりにinterface{}を返す
 }

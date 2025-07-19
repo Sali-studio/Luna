@@ -1,9 +1,12 @@
 package player
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"luna/interfaces"
+	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
@@ -20,7 +23,7 @@ type Song struct {
 // GuildPlayer は各サーバー（Guild）ごとのプレイヤーの状態を保持します。
 type GuildPlayer struct {
 	VoiceConnection *discordgo.VoiceConnection
-	Encoder         *dca.Encoder
+	Encoder         *dca.EncodeSession
 	Stream          *dca.StreamingSession
 	Queue           []*Song
 	Playing         bool
@@ -91,7 +94,7 @@ func (p *Player) LeaveVC(guildID string) {
 	}
 	if gp.Stream != nil {
 		gp.Stream.SetPaused(true)
-		gp.Stream.Cleanup()
+		// gp.Stream.Cleanup() // StreamingSessionにはCleanupがない
 		gp.Stream = nil
 	}
 	if gp.Encoder != nil {
@@ -109,7 +112,7 @@ func (p *Player) LeaveVC(guildID string) {
 }
 
 // Play はURLから音声を再生します。
-func (p *Player) Play(guildID string, song *Song) error {
+func (p *Player) Play(guildID string, url, title, author string) error {
 	gp := p.GetGuildPlayer(guildID)
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
@@ -118,6 +121,7 @@ func (p *Player) Play(guildID string, song *Song) error {
 		return fmt.Errorf("ボイスチャンネルに接続していません。先に接続してください。")
 	}
 
+	song := &Song{URL: url, Title: title, Author: author}
 	gp.Queue = append(gp.Queue, song)
 
 	if !gp.Playing {
@@ -148,144 +152,140 @@ func (p *Player) playNextSong(guildID string) {
 		options.Bitrate = 96 // 音質設定
 		options.Application = "lowdelay"
 
-        // YouTubeからのストリームを取得
-        // TODO: ここにYouTubeダウンロードロジックを実装
-        // 現状はダミーとして、dcaのサンプルにあるような直接URLを渡す形
-        // 実際にはyt-dlpなどを利用してオーディオストリームを取得する必要がある
-        // encodeSession, err := dca.EncodeFile(song.URL, options)
+		// yt-dlp を使用してオーディオストリームのURLを取得
+		streamURL, err := p.getAudioStreamURL(song.URL)
+		if err != nil {
+			p.Log.Error("Failed to get audio stream URL from yt-dlp", "error", err, "url", song.URL)
+			continue
+		}
 
-        // yt-dlp を使用してオーディオストリームのURLを取得
-        streamURL, err := p.getAudioStreamURL(song.URL)
-        if err != nil {
-            p.Log.Error("Failed to get audio stream URL from yt-dlp", "error", err, "url", song.URL)
-            continue
-        }
+		encodeSession, err := dca.EncodeFile(streamURL, options)
+		if err != nil {
+			p.Log.Error("音声のエンコードに失敗しました", "error", err, "url", streamURL)
+			continue
+		}
+		defer encodeSession.Cleanup()
 
-        encodeSession, err := dca.EncodeFile(streamURL, options)
-        if err != nil {
-            p.Log.Error("音声のエンコードに失敗しました", "error", err, "url", streamURL)
-            continue
-        }
-        defer encodeSession.Cleanup()
+		gp.Encoder = encodeSession
+		gp.Stream = dca.NewStream(encodeSession.OpusReader, gp.VoiceConnection, make(chan error)) // ここを修正
 
-        gp.Encoder = encodeSession
-        gp.Stream = dca.NewStream(encodeSession)
-
-        // 音声データをDiscordに送信
-        for {
-            select {
-            case <-gp.Quit:
-                p.Log.Info("再生停止シグナルを受信しました", "guildID", guildID)
-                return // 停止シグナルを受け取ったら終了
-            case err := <-gp.Stream.Error():
-                if err != nil && err != io.EOF {
-                    p.Log.Error("ストリームエラー", "error", err, "guildID", guildID)
-                }
-                return // エラーまたはEOFで終了
-            case <-gp.Stream.Done():
-                p.Log.Info("曲の再生が終了しました", "guildID", guildID, "title", song.Title)
-                return // 曲の終了で終了
-            case pcm := <-gp.Stream.PCM:
-                if gp.VoiceConnection != nil && gp.VoiceConnection.Ready {
-                    gp.VoiceConnection.OpusSend <- pcm
-                }
-            }
-        }
-    }
+		// 音声データをDiscordに送信
+		for {
+			select {
+			case <-gp.Quit:
+				p.Log.Info("再生停止シグナルを受信しました", "guildID", guildID)
+				return // 停止シグナルを受け取ったら終了
+			case err := <-gp.Stream.Error:
+				if err != nil && err != io.EOF {
+					p.Log.Error("ストリームエラー", "error", err, "guildID", guildID)
+				}
+				return // エラーまたはEOFで終了
+			case <-gp.Stream.Done:
+				p.Log.Info("曲の再生が終了しました", "guildID", guildID, "title", song.Title)
+				return // 曲の終了で終了
+			case pcm := <-gp.Stream.PCM:
+				if gp.VoiceConnection != nil && gp.VoiceConnection.Ready {
+					gp.VoiceConnection.OpusSend <- pcm
+				}
+			}
+		}
+	}
 }
 
 // getAudioStreamURL はyt-dlpを使用してオーディオストリームのURLを取得します。
 func (p *Player) getAudioStreamURL(url string) (string, error) {
-    cmd := exec.Command("yt-dlp", "-f", "bestaudio[ext=webm]/bestaudio", "--get-url", url)
-    var stdout, stderr bytes.Buffer
-    cmd.Stdout = &stdout
-    cmd.Stderr = &stderr
+	cmd := exec.Command("yt-dlp", "-f", "bestaudio[ext=webm]/bestaudio", "--get-url", url)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 
-    err := cmd.Run()
-    if err != nil {
-        return "", fmt.Errorf("yt-dlpの実行に失敗しました: %w\n%s", err, stderr.String())
-    }
+	err := cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("yt-dlpの実行に失敗しました: %w\n%s", err, stderr.String())
+	}
 
-    streamURL := strings.TrimSpace(stdout.String())
-    if streamURL == "" {
-        return "", fmt.Errorf("yt-dlpからオーディオストリームのURLを取得できませんでした: %s", stderr.String())
-    }
-    return streamURL, nil
+	streamURL := strings.TrimSpace(stdout.String())
+	if streamURL == "" {
+		return "", fmt.Errorf("yt-dlpからオーディオストリームのURLを取得できませんでした: %s", stderr.String())
+	}
+	return streamURL, nil
 }
 
 // Stop は現在の再生を停止し、キューをクリアします。
 func (p *Player) Stop(guildID string) {
-    gp := p.GetGuildPlayer(guildID)
-    gp.mu.Lock()
-    defer gp.mu.Unlock()
+	gp := p.GetGuildPlayer(guildID)
+	gp.mu.Lock()
+	defer gp.mu.Unlock()
 
-    if gp.Stream != nil {
-        gp.Stream.SetPaused(true)
-        gp.Stream.Cleanup()
-        gp.Stream = nil
-    }
-    if gp.Encoder != nil {
-        gp.Encoder.Cleanup()
-        gp.Encoder = nil
-    }
-    gp.Playing = false
-    gp.Queue = make([]*Song, 0) // キューをクリア
-    select {
-    case gp.Quit <- true:
-    default:
-    }
+	if gp.Stream != nil {
+		gp.Stream.SetPaused(true)
+		// gp.Stream.Cleanup() // StreamingSessionにはCleanupがない
+		gp.Stream = nil
+	}
+	if gp.Encoder != nil {
+		gp.Encoder.Cleanup()
+		gp.Encoder = nil
+	}
+	gp.Playing = false
+	gp.Queue = make([]*Song, 0) // キューをクリア
+	select {
+	case gp.Quit <- true:
+	default:
+	}
 }
 
 // Skip は現在の曲をスキップし、次の曲を再生します。
 func (p *Player) Skip(guildID string) {
-    gp := p.GetGuildPlayer(guildID)
-    gp.mu.Lock()
-    defer gp.mu.Unlock()
+	gp := p.GetGuildPlayer(guildID)
+	gp.mu.Lock()
+	defer gp.mu.Unlock()
 
-    // 現在再生中のストリームを停止
-    if gp.Stream != nil {
-        gp.Stream.SetPaused(true)
-        gp.Stream.Cleanup()
-        gp.Stream = nil
-    }
-    if gp.Encoder != nil {
-        gp.Encoder.Cleanup()
-        gp.Encoder = nil
-    }
-    // 再生中の場合は停止シグナルを送る
-    select {
-    case gp.Quit <- true:
-    default:
-    }
+	// 現在再生中のストリームを停止
+	if gp.Stream != nil {
+		gp.Stream.SetPaused(true)
+		// gp.Stream.Cleanup() // StreamingSessionにはCleanupがない
+		gp.Stream = nil
+	}
+	if gp.Encoder != nil {
+		gp.Encoder.Cleanup()
+		gp.Encoder = nil
+	}
+	// 再生中の場合は停止シグナルを送る
+	select {
+	case gp.Quit <- true:
+	default:
+	}
 
-    // 次の曲を再生
-    if len(gp.Queue) > 0 {
-        go p.playNextSong(guildID)
-    } else {
-        gp.Playing = false
-    }
+	// 次の曲を再生
+	if len(gp.Queue) > 0 {
+		go p.playNextSong(guildID)
+	} else {
+		gp.Playing = false
+	}
 }
 
 // GetQueue は現在の再生キューを取得します。
-func (p *Player) GetQueue(guildID string) []*Song {
-    gp := p.GetGuildPlayer(guildID)
-    gp.mu.Lock()
-    defer gp.mu.Unlock()
-    // キューのコピーを返す（外部からの変更を防ぐため）
-    queueCopy := make([]*Song, len(gp.Queue))
-    copy(queueCopy, gp.Queue)
-    return queueCopy
+func (p *Player) GetQueue(guildID string) []struct{ URL, Title, Author string } {
+	gp := p.GetGuildPlayer(guildID)
+	gp.mu.Lock()
+	defer gp.mu.Unlock()
+	// キューのコピーを返す（外部からの変更を防ぐため）
+	queueCopy := make([]struct{ URL, Title, Author string }, len(gp.Queue))
+	for i, song := range gp.Queue {
+		queueCopy[i] = struct{ URL, Title, Author string }{URL: song.URL, Title: song.Title, Author: song.Author}
+	}
+	return queueCopy
 }
 
 // NowPlaying は現在再生中の曲を取得します。
-func (p *Player) NowPlaying(guildID string) *Song {
-    gp := p.GetGuildPlayer(guildID)
-    gp.mu.Lock()
-    defer gp.mu.Unlock()
+func (p *Player) NowPlaying(guildID string) *struct{ URL, Title, Author string } {
+	gp := p.GetGuildPlayer(guildID)
+	gp.mu.Lock()
+	defer gp.mu.Unlock()
 
-    if len(gp.Queue) > 0 && gp.Playing {
-        // キューの先頭が現在再生中の曲とみなす
-        return gp.Queue[0]
-    }
-    return nil
+	if len(gp.Queue) > 0 && gp.Playing {
+		// キューの先頭が現在再生中の曲とみなす
+		return &struct{ URL, Title, Author string }{URL: gp.Queue[0].URL, Title: gp.Queue[0].Title, Author: gp.Queue[0].Author}
+	}
+	return nil
 }
