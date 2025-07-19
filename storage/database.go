@@ -361,3 +361,45 @@ func (s *DBStore) GetWordCountRanking(guildID, word string, limit int) ([]WordCo
 	}
 	return ranking, nil
 }
+
+// --- Countable Words ---
+
+// AddCountableWord は、サーバーのカウント対象単語を追加します。
+func (s *DBStore) AddCountableWord(guildID, word string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	query := "INSERT OR IGNORE INTO countable_words (guild_id, word) VALUES (?, ?)"
+	_, err := s.db.Exec(query, guildID, word)
+	return err
+}
+
+// RemoveCountableWord は、サーバーのカウント対象単語を削除します。
+func (s *DBStore) RemoveCountableWord(guildID, word string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	query := "DELETE FROM countable_words WHERE guild_id = ? AND word = ?"
+	_, err := s.db.Exec(query, guildID, word)
+	return err
+}
+
+// GetCountableWords は、サーバーのカウント対象単語のリストを取得します。
+func (s *DBStore) GetCountableWords(guildID string) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	query := "SELECT word FROM countable_words WHERE guild_id = ?"
+	rows, err := s.db.Query(query, guildID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var words []string
+	for rows.Next() {
+		var word string
+		if err := rows.Scan(&word); err != nil {
+			return nil, err
+		}
+		words = append(words, word)
+	}
+	return words, nil
+}
