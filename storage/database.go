@@ -189,8 +189,7 @@ func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}
 			if err := s.upsertGuild(tx, guildID); err != nil {
 				if err := tx.Rollback(); err != nil {
 					// We can't do much if the rollback fails, so we'll just log it.
-					fmt.Printf("Failed to rollback transaction: %v
-", err)
+					fmt.Printf("Failed to rollback transaction: %v", err)
 				}
 				return err
 			}
@@ -270,7 +269,7 @@ func (s *DBStore) CloseTicketRecord(channelID string) error {
 	return err
 }
 
-// --- Quiz History --- 
+// --- Quiz History ---
 
 // SaveQuizQuestion saves a new quiz question to the history.
 func (s *DBStore) SaveQuizQuestion(guildID, topic, question string) error {
@@ -309,7 +308,11 @@ func (s *DBStore) GetRecentQuizQuestions(guildID, topic string, limit int) ([]st
 func (s *DBStore) IncrementWordCount(guildID, userID, word string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	query := "INSERT INTO word_counts (guild_id, user_id, word, count) VALUES (?, ?, ?, 1) ON CONFLICT(guild_id, user_id, word) DO UPDATE SET count = count + 1;"
+	query := `
+		INSERT INTO word_counts (guild_id, user_id, word, count)
+		VALUES (?, ?, ?, 1)
+		ON CONFLICT(guild_id, user_id, word) DO UPDATE SET count = count + 1;
+	`
 	_, err := s.db.Exec(query, guildID, userID, word)
 	return err
 }
@@ -334,7 +337,13 @@ func (s *DBStore) GetWordCount(guildID, userID, word string) (int, error) {
 func (s *DBStore) GetWordCountRanking(guildID, word string, limit int) ([]WordCount, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	query := `SELECT user_id, count FROM word_counts WHERE guild_id = ? AND word = ? ORDER BY count DESC LIMIT ?;`
+	query := `
+		SELECT user_id, count
+		FROM word_counts
+		WHERE guild_id = ? AND word = ?
+		ORDER BY count DESC
+		LIMIT ?;
+	`
 	rows, err := s.db.Query(query, guildID, word, limit)
 	if err != nil {
 		return nil, err
