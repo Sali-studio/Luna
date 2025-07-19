@@ -39,6 +39,7 @@ func RegisterAllCommands(ctx *AppContext, allCommands map[string]interfaces.Comm
 		&WordCountCommand{Store: ctx.Store, Log: ctx.Log},
 		&WordRankingCommand{Store: ctx.Store, Log: ctx.Log},
 		&WordConfigCommand{Store: ctx.Store, Log: ctx.Log},
+		&RouletteCommand{Log: ctx.Log},
 		// To add a new command, simply add it to this list.
 	}
 }
