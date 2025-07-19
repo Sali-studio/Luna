@@ -20,10 +20,11 @@ type Bot struct {
 	dbStore   interfaces.DataStore
 	scheduler interfaces.Scheduler
 	startTime time.Time
+	player    interfaces.MusicPlayer
 }
 
 // New は新しいBotインスタンスを作成します。
-func New(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Scheduler) (*Bot, error) {
+func New(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Scheduler, player interfaces.MusicPlayer) (*Bot, error) {
 	token := config.Cfg.Discord.Token
 	if token == "" || token == "YOUR_DISCORD_BOT_TOKEN_HERE" {
 		log.Fatal("DiscordのBotトークンが設定されていません。config.yamlを確認してください。")
@@ -44,6 +45,7 @@ func New(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Sc
 		dbStore:   db,
 		scheduler: scheduler,
 		startTime: time.Now(),
+		player:    player,
 	}, nil
 }
 
@@ -112,4 +114,8 @@ func (b *Bot) GetStartTime() time.Time {
 
 func (b *Bot) GetSession() *discordgo.Session {
 	return b.Session
+}
+
+func (b *Bot) GetPlayer() interfaces.MusicPlayer {
+	return b.player
 }
