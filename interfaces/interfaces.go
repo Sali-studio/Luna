@@ -53,3 +53,14 @@ type CommandHandler interface {
 	GetComponentIDs() []string
 	GetCategory() string
 }
+
+// MusicPlayer は音楽再生機能のインターフェースを定義します。
+type MusicPlayer interface {
+	JoinVC(guildID, channelID string) error
+	LeaveVC(guildID string)
+	Play(guildID string, song *player.Song) error
+	Stop(guildID string)
+	Skip(guildID string)
+	GetQueue(guildID string) []*player.Song
+	NowPlaying(guildID string) *player.Song
+}
