@@ -4,17 +4,13 @@ import (
 	"os"
 
 	"luna/bot"
-	"luna/commands"
 	"luna/config"
-	"luna/handlers/events"
 	"luna/handlers/web"
-	"luna/interfaces"
 	"luna/logger"
 	"luna/player"
 	"luna/servers"
 	"luna/storage"
 
-	"github.com/bwmarrin/discordgo"
 	"github.com/robfig/cron/v3"
 )
 
@@ -48,50 +44,15 @@ func main() {
 	}
 	scheduler := cron.New()
 
+	// 音楽プレイヤーのインスタンスを先に生成 (Sessionは後で設定)
+	musicPlayer = player.NewPlayer(nil, log, db)
+
 	// Botに依存性を注入
-	b, err := bot.New(log, db, scheduler, MusicPlayer)
+	b, err := bot.New(log, db, scheduler, musicPlayer)
 	if err != nil {
 		log.Fatal("Botの初期化に失敗しました", "error", err)
 	}
-	musicPlayer := player.NewPlayer(b.GetSession(), log, db)
 
-	// Webサーバーのセットアップと起動
-	webServer := servers.NewWebServer(log, db)
-	go func() {
-		if err := webServer.Start(); err != nil {
-			log.Fatal("Webサーバーの起動に失敗しました", "error", err)
-		}
-	}()
-	defer webServer.Stop()
-
-	// イベントハンドラの登録
-	events.NewMessageHandler(log, b.GetDBStore()).Register(b.GetSession())
-	events.NewMemberHandler(log, b.GetDBStore()).Register(b.GetSession())
-	// events.NewVoiceHandler(log, b.GetDBStore()).Register(b.GetSession())
-	events.NewChannelHandler(log, b.GetDBStore()).Register(b.GetSession())
-	events.NewRoleHandler(log, b.GetDBStore()).Register(b.GetSession())
-
-	// コマンドの登録
-	commandHandlers := make(map[string]interfaces.CommandHandler)
-	componentHandlers := make(map[string]interfaces.CommandHandler)
-	appContext := &commands.AppContext{
-		Log:       log,
-		Store:     b.GetDBStore(),
-		Scheduler: b.GetScheduler(),
-		StartTime: b.GetStartTime(),
-		Player:    musicPlayer,
-	}
-	registeredCommands := make([]*discordgo.ApplicationCommand, 0)
-	for _, cmd := range commands.RegisterAllCommands(appContext, commandHandlers) {
-		def := cmd.GetCommandDef()
-		commandHandlers[def.Name] = cmd
-		for _, id := range cmd.GetComponentIDs() {
-			componentHandlers[id] = cmd
-		}
-		registeredCommands = append(registeredCommands, def)
-	}
-
-	if err := b.Start(commandHandlers, componentHandlers, registeredCommands); err != nil {
-		log.Fatal("Botの起動に失敗しました", "error", err)
-	}
+	// BotのSessionをPlayerに設定
+	musicPlayer.Session = b.GetSession()
 }

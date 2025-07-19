@@ -193,7 +193,7 @@ func (p *Player) playNextSong(guildID string) {
 }
 
 // getAudioStreamURL はyt-dlpを使用してオーディオストリームのURLとメタデータを取得します。
-func (p *Player) getAudioStreamURL(url string) (streamURL, title, author string, err error) {
+func (p *Player) GetAudioStreamURL(url string) (streamURL, title, author string, err error) {
 	cmd := exec.Command("yt-dlp", "-f", "bestaudio[ext=webm]/bestaudio", "--dump-json", url)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
