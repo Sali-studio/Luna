@@ -44,6 +44,7 @@ func RegisterAllCommands(ctx *AppContext, allCommands map[string]interfaces.Comm
 		&PlayCommand{Player: ctx.Player, Log: ctx.Log},
 		&StopCommand{Player: ctx.Player, Log: ctx.Log},
 		&SkipCommand{Player: ctx.Player, Log: ctx.Log},
+		&QueueCommand{Player: ctx.Player, Log: ctx.Log},
 		// To add a new command, simply add it to this list.
 	}
 }
