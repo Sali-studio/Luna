@@ -12,6 +12,7 @@ type AppContext struct {
 	Store     interfaces.DataStore
 	Scheduler interfaces.Scheduler
 	StartTime time.Time
+	Player    interfaces.MusicPlayer
 }
 
 // RegisterAllCommands initializes and returns all command handlers.

@@ -143,7 +143,7 @@ func (p *Player) playNextSong(guildID string) {
 		}
 		song := gp.Queue[0]
 		gp.Queue = gp.Queue[1:] // キューから削除
-		gp.mu.Unlock()
+		gp.Unlock()
 
 		p.Log.Info("再生開始", "guildID", guildID, "title", song.Title, "url", song.URL)
 
