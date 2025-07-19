@@ -1,6 +1,0 @@
-PS C:\Users\amuka\Luna> go run .      
-# luna/storage
-storage\database.go:192:52: newline in string
-storage\database.go:192:52: syntax error: unexpected newline in argument list; possibly missing comma or )
-storage\database.go:193:8: newline in string
-PS C:\Users\amuka\Luna> 
