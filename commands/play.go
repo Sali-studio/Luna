@@ -46,8 +46,22 @@ func (c *PlayCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		return
 	}
 
+	// yt-dlpからタイトルと作者を取得
+	streamURL, title, author, err := gp.(*player.Player).getAudioStreamURL(url) // Playerのメソッドを呼び出す
+	if err != nil {
+		c.Log.Error("Failed to get song info from yt-dlp", "error", err, "url", url)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("曲情報の取得に失敗しました: %s", err.Error()),
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
 	// 再生キューに追加
-	err := c.Player.Play(i.GuildID, url, "不明なタイトル", "不明な作者") // タイトルと作者は仮
+	err = c.Player.Play(i.GuildID, streamURL, title, author)
 	if err != nil {
 		c.Log.Error("Failed to play music", "error", err, "guildID", i.GuildID, "url", url)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -63,7 +77,7 @@ func (c *PlayCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	// 成功メッセージをEmbedで送信
 	embed := &discordgo.MessageEmbed{
 		Title:       "🎵 再生キューに追加しました！",
-		Description: fmt.Sprintf("**[%s](%s)** を再生キューに追加しました。", "不明なタイトル", url),
+		Description: fmt.Sprintf("**[%s](%s)** - %s を再生キューに追加しました。", title, url, author),
 		Color:       0x3498db, // Blue
 	}
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{

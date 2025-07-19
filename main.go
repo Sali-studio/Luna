@@ -41,18 +41,20 @@ func main() {
 	defer serverManager.StopAll()
 
 	// 依存関係のインスタンスを生成
-	db, err := storage.NewDBStore("./luna.db")
+		db, err := storage.NewDBStore("./luna.db")
 	if err != nil {
 		log.Fatal("データベースの初期化に失敗しました", "error", err)
 	}
 	scheduler := cron.New()
 
 	// Botに依存性を注入
-	b, err := bot.New(log, db, scheduler, musicPlayer)
+	b, err := bot.New(log, db, scheduler, player.NewPlayer(nil, log, db)) // Sessionは後で設定
 	if err != nil {
 		log.Fatal("Botの初期化に失敗しました", "error", err)
 	}
-	musicPlayer := player.NewPlayer(b.GetSession(), log, db)
+
+	// BotのSessionをPlayerに設定
+	b.GetPlayer().(*player.Player).Session = b.GetSession()
 
 	// Webサーバーのセットアップと起動
 	webServer := servers.NewWebServer(log, db)

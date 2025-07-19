@@ -2,11 +2,11 @@ package player
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"luna/interfaces"
 	"os/exec"
-	"strings"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
@@ -136,7 +136,7 @@ func (p *Player) playNextSong(guildID string) {
 	gp := p.GetGuildPlayer(guildID)
 	for {
 		gp.mu.Lock()
-				if len(gp.Queue) == 0 {
+		if len(gp.Queue) == 0 {
 			gp.Playing = false
 			gp.mu.Unlock()
 			break // キューが空になったら再生を停止
@@ -167,7 +167,7 @@ func (p *Player) playNextSong(guildID string) {
 		defer encodeSession.Cleanup()
 
 		gp.Encoder = encodeSession
-		gp.Stream = dca.NewStream(encodeSession.OpusReader, gp.VoiceConnection, make(chan error)) // ここを修正
+		gp.Stream = dca.NewStream(encodeSession, gp.VoiceConnection, make(chan error)) // ここを修正
 
 		// 音声データをDiscordに送信
 		for {
@@ -192,23 +192,33 @@ func (p *Player) playNextSong(guildID string) {
 	}
 }
 
-// getAudioStreamURL はyt-dlpを使用してオーディオストリームのURLを取得します。
-func (p *Player) getAudioStreamURL(url string) (string, error) {
-	cmd := exec.Command("yt-dlp", "-f", "bestaudio[ext=webm]/bestaudio", "--get-url", url)
+// getAudioStreamURL はyt-dlpを使用してオーディオストリームのURLとメタデータを取得します。
+func (p *Player) getAudioStreamURL(url string) (streamURL, title, author string, err error) {
+	cmd := exec.Command("yt-dlp", "-f", "bestaudio[ext=webm]/bestaudio", "--dump-json", url)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
-		return "", fmt.Errorf("yt-dlpの実行に失敗しました: %w\n%s", err, stderr.String())
+		return "", "", "", fmt.Errorf("yt-dlpの実行に失敗しました: %w\n%s", err, stderr.String())
 	}
 
-	streamURL := strings.TrimSpace(stdout.String())
-	if streamURL == "" {
-		return "", fmt.Errorf("yt-dlpからオーディオストリームのURLを取得できませんでした: %s", stderr.String())
+	var result struct {
+		URL      string `json:"url"`
+		Title    string `json:"title"`
+		Uploader string `json:"uploader"`
 	}
-	return streamURL, nil
+
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		return "", "", "", fmt.Errorf("yt-dlpの出力のパースに失敗しました: %w\n%s", err, stdout.String())
+	}
+
+	if result.URL == "" {
+		return "", "", "", fmt.Errorf("yt-dlpからオーディオストリームのURLを取得できませんでした: %s", stderr.String())
+	}
+
+	return result.URL, result.Title, result.Uploader, nil
 }
 
 // Stop は現在の再生を停止し、キューをクリアします。
