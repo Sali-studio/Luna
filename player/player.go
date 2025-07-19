@@ -136,14 +136,14 @@ func (p *Player) playNextSong(guildID string) {
 	gp := p.GetGuildPlayer(guildID)
 	for {
 		gp.mu.Lock()
-		if len(gp.Queue) == 0 {
+				if len(gp.Queue) == 0 {
 			gp.Playing = false
 			gp.mu.Unlock()
 			break // キューが空になったら再生を停止
 		}
 		song := gp.Queue[0]
 		gp.Queue = gp.Queue[1:] // キューから削除
-		gp.Unlock()
+		gp.mu.Unlock()
 
 		p.Log.Info("再生開始", "guildID", guildID, "title", song.Title, "url", song.URL)
 
