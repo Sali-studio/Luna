@@ -22,8 +22,8 @@ func (c *JoinCommand) GetCommandDef() *discordgo.ApplicationCommand {
 
 func (c *JoinCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// ユーザーがボイスチャンネルにいるか確認
-	vs := i.Member.VoiceState
-	if vs == nil || vs.ChannelID == "" {
+	vs, err := s.State.VoiceState(i.GuildID, i.Member.User.ID)
+	if err != nil || vs == nil || vs.ChannelID == "" {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -35,7 +35,7 @@ func (c *JoinCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	}
 
 	// ボイスチャンネルに接続
-	err := c.Player.JoinVC(i.GuildID, vs.ChannelID)
+	err = c.Player.JoinVC(i.GuildID, vs.ChannelID)
 	if err != nil {
 		c.Log.Error("Failed to join voice channel", "error", err, "guildID", i.GuildID, "channelID", vs.ChannelID)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
