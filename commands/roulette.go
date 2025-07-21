@@ -42,7 +42,7 @@ func (c *RouletteCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 
 	options := i.ApplicationCommandData().Options
 	choicesStr := options[0].StringValue()
-	choicesRaw := strings.Split(choicesStr, ",") // コンマで選択肢を分割
+	choicesRaw := strings.Split(choicesStr, " ") // スペースで選択肢を分割
 	var choices []string
 	for _, choice := range choicesRaw {
 		trimmedChoice := strings.TrimSpace(choice)
