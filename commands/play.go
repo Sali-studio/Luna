@@ -47,7 +47,7 @@ func (c *PlayCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	}
 
 	// yt-dlpからタイトルと作者を取得
-	streamURL, title, author, err := gp.(*player.Player).GetAudioStreamURL(url) // Playerのメソッドを呼び出す
+	streamURL, title, author, err := c.Player.GetAudioStreamURL(url) // Playerのメソッドを呼び出す
 	if err != nil {
 		c.Log.Error("Failed to get song info from yt-dlp", "error", err, "url", url)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
