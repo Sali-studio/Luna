@@ -56,6 +56,9 @@ func main() {
 		log.Fatal("Botの初期化に失敗しました", "error", err)
 	}
 
+	// BotのSessionをPlayerに設定
+	musicPlayer.Session = b.GetSession()
+
 	// コマンドハンドラーを登録
 	commandHandlers, componentHandlers, registeredCommands := commands.RegisterCommands(b.GetDBStore(), b.GetScheduler(), b.GetPlayer(), b.GetSession(), b.GetStartTime())
 
