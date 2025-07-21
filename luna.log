@@ -1585,3 +1585,13 @@
 {"time":"2025-07-22T07:44:57.2480275+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"Server started successfully","name":"Python AI Server"}
 {"time":"2025-07-22T07:44:57.9055396+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"Botが起動しました。Ctrl+Cで終了します。"}
 {"time":"2025-07-22T07:44:57.9055396+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"Bot is ready."}
+{"time":"2025-07-22T07:51:54.7187348+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"設定ファイルを正常に読み込みました。"}
+{"time":"2025-07-22T07:51:54.7578404+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"Starting server","name":"Python AI Server"}
+{"time":"2025-07-22T07:51:54.773787+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"Server started successfully","name":"Python AI Server"}
+{"time":"2025-07-22T07:51:55.3981271+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"Botが起動しました。Ctrl+Cで終了します。"}
+{"time":"2025-07-22T07:51:55.3981271+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"Bot is ready."}
+{"time":"2025-07-22T07:53:46.6859506+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"設定ファイルを正常に読み込みました。"}
+{"time":"2025-07-22T07:53:46.7230541+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"Starting server","name":"Python AI Server"}
+{"time":"2025-07-22T07:53:46.7382693+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"Server started successfully","name":"Python AI Server"}
+{"time":"2025-07-22T07:53:47.4417051+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"Botが起動しました。Ctrl+Cで終了します。"}
+{"time":"2025-07-22T07:53:47.4417051+09:00","level":"INFO","source":{"function":"luna/logger.(*slogLogger).Info","file":"C:/Users/amuka/Luna/logger/logger.go","line":44},"msg":"Bot is ready."}

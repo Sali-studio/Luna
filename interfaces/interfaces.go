@@ -64,4 +64,5 @@ type MusicPlayer interface {
 	GetQueue(guildID string) []struct{ URL, Title, Author string } // Song構造体ではなく、匿名構造体で返す
 	NowPlaying(guildID string) *struct{ URL, Title, Author string } // Song構造体ではなく、匿名構造体で返す
 	GetGuildPlayer(guildID string) interface{} // player.GuildPlayerの代わりにinterface{}を返す
+	GetAudioStreamURL(url string) (streamURL, title, author string, err error)
 }
