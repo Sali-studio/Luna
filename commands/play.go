@@ -30,18 +30,24 @@ func (c *PlayCommand) GetCommandDef() *discordgo.ApplicationCommand {
 }
 
 func (c *PlayCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// 最初に遅延応答を送信し、「考え中...」のような状態を示す
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+	if err != nil {
+		c.Log.Error("Failed to send deferred response", "error", err)
+		return
+	}
+
 	options := i.ApplicationCommandData().Options
 	url := options[0].StringValue()
 
 	// ボットがボイスチャンネルに接続しているか確認
 	gp := c.Player.GetGuildPlayer(i.GuildID)
 	if gp == nil || gp.(*player.GuildPlayer).VoiceConnection == nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "ボットがボイスチャンネルに接続していません。`/join` コマンドで接続してください。",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
+		content := "ボットがボイスチャンネルに接続していません。`/join` コマンドで接続してください。"
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &content,
 		})
 		return
 	}
@@ -50,12 +56,9 @@ func (c *PlayCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	streamURL, title, author, err := c.Player.GetAudioStreamURL(url) // Playerのメソッドを呼び出す
 	if err != nil {
 		c.Log.Error("Failed to get song info from yt-dlp", "error", err, "url", url)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("曲情報の取得に失敗しました: %s", err.Error()),
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
+		content := fmt.Sprintf("曲情報の取得に失敗しました: %s", err.Error())
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &content,
 		})
 		return
 	}
@@ -64,12 +67,9 @@ func (c *PlayCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	err = c.Player.Play(i.GuildID, streamURL, title, author)
 	if err != nil {
 		c.Log.Error("Failed to play music", "error", err, "guildID", i.GuildID, "url", url)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("音楽の再生に失敗しました: %s", err.Error()),
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
+		content := fmt.Sprintf("音楽の再生に失敗しました: %s", err.Error())
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &content,
 		})
 		return
 	}
@@ -80,11 +80,9 @@ func (c *PlayCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		Description: fmt.Sprintf("**[%s](%s)** - %s を再生キューに追加しました。", title, url, author),
 		Color:       0x3498db, // Blue
 	}
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{embed},
-		},
+	// 遅延応答を編集して最終的なメッセージを送信
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Embeds: &[]*discordgo.MessageEmbed{embed},
 	})
 }
 
