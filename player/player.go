@@ -7,7 +7,6 @@ import (
 	"io"
 	"luna/interfaces"
 	"os/exec"
-	"strings"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
@@ -27,6 +26,7 @@ type GuildPlayer struct {
 	Encoder         *dca.EncodeSession
 	Stream          *dca.StreamingSession
 	Queue           []*Song
+	NowPlaying      *Song // Add NowPlaying field
 	Playing         bool
 	Quit            chan bool
 	mu              sync.Mutex
@@ -139,11 +139,13 @@ func (p *Player) playNextSong(guildID string) {
 		gp.mu.Lock()
 		if len(gp.Queue) == 0 {
 			gp.Playing = false
+			gp.NowPlaying = nil // Clear NowPlaying
 			gp.mu.Unlock()
 			break // キューが空になったら再生を停止
 		}
 		song := gp.Queue[0]
 		gp.Queue = gp.Queue[1:] // キューから削除
+		gp.NowPlaying = song    // Set NowPlaying
 		gp.mu.Unlock()
 
 		p.Log.Info("再生開始", "guildID", guildID, "title", song.Title, "url", song.URL)
@@ -170,27 +172,19 @@ func (p *Player) playNextSong(guildID string) {
 		defer encodeSession.Cleanup()
 
 		gp.Encoder = encodeSession
-		gp.Stream = dca.NewStream(encodeSession, gp.VoiceConnection, make(chan error)) // ここを修正
+		errChan := make(chan error)
+		gp.Stream = dca.NewStream(encodeSession, gp.VoiceConnection, errChan)
 
-		// 音声データをDiscordに送信
-		for {
-			select {
-			case <-gp.Quit:
-				p.Log.Info("再生停止シグナルを受信しました", "guildID", guildID)
-				return // 停止シグナルを受け取ったら終了
-			case err := <-gp.Stream.Error:
-				if err != nil && err != io.EOF {
-					p.Log.Error("ストリームエラー", "error", err, "guildID", guildID)
-				}
-				return // エラーまたはEOFで終了
-			case <-gp.Stream.Done:
-				p.Log.Info("曲の再生が終了しました", "guildID", guildID, "title", song.Title)
-				return // 曲の終了で終了
-			case pcm := <-gp.Stream.PCM:
-				if gp.VoiceConnection != nil && gp.VoiceConnection.Ready {
-					gp.VoiceConnection.OpusSend <- pcm
-				}
+		// 再生終了を待つ
+		select {
+		case <-gp.Quit:
+			p.Log.Info("再生停止シグナルを受信しました", "guildID", guildID)
+			return // 停止シグナルを受け取ったら終了
+		case err := <-errChan:
+			if err != nil && err != io.EOF {
+				p.Log.Error("ストリームエラー", "error", err, "guildID", guildID)
 			}
+			// エラーまたはEOFで次の曲へ
 		}
 	}
 }
@@ -283,7 +277,7 @@ func (p *Player) GetQueue(guildID string) []struct{ URL, Title, Author string } 
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
 	// キューのコピーを返す（外部からの変更を防ぐため）
-	queueCopy := make([]struct{ URL, Title, Author string }, len(gp.Queue)
+	queueCopy := make([]struct{ URL, Title, Author string }, len(gp.Queue))
 	for i, song := range gp.Queue {
 		queueCopy[i] = struct{ URL, Title, Author string }{URL: song.URL, Title: song.Title, Author: song.Author}
 	}
@@ -296,9 +290,8 @@ func (p *Player) NowPlaying(guildID string) *struct{ URL, Title, Author string }
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
 
-	if len(gp.Queue) > 0 && gp.Playing {
-		// キューの先頭が現在再生中の曲とみなす
-		return &struct{ URL, Title, Author string }{URL: gp.Queue[0].URL, Title: gp.Queue[0].Title, Author: gp.Queue[0].Author}
+	if gp.NowPlaying != nil && gp.Playing {
+		return &struct{ URL, Title, Author string }{URL: gp.NowPlaying.URL, Title: gp.NowPlaying.Title, Author: gp.NowPlaying.Author}
 	}
 	return nil
 }
