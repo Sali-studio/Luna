@@ -1,9 +1,10 @@
 package commands
 
 import (
+	"luna/interfaces"
 	"time"
 
-	"luna/interfaces"
+	"github.com/bwmarrin/discordgo"
 )
 
 // AppContext provides dependencies to commands.
@@ -15,38 +16,62 @@ type AppContext struct {
 	Player    interfaces.MusicPlayer
 }
 
-// RegisterAllCommands initializes and returns all command handlers.
-func RegisterAllCommands(ctx *AppContext, allCommands map[string]interfaces.CommandHandler) []interfaces.CommandHandler {
-	return []interfaces.CommandHandler{
-		&ConfigCommand{Store: ctx.Store, Log: ctx.Log},
-		&DashboardCommand{Store: ctx.Store, Scheduler: ctx.Scheduler, Log: ctx.Log},
-		&TicketCommand{Store: ctx.Store, Log: ctx.Log},
-		&PingCommand{StartTime: ctx.StartTime, Store: ctx.Store},
-		&AskCommand{Log: ctx.Log},
-		&AvatarCommand{},
-		&CalculatorCommand{Log: ctx.Log},
-		&EmbedCommand{Log: ctx.Log},
-		&ModerateCommand{Log: ctx.Log},
-		&PokemonCalculatorCommand{Log: ctx.Log},
-		&PollCommand{Log: ctx.Log},
-		&PowerConverterCommand{Log: ctx.Log},
-		&TranslateCommand{Log: ctx.Log},
-		&UserInfoCommand{Log: ctx.Log},
-		&HelpCommand{AllCommands: allCommands},
-		&ImagineCommand{Log: ctx.Log},
-		&QuizCommand{Log: ctx.Log, Store: ctx.Store},
-		&DescribeImageCommand{Log: ctx.Log},
-		&AnalyzeUserActivityCommand{Log: ctx.Log},
-		&WordCountCommand{Store: ctx.Store, Log: ctx.Log},
-		&WordRankingCommand{Store: ctx.Store, Log: ctx.Log},
-		&WordConfigCommand{Store: ctx.Store, Log: ctx.Log},
-		&RouletteCommand{Log: ctx.Log},
-		&JoinCommand{Player: ctx.Player, Log: ctx.Log},
-		&PlayCommand{Player: ctx.Player, Log: ctx.Log},
-		&StopCommand{Player: ctx.Player, Log: ctx.Log},
-		&SkipCommand{Player: ctx.Player, Log: ctx.Log},
-		&QueueCommand{Player: ctx.Player, Log: ctx.Log},
-		&LeaveCommand{Player: ctx.Player, Log: ctx.Log},
-		// To add a new command, simply add it to this list.
+// RegisterCommands initializes and returns all command handlers.
+func RegisterCommands(db interfaces.DataStore, scheduler interfaces.Scheduler, player interfaces.MusicPlayer, session *discordgo.Session, startTime time.Time) (map[string]interfaces.CommandHandler, map[string]interfaces.CommandHandler, []*discordgo.ApplicationCommand) {
+	commandHandlers := make(map[string]interfaces.CommandHandler)
+	componentHandlers := make(map[string]interfaces.CommandHandler)
+	registeredCommands := make([]*discordgo.ApplicationCommand, 0)
+
+	appCtx := &AppContext{
+		Store:     db,
+		Scheduler: scheduler,
+		Player:    player,
+		StartTime: startTime,
 	}
+
+	// To add a new command, simply add it to this list.
+	commands := []interfaces.CommandHandler{
+		&ConfigCommand{Store: appCtx.Store, Log: appCtx.Log},
+		&DashboardCommand{Store: appCtx.Store, Scheduler: appCtx.Scheduler, Log: appCtx.Log},
+		&TicketCommand{Store: appCtx.Store, Log: appCtx.Log},
+		&PingCommand{StartTime: appCtx.StartTime, Store: appCtx.Store},
+		&AskCommand{Log: appCtx.Log},
+		&AvatarCommand{},
+		&CalculatorCommand{Log: appCtx.Log},
+		&EmbedCommand{Log: appCtx.Log},
+		&ModerateCommand{Log: appCtx.Log},
+		&PokemonCalculatorCommand{Log: appCtx.Log},
+		&PollCommand{Log: appCtx.Log},
+		&PowerConverterCommand{Log: appCtx.Log},
+		&TranslateCommand{Log: appCtx.Log},
+		&UserInfoCommand{Log: appCtx.Log},
+		&HelpCommand{AllCommands: commandHandlers},
+		&ImagineCommand{Log: appCtx.Log},
+		&QuizCommand{Log: appCtx.Log, Store: appCtx.Store},
+		&DescribeImageCommand{Log: appCtx.Log},
+		&AnalyzeUserActivityCommand{Log: appCtx.Log},
+		&WordCountCommand{Store: appCtx.Store, Log: appCtx.Log},
+		&WordRankingCommand{Store: appCtx.Store, Log: appCtx.Log},
+		&WordConfigCommand{Store: appCtx.Store, Log: appCtx.Log},
+		&RouletteCommand{Log: appCtx.Log},
+		&JoinCommand{Player: appCtx.Player, Log: appCtx.Log},
+		&PlayCommand{Player: appCtx.Player, Log: appCtx.Log},
+		&StopCommand{Player: appCtx.Player, Log: appCtx.Log},
+		&SkipCommand{Player: appCtx.Player, Log: appCtx.Log},
+		&QueueCommand{Player: appCtx.Player, Log: appCtx.Log},
+		&LeaveCommand{Player: appCtx.Player, Log: appCtx.Log},
+	}
+
+	for _, cmd := range commands {
+		commandDef := cmd.GetCommandDef()
+		commandHandlers[commandDef.Name] = cmd
+		registeredCommands = append(registeredCommands, commandDef)
+
+		// Register component handlers
+		for _, id := range cmd.GetComponentIDs() {
+			componentHandlers[id] = cmd
+		}
+	}
+
+	return commandHandlers, componentHandlers, registeredCommands
 }

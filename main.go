@@ -2,6 +2,8 @@ package main
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
 
 	"luna/bot"
 	"luna/config"
@@ -55,6 +57,11 @@ func main() {
 		log.Fatal("Botの初期化に失敗しました", "error", err)
 	}
 
-	// BotのSessionをPlayerに設定
-	musicPlayer.Session = b.GetSession()
+	// コマンドハンドラーを登録
+	commandHandlers, componentHandlers, registeredCommands := commands.RegisterCommands(b.GetDBStore(), b.GetScheduler(), b.GetPlayer(), b.GetSession(), b.GetStartTime())
+
+	// Botを起動
+	if err := b.Start(commandHandlers, componentHandlers, registeredCommands); err != nil {
+		log.Fatal("Botの起動に失敗しました", "error", err)
+	}
 }
