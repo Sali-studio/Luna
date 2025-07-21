@@ -2,10 +2,9 @@ package main
 
 import (
 	"os"
-	"os/signal"
-	"syscall"
 
 	"luna/bot"
+	"luna/commands"
 	"luna/config"
 	"luna/handlers/web"
 	"luna/logger"
