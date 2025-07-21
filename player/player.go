@@ -185,6 +185,11 @@ func (p *Player) playNextSong(guildID string) {
 				p.Log.Error("ストリームエラー", "error", err, "guildID", guildID)
 			}
 			// エラーまたはEOFで次の曲へ
+					case pcm := <-gp.Stream.PCM:
+				if gp.VoiceConnection != nil && gp.VoiceConnection.Ready {
+					gp.VoiceConnection.OpusSend <- pcm
+				}
+			}
 		}
 	}
 }
