@@ -60,6 +60,7 @@ func RegisterCommands(db interfaces.DataStore, scheduler interfaces.Scheduler, p
 		&SkipCommand{Player: appCtx.Player, Log: appCtx.Log},
 		&QueueCommand{Player: appCtx.Player, Log: appCtx.Log},
 		&LeaveCommand{Player: appCtx.Player, Log: appCtx.Log},
+		&WTBRCommand{Log: appCtx.Log},
 	}
 
 	for _, cmd := range commands {
