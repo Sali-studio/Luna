@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jonas747/dca"
@@ -207,6 +208,8 @@ func (p *Player) playNextSong(guildID string) {
 		p.Log.Info("Starting DCA stream", "guildID", guildID)
 		gp.Stream = dca.NewStream(encodeSession, gp.VoiceConnection, errChan)
 		p.Log.Info("DCA stream started", "guildID", guildID)
+
+		time.Sleep(1 * time.Second) // Add a small delay
 
 		// 再生終了を待つ
 		select {
