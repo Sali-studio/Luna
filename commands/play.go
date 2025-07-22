@@ -17,7 +17,7 @@ type PlayCommand struct {
 func (c *PlayCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:        "play",
-		Description: "指定されたURLの音楽を再生します。",
+		Description: "指定されたURLの音楽を再生します。(実験的・破損中)",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
