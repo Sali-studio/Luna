@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"luna/interfaces"
+	"net/http"
+	"os"
 	"os/exec"
 	"sync"
 
@@ -161,12 +164,34 @@ func (p *Player) playNextSong(guildID string) {
 			p.Log.Error("Failed to get audio stream URL from yt-dlp", "error", err, "url", song.URL)
 			continue
 		}
+		p.Log.Info("yt-dlp stream URL", "url", streamURL)
 		song.Title = title
 		song.Author = author
 
-		encodeSession, err := dca.EncodeFile(streamURL, options)
+		// ストリームを一時ファイルにダウンロード
+		tempFile, err := ioutil.TempFile("", "audio-*.dca")
 		if err != nil {
-			p.Log.Error("音声のエンコードに失敗しました", "error", err, "url", streamURL)
+			p.Log.Error("Failed to create temp file", "error", err)
+			continue
+		}
+		defer os.Remove(tempFile.Name()) // 関数終了時に一時ファイルを削除
+
+		resp, err := http.Get(streamURL)
+		if err != nil {
+			p.Log.Error("Failed to download audio stream", "error", err, "url", streamURL)
+			continue
+		}
+		defer resp.Body.Close()
+
+		if _, err := io.Copy(tempFile, resp.Body); err != nil {
+			p.Log.Error("Failed to write audio to temp file", "error", err)
+			continue
+		}
+		tempFile.Close()
+
+		encodeSession, err := dca.EncodeFile(tempFile.Name(), options)
+		if err != nil {
+			p.Log.Error("音声のエンコードに失敗しました", "error", err, "file", tempFile.Name())
 			continue
 		}
 		defer encodeSession.Cleanup()
@@ -175,7 +200,7 @@ func (p *Player) playNextSong(guildID string) {
 		errChan := make(chan error)
 		gp.Stream = dca.NewStream(encodeSession, gp.VoiceConnection, errChan)
 
-				// 再生終了を待つ
+		// 再生終了を待つ
 		select {
 		case <-gp.Quit:
 			p.Log.Info("再生停止シグナルを受信しました", "guildID", guildID)
@@ -188,12 +213,6 @@ func (p *Player) playNextSong(guildID string) {
 		}
 	}
 }
-			}
-		}
-	}
-}
-}
-
 // GetAudioStreamURL はyt-dlpを使用してオーディオストリームのURLとメタデータを取得します。
 func (p *Player) GetAudioStreamURL(url string) (streamURL, title, author string, err error) {
 	cmd := exec.Command("yt-dlp", "-f", "bestaudio[ext=webm]/bestaudio", "--dump-json", url)
