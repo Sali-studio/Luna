@@ -105,7 +105,7 @@ func (c *WTBRCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	excludeMap := make(map[float64]bool)
 	if excludeBRsStr != "" {
 		for _, brStr := range strings.Split(excludeBRsStr, ",") {
-			br, parseErr := fmt.ParseFloat(strings.TrimSpace(brStr), 64)
+			br, parseErr := strconv.ParseFloat(strings.TrimSpace(brStr), 64)
 			if parseErr != nil {
 				content := fmt.Sprintf("除外BRの形式が不正です: %s", brStr)
 				s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
