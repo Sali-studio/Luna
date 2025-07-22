@@ -206,7 +206,7 @@ func (p *Player) playNextSong(guildID string) {
 		}
 
 		p.Log.Info("Starting DCA stream", "guildID", guildID)
-		gp.Stream = dca.NewStream(encodeSession, gp.VoiceConnection, errChan)
+		dca.NewStream(encodeSession, gp.VoiceConnection, errChan)
 		p.Log.Info("DCA stream started", "guildID", guildID)
 
 		time.Sleep(1 * time.Second) // Add a small delay
