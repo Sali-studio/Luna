@@ -61,9 +61,9 @@ func (c *RouletteCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 
 	// ルーレットのアニメーション風Embed
 	thinkingEmbed := &discordgo.MessageEmbed{
-		Title: "룰렛หมุน...", // "ルーレット回転..." を多言語で
+		Title:       "ルーレット回転...",
 		Description: "さて、どれにしようかな...",
-		Color: 0x3498db, // Blue
+		Color:       0x3498db, // Blue
 		Image: &discordgo.MessageEmbedImage{
 			URL: "https://i.gifer.com/ZNeT.gif", // 回転するGIF
 		},
@@ -83,9 +83,9 @@ func (c *RouletteCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 
 	// 結果表示用のEmbed
 	resultEmbed := &discordgo.MessageEmbed{
-		Title: "🎉 結果は...!",
+		Title:       "🎉 結果は...!",
 		Description: fmt.Sprintf("\n## **%s**\n\nに決定しました！", winner),
-		Color: 0x2ecc71, // Green
+		Color:       0x2ecc71, // Green
 		Fields: []*discordgo.MessageEmbedField{
 			{
 				Name:  "すべての選択肢",
