@@ -175,7 +175,7 @@ func (p *Player) playNextSong(guildID string) {
 		errChan := make(chan error)
 		gp.Stream = dca.NewStream(encodeSession, gp.VoiceConnection, errChan)
 
-		// 再生終了を待つ
+				// 再生終了を待つ
 		select {
 		case <-gp.Quit:
 			p.Log.Info("再生停止シグナルを受信しました", "guildID", guildID)
@@ -184,14 +184,14 @@ func (p *Player) playNextSong(guildID string) {
 			if err != nil && err != io.EOF {
 				p.Log.Error("ストリームエラー", "error", err, "guildID", guildID)
 			}
-			// エラーまたはEOFで次の曲へ
-					case pcm := <-gp.Stream.PCM:
-				if gp.VoiceConnection != nil && gp.VoiceConnection.Ready {
-					gp.VoiceConnection.OpusSend <- pcm
-				}
+			p.Log.Info("曲の再生が終了しました", "guildID", guildID, "title", song.Title)
+		}
+	}
+}
 			}
 		}
 	}
+}
 }
 
 // GetAudioStreamURL はyt-dlpを使用してオーディオストリームのURLとメタデータを取得します。
