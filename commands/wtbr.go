@@ -51,6 +51,12 @@ func (c *WTBRCommand) GetCommandDef() *discordgo.ApplicationCommand {
 				Description: "ルーレットから除外したいBRをカンマ区切りで入力してください。(例: 2.7,3.7,4.7)",
 				Required:    false,
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "exclude_br_range",
+				Description: "ルーレットから除外したいBRの範囲を「開始BR~終了BR」の形式で入力してください。(例: 1.0~5.0)",
+				Required:    false,
+			},
 		},
 	}
 }
@@ -81,8 +87,17 @@ func (c *WTBRCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	options := i.ApplicationCommandData().Options
 	mode := options[0].StringValue()
 	excludeBRsStr := ""
+	excludeBRRangeStr := ""
+
 	if len(options) > 1 {
-		excludeBRsStr = options[1].StringValue()
+		for _, opt := range options {
+			switch opt.Name {
+			case "exclude_brs":
+				excludeBRsStr = opt.StringValue()
+			case "exclude_br_range":
+				excludeBRRangeStr = opt.StringValue()
+			}
+		}
 	}
 
 	var availableBRs []float64
@@ -114,6 +129,50 @@ func (c *WTBRCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 				return
 			}
 			excludeMap[br] = true
+		}
+	}
+
+	// 除外BR範囲の処理
+	if excludeBRRangeStr != "" {
+		parts := strings.Split(excludeBRRangeStr, "~")
+		if len(parts) != 2 {
+			content := "除外BR範囲の形式が不正です。'開始BR~終了BR'の形式で入力してください。(例: 1.0~5.0)"
+			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Content: &content,
+			})
+			return
+		}
+
+		startBR, parseErr := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
+		if parseErr != nil {
+			content := fmt.Sprintf("除外BR範囲の開始BRの形式が不正です: %s", parts[0])
+			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Content: &content,
+			})
+			return
+		}
+
+		endBR, parseErr := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+		if parseErr != nil {
+			content := fmt.Sprintf("除外BR範囲の終了BRの形式が不正です: %s", parts[1])
+			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Content: &content,
+			})
+			return
+		}
+
+		if startBR >= endBR {
+			content := "除外BR範囲の開始BRは終了BRより小さくしてください。"
+			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Content: &content,
+			})
+			return
+		}
+
+		for _, br := range availableBRs {
+			if br >= startBR && br <= endBR {
+				excludeMap[br] = true
+			}
 		}
 	}
 
@@ -154,10 +213,17 @@ func (c *WTBRCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 			{
 				Name:  "除外BR",
 				Value: func() string {
-					if excludeBRsStr == "" {
+					if excludeBRsStr == "" && excludeBRRangeStr == "" {
 						return "なし"
 					}
-					return excludeBRsStr
+					var excluded []string
+					if excludeBRsStr != "" {
+						excluded = append(excluded, excludeBRsStr)
+					}
+					if excludeBRRangeStr != "" {
+						excluded = append(excluded, excludeBRRangeStr)
+					}
+					return strings.Join(excluded, ", ")
 				}(),
 				Inline: true,
 			},
