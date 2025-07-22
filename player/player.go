@@ -198,7 +198,15 @@ func (p *Player) playNextSong(guildID string) {
 
 		gp.Encoder = encodeSession
 		errChan := make(chan error)
+
+		if gp.VoiceConnection == nil || !gp.VoiceConnection.Ready {
+			p.Log.Error("Voice connection is not ready before starting stream", "guildID", guildID)
+			continue // Skip to next song if voice connection is not ready
+		}
+
+		p.Log.Info("Starting DCA stream", "guildID", guildID)
 		gp.Stream = dca.NewStream(encodeSession, gp.VoiceConnection, errChan)
+		p.Log.Info("DCA stream started", "guildID", guildID)
 
 		// 再生終了を待つ
 		select {
@@ -212,6 +220,7 @@ func (p *Player) playNextSong(guildID string) {
 			p.Log.Info("曲の再生が終了しました", "guildID", guildID, "title", song.Title)
 		}
 	}
+}
 }
 // GetAudioStreamURL はyt-dlpを使用してオーディオストリームのURLとメタデータを取得します。
 func (p *Player) GetAudioStreamURL(url string) (streamURL, title, author string, err error) {
