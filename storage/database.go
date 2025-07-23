@@ -57,6 +57,11 @@ type WelcomeConfig struct {
 	Message   string `json:"message"`
 }
 
+type AutoRoleConfig struct {
+	Enabled bool   `json:"enabled"`
+	RoleID  string `json:"role_id"`
+}
+
 // WordCount はユーザーごとの単語カウントを保持する構造体です
 type WordCount struct {
 	UserID string
@@ -94,6 +99,7 @@ func (s *DBStore) initTables() error {
 			dashboard_config TEXT DEFAULT '{}',
 			bump_config TEXT DEFAULT '{}',
 			welcome_config TEXT DEFAULT '{}',
+			autorole_config TEXT DEFAULT '{}',
 			ticket_counter INTEGER DEFAULT 0
 		);`,
 		`CREATE TABLE IF NOT EXISTS tickets (
