@@ -51,15 +51,6 @@ func (c *ConfigCommand) GetCommandDef() *discordgo.ApplicationCommand {
 					{Type: discordgo.ApplicationCommandOptionRole, Name: "role", Description: "リマインド時にメンションするロール", Required: true},
 				},
 			},
-			{
-				Name:        "autorole",
-				Description: "新規参加者に自動でロールを付与する機能の設定",
-				Type:        discordgo.ApplicationCommandOptionSubCommand,
-				Options: []*discordgo.ApplicationCommandOption{
-					{Type: discordgo.ApplicationCommandOptionBoolean, Name: "enable", Description: "機能を有効にするか", Required: true},
-					{Type: discordgo.ApplicationCommandOptionRole, Name: "role", Description: "自動付与するロール", Required: false},
-				},
-			},
 		},
 	}
 }
@@ -74,8 +65,6 @@ func (c *ConfigCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCre
 		c.handleTempVCConfig(s, i, options)
 	case "bump-reminder":
 		c.handleBumpConfig(s, i, options)
-	case "autorole":
-		c.handleAutoRoleConfig(s, i, options)
 	}
 }
 
@@ -118,38 +107,6 @@ func (c *ConfigCommand) handleBumpConfig(s *discordgo.Session, i *discordgo.Inte
 		return
 	}
 	content := fmt.Sprintf("✅ BUMPリマインダー設定を更新しました.\n- 有効: `%v`\n- チャンネル: <#%s>\n- ロール: <@&%s>", config.Reminder, config.ChannelID, config.RoleID)
-	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
-		c.Log.Error("Failed to respond to interaction", "error", err)
-	}
-}
-
-func (c *ConfigCommand) handleAutoRoleConfig(s *discordgo.Session, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
-	var config storage.AutoRoleConfig
-	config.Enabled = options[0].BoolValue()
-
-	if config.Enabled {
-		if len(options) < 2 || options[1].RoleValue(s, i.GuildID) == nil {
-			content := "❌ 自動ロールを有効にするには、ロールを指定してください。"
-			if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
-				c.Log.Error("Failed to respond to interaction", "error", err)
-			}
-			return
-		}
-		config.RoleID = options[1].RoleValue(s, i.GuildID).ID
-	}
-
-	if err := c.Store.SaveConfig(i.GuildID, "autorole_config", config); err != nil {
-		c.Log.Error("自動ロール設定の保存に失敗", "error", err, "guildID", i.GuildID)
-		return
-	}
-
-	var content string
-	if config.Enabled {
-		content = fmt.Sprintf("✅ 自動ロール機能を有効にし、<@&%s> を新規参加者に付与するように設定しました。", config.RoleID)
-	} else {
-		content = "✅ 自動ロール機能を無効にしました。"
-	}
-
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource, Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral}}); err != nil {
 		c.Log.Error("Failed to respond to interaction", "error", err)
 	}

@@ -201,7 +201,7 @@ func (h *MessageHandler) onMessageDelete(s *discordgo.Session, e *discordgo.Mess
 
 	deleterMention := "不明"
 	// GetExecutorForMessageDelete is a special function to find who deleted the message
-	deleterID := handlers.GetMessageDeleteExecutor(s, e.GuildID, cachedMsg.AuthorID, e.ChannelID, h.Log)
+	deleterID := GetMessageDeleteExecutor(s, e.GuildID, cachedMsg.AuthorID, e.ChannelID, h.Log)
 	if deleterID != "" {
 		if deleterID == author.ID {
 			deleterMention = "本人"
@@ -212,7 +212,7 @@ func (h *MessageHandler) onMessageDelete(s *discordgo.Session, e *discordgo.Mess
 
 	embed := &discordgo.MessageEmbed{
 		Title:  "🗑️ メッセージ削除",
-		Color:  handlers.ColorRed,
+		Color:  ColorRed,
 		Author: &discordgo.MessageEmbedAuthor{Name: author.String(), IconURL: author.AvatarURL("")},
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "投稿者", Value: author.Mention(), Inline: true},
@@ -229,7 +229,7 @@ func (h *MessageHandler) onMessageDelete(s *discordgo.Session, e *discordgo.Mess
 
 func (h *MessageHandler) sendLog(s *discordgo.Session, guildID string, embed *discordgo.MessageEmbed) {
 	var logConfig storage.LogConfig
-	if err := h.Store.GetConfig(guildID, handlers.ConfigKeyLog, &logConfig); err != nil {
+	if err := h.Store.GetConfig(guildID, ConfigKeyLog, &logConfig); err != nil {
 		h.Log.Error("Failed to get log config from DB", "error", err, "guildID", guildID)
 		return
 	}
@@ -248,60 +248,4 @@ func (h *MessageHandler) sendLog(s *discordgo.Session, guildID string, embed *di
 	if _, err := s.ChannelMessageSendEmbed(logConfig.ChannelID, embed); err != nil {
 		h.Log.Error("Failed to send log embed", "error", err, "channelID", logConfig.ChannelID)
 	}
-}
-
-func (h *MessageHandler) onAutoModerationActionExecution(s *discordgo.Session, e *discordgo.AutoModerationActionExecution) {
-	var actionType string
-	var color int
-	switch e.Action.Type {
-	case discordgo.AutoModerationActionBlockMessage:
-		actionType = "メッセージブロック"
-		color = handlers.ColorRed
-	case discordgo.AutoModerationActionSendAlertMessage:
-		actionType = "アラート送信"
-		color = handlers.ColorOrange
-	case discordgo.AutoModerationActionTimeout:
-		actionType = "タイムアウト"
-		color = handlers.ColorOrange
-	default:
-		actionType = "不明なアクション"
-		color = handlers.ColorGray
-	}
-
-	var ruleTriggerType string
-	switch e.RuleTriggerType {
-	case discordgo.AutoModerationTriggerTypeKeyword:
-		ruleTriggerType = "キーワード"
-	case discordgo.AutoModerationTriggerTypeHarmfulContent:
-		ruleTriggerType = "有害なコンテンツ"
-	case discordgo.AutoModerationTriggerTypeSpam:
-		ruleTriggerType = "スパム"
-	case discordgo.AutoModerationTriggerTypeMentionSpam:
-		ruleTriggerType = "メンションスパム"
-	default:
-		ruleTriggerType = "不明"
-	}
-
-	var embedFields []*discordgo.MessageEmbedField
-	embedFields = append(embedFields, &discordgo.MessageEmbedField{Name: "ルール名", Value: e.RuleName, Inline: true})
-	embedFields = append(embedFields, &discordgo.MessageEmbedField{Name: "トリガータイプ", Value: ruleTriggerType, Inline: true})
-	embedFields = append(embedFields, &discordgo.MessageEmbedField{Name: "アクション", Value: actionType, Inline: true})
-	embedFields = append(embedFields, &discordgo.MessageEmbedField{Name: "ユーザー", Value: fmt.Sprintf("<@%s>", e.UserID), Inline: true})
-	if e.ChannelID != "" {
-		embedFields = append(embedFields, &discordgo.MessageEmbedField{Name: "チャンネル", Value: fmt.Sprintf("<#%s>", e.ChannelID), Inline: true})
-	}
-	if e.MessageID != "" {
-		embedFields = append(embedFields, &discordgo.MessageEmbedField{Name: "メッセージID", Value: e.MessageID, Inline: true})
-	}
-	if e.Content != "" {
-		embedFields = append(embedFields, &discordgo.MessageEmbedField{Name: "内容", Value: fmt.Sprintf("```\n%s\n```", e.Content), Inline: false})
-	}
-
-	embed := &discordgo.MessageEmbed{
-		Title:  "🛡️ AutoModアクション",
-		Color:  color,
-		Fields: embedFields,
-	}
-
-	h.sendLog(s, e.GuildID, embed)
 }

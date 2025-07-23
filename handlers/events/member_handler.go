@@ -11,7 +11,11 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-
+const (
+	ColorGreen  = 0x2ecc71
+	ColorOrange = 0xe67e22
+	ColorTeal   = 0x1abc9c
+)
 
 type MemberHandler struct {
 	Log   interfaces.Logger
@@ -29,18 +33,6 @@ func (h *MemberHandler) Register(s *discordgo.Session) {
 }
 
 func (h *MemberHandler) onGuildMemberAdd(s *discordgo.Session, e *discordgo.GuildMemberAdd) {
-	// 自動ロール機能の処理
-	var autoRoleConfig storage.AutoRoleConfig
-	if err := h.Store.GetConfig(e.GuildID, "autorole_config", &autoRoleConfig); err != nil {
-		h.Log.Error("Failed to get autorole config from DB", "error", err, "guildID", e.GuildID)
-	} else if autoRoleConfig.Enabled && autoRoleConfig.RoleID != "" {
-		// ロール付与
-		err := s.GuildMemberRoleAdd(e.GuildID, e.Member.User.ID, autoRoleConfig.RoleID)
-		if err != nil {
-			h.Log.Error("Failed to add autorole to new member", "error", err, "guildID", e.GuildID, "userID", e.Member.User.ID, "roleID", autoRoleConfig.RoleID)
-		}
-	}
-
 	createdAt, _ := discordgo.SnowflakeTimestamp(e.User.ID)
 	embed := &discordgo.MessageEmbed{
 		Title: "✅ メンバー参加",
@@ -90,7 +82,7 @@ func (h *MemberHandler) onGuildMemberRemove(s *discordgo.Session, e *discordgo.G
 
 		embed := &discordgo.MessageEmbed{
 			Title:       "🚪 メンバー退出",
-			Color:       handlers.ColorGray,
+			Color:       ColorGray,
 			Author:      &discordgo.MessageEmbedAuthor{Name: e.User.String(), IconURL: e.User.AvatarURL("")},
 			Description: fmt.Sprintf("**<@%s>** がサーバーから退出しました。", e.User.ID),
 			Fields: []*discordgo.MessageEmbedField{
@@ -170,7 +162,7 @@ func (h *MemberHandler) getExecutor(s *discordgo.Session, guildID string, target
 	for _, entry := range auditLog.AuditLogEntries {
 		if entry.TargetID == targetID {
 			logTime, _ := discordgo.SnowflakeTimestamp(entry.ID)
-			if time.Since(logTime) < handlers.AuditLogTimeWindow {
+			if time.Since(logTime) < AuditLogTimeWindow {
 				return entry.UserID
 			}
 		}
