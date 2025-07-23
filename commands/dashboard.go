@@ -55,7 +55,7 @@ func (c *DashboardCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-	if _, err := c.Scheduler.AddFunc("@hourly", func() { c.updateDashboard(s, i.GuildID) }); err != nil {
+	if _, err := c.Scheduler.AddFunc("@every 5m", func() { c.updateDashboard(s, i.GuildID) }); err != nil {
 		c.Log.Error("Failed to add cron job", "error", err)
 	}
 	c.updateDashboard(s, i.GuildID)
@@ -105,6 +105,10 @@ func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string)
 			categoryCount++
 		}
 	}
+		membersInVoice := len(guild.VoiceStates)
+	threadCount := len(guild.Threads)
+	stageCount := len(guild.StageInstances)
+	stickerCount := len(guild.Stickers)
 	roleCount, emojiCount := len(guild.Roles), len(guild.Emojis)
 	guildIDInt, _ := discordgo.SnowflakeTimestamp(guild.ID)
 
@@ -113,8 +117,18 @@ func (c *DashboardCommand) updateDashboard(s *discordgo.Session, guildID string)
 		Color:     0x7289da,
 		Thumbnail: &discordgo.MessageEmbedThumbnail{URL: guild.IconURL("")},
 		Fields: []*discordgo.MessageEmbedField{
-			{Name: "👥 メンバー", Value: fmt.Sprintf("```ini\n[ Total ] %d\n[ Human ] %d\n[ Bot ] %d\n[ Online ] %d\n```", memberCount, humanCount, botCount, onlineMembers), Inline: true},
-			{Name: "📁 コンテンツ", Value: fmt.Sprintf("```ini\n[ Category ] %d\n[ Text ch ] %d\n[ Voice ch ] %d\n[ Roles ] %d\n[ Emojis ] %d\n```", categoryCount, textChannelCount, voiceChannelCount, roleCount, emojiCount), Inline: true},
+			{Name: "👥 メンバー", Value: fmt.Sprintf("```ini\n[ Total ] %d\n[ Human ] %d\n[ Bot ] %d\n[ Online ] %d\n[ Idle ] %d\n[ Do Not Disturb ] %d\n[ Offline ] %d\n```", memberCount, humanCount, botCount, onlineCount, idleCount, dndCount, offlineCount), Inline: true},
+			{Name: "📁 コンテンツ", Value: fmt.Sprintf("```ini
+[ Category ] %d
+[ Text ch ] %d
+[ Voice ch ] %d
+[ In Voice ] %d
+[ Threads ] %d
+[ Stages ] %d
+[ Stickers ] %d
+[ Roles ] %d
+[ Emojis ] %d
+```", categoryCount, textChannelCount, voiceChannelCount, membersInVoice, threadCount, stageCount, stickerCount, roleCount, emojiCount), Inline: true},
 			{Name: "💎 ブースト", Value: fmt.Sprintf("```ini\n[ Level ] %d\n[ Boosts ] %d\n```", guild.PremiumTier, guild.PremiumSubscriptionCount), Inline: false},
 		},
 		Footer: &discordgo.MessageEmbedFooter{
