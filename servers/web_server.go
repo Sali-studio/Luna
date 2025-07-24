@@ -51,13 +51,15 @@ func (s *WebServer) Start() error {
 }
 
 // Stop はWebサーバーをシャットダウンします。
-func (s *WebServer) Stop() {
+func (s *WebServer) Stop() error {
 	s.log.Info("Webサーバーをシャットダウンします...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := s.http.Shutdown(ctx); err != nil {
 		s.log.Error("Webサーバーのシャットダウンに失敗しました", "error", err)
+		return err
 	}
+	return nil
 }
 
 // Name はサーバーの名前を返します。
