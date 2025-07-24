@@ -1,49 +1,114 @@
-import { createTheme, responsiveFontSizes } from '@mui/material/styles';
+import { createTheme } from '@mui/material/styles';
 
-let m3Theme = createTheme({
+const theme = createTheme({
   palette: {
-    mode: 'dark',
     primary: {
-      main: '#A8C7FA',
+      main: '#6750A4',
+    },
+    secondary: {
+      main: '#625B71',
+    },
+    tertiary: {
+      main: '#7D5260',
+    },
+    error: {
+      main: '#B3261E',
     },
     background: {
-      default: '#1F1F23',
-      paper: '#2A2A2E',
+      default: '#FFFBFE',
+      paper: '#FFFBFE',
     },
     text: {
-      primary: '#E3E3E3',
-      secondary: '#C7C7C7',
+      primary: '#1C1B1F',
+      secondary: '#49454F',
     },
   },
-  shape: {
-    borderRadius: 20,
-  },
   typography: {
-    fontFamily: '"Plus Jakarta Sans", sans-serif',
-    h4: { fontWeight: 700 },
-    h5: { fontWeight: 600 },
-    h6: { fontWeight: 600 },
+    fontFamily: 'Roboto, sans-serif',
+    h1: {
+      fontSize: '5.75rem',
+      fontWeight: 400,
+      letterSpacing: '-0.015625em',
+    },
+    h2: {
+      fontSize: '3.625rem',
+      fontWeight: 400,
+      letterSpacing: '-0.00833em',
+    },
+    h3: {
+      fontSize: '2.875rem',
+      fontWeight: 400,
+      letterSpacing: '0em',
+    },
+    h4: {
+      fontSize: '2.0625rem',
+      fontWeight: 400,
+      letterSpacing: '0.00735em',
+    },
+    h5: {
+      fontSize: '1.4375rem',
+      fontWeight: 400,
+      letterSpacing: '0em',
+    },
+    h6: {
+      fontSize: '1.1875rem',
+      fontWeight: 500,
+      letterSpacing: '0.00156em',
+    },
+    subtitle1: {
+      fontSize: '1rem',
+      fontWeight: 400,
+      letterSpacing: '0.00937em',
+    },
+    subtitle2: {
+      fontSize: '0.875rem',
+      fontWeight: 500,
+      letterSpacing: '0.00714em',
+    },
+    body1: {
+      fontSize: '1rem',
+      fontWeight: 400,
+      letterSpacing: '0.03125em',
+    },
+    body2: {
+      fontSize: '0.875rem',
+      fontWeight: 400,
+      letterSpacing: '0.01786em',
+    },
+    button: {
+      fontSize: '0.875rem',
+      fontWeight: 500,
+      letterSpacing: '0.01786em',
+      textTransform: 'uppercase',
+    },
+    caption: {
+      fontSize: '0.75rem',
+      fontWeight: 400,
+      letterSpacing: '0.03333em',
+    },
+    overline: {
+      fontSize: '0.625rem',
+      fontWeight: 500,
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+    },
   },
   components: {
-    MuiCard: {
+    MuiButton: {
       styleOverrides: {
         root: {
-          backgroundColor: '#2A2A2E',
-          backgroundImage: 'none',
-          boxShadow: 'none',
+          borderRadius: '100px',
         },
       },
     },
-    MuiAppBar: {
+    MuiCard: {
       styleOverrides: {
         root: {
-          backgroundColor: 'transparent',
+          borderRadius: '12px',
         },
       },
     },
   },
 });
 
-m3Theme = responsiveFontSizes(m3Theme);
-
-export default m3Theme;
+export default theme;
