@@ -129,6 +129,11 @@ func (s *DBStore) initTables() error {
 			count INTEGER DEFAULT 0,
 			PRIMARY KEY (guild_id, user_id, word)
 		);`,
+		`CREATE TABLE IF NOT EXISTS countable_words (
+			guild_id TEXT NOT NULL,
+			word TEXT NOT NULL,
+			PRIMARY KEY (guild_id, word)
+		);`,
 	}
 	for _, table := range tables {
 		if _, err := s.db.Exec(table); err != nil {
