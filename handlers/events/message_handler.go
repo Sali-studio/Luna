@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"luna/interfaces"
@@ -139,6 +140,49 @@ func (h *MessageHandler) onMessageCreate(s *discordgo.Session, m *discordgo.Mess
 			}
 		}()
 	}
+
+	// --- Bump Reminder ---
+	go h.handleBump(s, m)
+	// --- End Bump Reminder ---
+}
+
+func (h *MessageHandler) handleBump(s *discordgo.Session, m *discordgo.MessageCreate) {
+	var config storage.BumpReminderConfig
+	if err := h.Store.GetConfig(m.GuildID, "bump_reminder_config", &config); err != nil || !config.Enabled || m.ChannelID != config.ChannelID {
+		return
+	}
+
+	// Check if the message is from Disboard or Dissoku
+	if m.Author.ID != "302050872383242240" && m.Author.ID != "761562078095147048" {
+		return
+	}
+
+	// Check if the message content indicates a successful bump
+	if !strings.Contains(strings.ToLower(m.Content), "bump") {
+		return
+	}
+
+	// Find the user who bumped
+	var bumper *discordgo.User
+	if m.Interaction != nil && m.Interaction.User != nil {
+		bumper = m.Interaction.User
+	} else {
+		// Fallback if interaction is not available (less reliable)
+		// This part might need adjustment based on the actual message format from the bots
+		return // For now, we only support bumps via slash commands
+	}
+
+	h.scheduleBumpReminder(s, m.ChannelID, bumper.ID)
+}
+
+func (h *MessageHandler) scheduleBumpReminder(s *discordgo.Session, channelID, userID string) {
+	time.AfterFunc(2*time.Hour, func() {
+		content := fmt.Sprintf("Bumpの時間だよ！ <@%s> `</bump:947088344167366698>`", userID)
+		_, err := s.ChannelMessageSend(channelID, content)
+		if err != nil {
+			h.Log.Error("Failed to send bump reminder", "error", err, "channelID", channelID, "userID", userID)
+		}
+	})
 }
 
 func (h *MessageHandler) onMessageUpdate(s *discordgo.Session, e *discordgo.MessageUpdate) {

@@ -61,6 +61,7 @@ func RegisterCommands(db interfaces.DataStore, scheduler interfaces.Scheduler, p
 		&QueueCommand{Player: appCtx.Player, Log: appCtx.Log},
 		&LeaveCommand{Player: appCtx.Player, Log: appCtx.Log},
 		&WTBRCommand{Log: appCtx.Log},
+		&BumpReminderCommand{Store: appCtx.Store, Log: appCtx.Log},
 	}
 
 	for _, cmd := range commands {
