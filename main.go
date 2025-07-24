@@ -6,6 +6,7 @@ import (
 	"luna/bot"
 	"luna/commands"
 	"luna/config"
+	"luna/handlers/events"
 	"luna/handlers/web"
 	"luna/logger"
 	"luna/player"
@@ -58,6 +59,12 @@ func main() {
 
 	// BotのSessionをPlayerに設定
 	musicPlayer.Session = b.GetSession()
+
+	// イベントハンドラーを登録
+	events.NewChannelHandler(log, db).Register(b.GetSession())
+	events.NewMemberHandler(log, db).Register(b.GetSession())
+	events.NewMessageHandler(log, db).Register(b.GetSession())
+	events.NewVoiceHandler(log, db).Register(b.GetSession())
 
 	// コマンドハンドラーを登録
 	commandHandlers, componentHandlers, registeredCommands := commands.RegisterCommands(b.GetDBStore(), b.GetScheduler(), b.GetPlayer(), b.GetSession(), b.GetStartTime())
