@@ -1,4 +1,4 @@
-# Luna 2.0.0-dev15
+# Luna 2.0.0-dev16
 <p align="center">
   <em>あなたのDiscordサーバー運営を、より便利に。</em>
 </p>
