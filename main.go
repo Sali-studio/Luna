@@ -35,6 +35,7 @@ func main() {
 
 	// --- サーバー群の自動起動 ---
 	serverManager := servers.NewManager(log)
+	serverManager.AddServer(servers.NewWebServer(log, db)) // Webサーバーを追加
 	serverManager.AddServer(servers.NewGenericServer("Python AI Server", "python", []string{"python_server.py"}, ""))
 	// serverManager.AddServer(servers.NewGenericServer("C# OCR Server", "dotnet", []string{"run"}, "./csharp_server"))
 
