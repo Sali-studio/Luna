@@ -37,6 +37,11 @@ type BumpConfig struct {
 	RoleID    string `json:"role_id"`
 	Reminder  bool   `json:"reminder"`
 }
+
+type BumpReminderConfig struct {
+	Enabled   bool   `json:"enabled"`
+	ChannelID string `json:"channel_id"`
+}
 type ReactionRole struct {
 	MessageID string
 	EmojiID   string
@@ -92,7 +97,9 @@ func (s *DBStore) initTables() error {
 			log_config TEXT DEFAULT '{}',
 			temp_vc_config TEXT DEFAULT '{}',
 			dashboard_config TEXT DEFAULT '{}',
-			bump_config TEXT DEFAULT '{}',
+						bump_config TEXT DEFAULT '{}',
+			bump_reminder_config TEXT DEFAULT '{}',
+
 			welcome_config TEXT DEFAULT '{}',
 			ticket_counter INTEGER DEFAULT 0
 		);`,
