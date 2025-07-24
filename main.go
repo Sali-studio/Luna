@@ -33,20 +33,17 @@ func main() {
 		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", config.Cfg.Google.CredentialsPath)
 	}
 
-	// --- サーバー群の自動起動 ---
-	serverManager := servers.NewManager(log)
-	serverManager.AddServer(servers.NewWebServer(log, db)) // Webサーバーを追加
-	serverManager.AddServer(servers.NewGenericServer("Python AI Server", "python", []string{"python_server.py"}, ""))
-	// serverManager.AddServer(servers.NewGenericServer("C# OCR Server", "dotnet", []string{"run"}, "./csharp_server"))
-
-	serverManager.StartAll()
-	defer serverManager.StopAll()
-
 	// 依存関係のインスタンスを生成
 	db, err := storage.NewDBStore("./luna.db")
 	if err != nil {
 		log.Fatal("データベースの初期化に失敗しました", "error", err)
 	}
+
+	// --- サーバー群の自動起動 ---
+	serverManager := servers.NewManager(log)
+	serverManager.AddServer(servers.NewWebServer(log, db)) // Webサーバーを追加
+	serverManager.AddServer(servers.NewGenericServer("Python AI Server", "python", []string{"python_server.py"}, ""))
+	// serverManager.AddServer(servers.NewGenericServer("C# OCR Server", "dotnet", []string{"run"}, "./csharp_server"))
 	scheduler := cron.New()
 
 	// 音楽プレイヤーのインスタンスを先に生成 (Sessionは後で設定)

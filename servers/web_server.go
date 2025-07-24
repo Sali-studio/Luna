@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os/exec" // os/execをインポート
 	"time"
 
 	"luna/handlers/web"
@@ -57,6 +58,16 @@ func (s *WebServer) Stop() {
 	if err := s.http.Shutdown(ctx); err != nil {
 		s.log.Error("Webサーバーのシャットダウンに失敗しました", "error", err)
 	}
+}
+
+// Name はサーバーの名前を返します。
+func (s *WebServer) Name() string {
+	return "Web Server"
+}
+
+// Cmd はサーバーの実行コマンドを返します。Webサーバーの場合はnilを返します。
+func (s *WebServer) Cmd() *exec.Cmd {
+	return nil
 }
 
 // DashboardHandler はダッシュボードのサマリーデータを返します。
