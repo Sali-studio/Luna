@@ -7,11 +7,12 @@ import DashboardLayout from '../components/DashboardLayout';
 function Home() {
   return (
     <DashboardLayout>
-      <Typography variant="h4" gutterBottom>
-        Welcome to Luna Dashboard!
+      <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>
+        Dashboard Overview
       </Typography>
+
       <Typography variant="body1">
-        This is the new web dashboard for your Luna Bot.
+        This is the main dashboard content area. Cards will be added here later.
       </Typography>
     </DashboardLayout>
   );

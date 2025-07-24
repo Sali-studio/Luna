@@ -2,4 +2,87 @@ body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  background: linear-gradient(to bottom right, #212121, #424242); /* ダークなグラデーション */
+  min-height: 100vh; /* 画面全体にグラデーションを適用 */
+  overflow-x: hidden; /* 横スクロールバーを非表示 */
+}
+
+/* アニメーションするブロブのスタイル */
+.blob {
+  position: absolute;
+  background: rgba(66, 66, 66, 0.5); /* 半透明のダークグレー */
+  border-radius: 50%;
+  filter: blur(80px); /* ぼかし効果 */
+  animation: blob-animation 20s infinite alternate;
+  z-index: -1; /* 最背面 */
+}
+
+.blob:nth-child(1) {
+  width: 300px;
+  height: 300px;
+  top: 10%;
+  left: 10%;
+  animation-duration: 18s;
+  background: rgba(33, 150, 243, 0.3); /* ダークモード向けの水色 */
+}
+
+.blob:nth-child(2) {
+  width: 400px;
+  height: 400px;
+  top: 50%;
+  left: 60%;
+  animation-duration: 22s;
+  background: rgba(25, 118, 210, 0.3); /* 少し濃いダークモード向けの水色 */
+}
+
+.blob:nth-child(3) {
+  width: 250px;
+  height: 250px;
+  top: 80%;
+  left: 30%;
+  animation-duration: 25s;
+  background: rgba(2, 136, 209, 0.3); /* さらに濃いダークモード向けの水色 */
+}
+
+.blob:nth-child(4) {
+  width: 350px;
+  height: 350px;
+  top: 20%;
+  right: 5%;
+  animation-duration: 20s;
+  background: rgba(33, 150, 243, 0.3); /* ダークモード向けの水色 */
+}
+
+.blob:nth-child(5) {
+  width: 200px;
+  height: 200px;
+  bottom: 15%;
+  right: 20%;
+  animation-duration: 23s;
+  background: rgba(25, 118, 210, 0.3); /* 少し濃いダークモード向けの水色 */
+}
+
+.blob:nth-child(6) {
+  width: 450px;
+  height: 450px;
+  top: -10%;
+  left: 40%;
+  animation-duration: 28s;
+  background: rgba(2, 136, 209, 0.3); /* さらに濃いダークモード向けの水色 */
+}
+
+/* ブロブのアニメーション */
+@keyframes blob-animation {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  33% {
+    transform: scale(1.1) translate(30px, -50px);
+  }
+  66% {
+    transform: scale(0.9) translate(-40px, 20px);
+  }
+  100% {
+    transform: scale(1) translate(0, 0);
+  }
 }

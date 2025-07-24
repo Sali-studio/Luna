@@ -7,6 +7,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Link from 'next/link';
 import { useTheme } from '@mui/material/styles';
+import { useAuth } from '../contexts/AuthContext'; // useAuthをインポート
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -14,6 +15,7 @@ interface DashboardLayoutProps {
 
 function DashboardLayout({ children }: DashboardLayoutProps) {
   const theme = useTheme();
+  const { user, loading, login, logout } = useAuth(); // useAuthを使用
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -31,7 +33,17 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             Luna Dashboard
           </Typography>
-          <Button color="inherit">Login</Button>
+          {loading ? (
+            <Typography color="inherit">Loading...</Typography>
+          ) : user ? (
+            <Button color="inherit" onClick={logout}>
+              Logout ({user.username})
+            </Button>
+          ) : (
+            <Button color="inherit" onClick={login}>
+              Login
+            </Button>
+          )}
         </Toolbar>
       </AppBar>
       <Box sx={{ display: 'flex', flexGrow: 1, p: 2 }}>
@@ -41,9 +53,10 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
           flexShrink: 0,
           mr: 2,
           p: 2,
-          bgcolor: 'background.paper',
+          bgcolor: 'rgba(28, 27, 29, 0.85)', // #1c1b1d に変更し、透明度を維持
           borderRadius: '16px',
-          boxShadow: theme.shadows[1],
+          boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.3)', // 影を強調
+          backdropFilter: 'blur(10px)', // すりガラス効果
         }}>
           <List>
             <ListItem disablePadding>
@@ -69,9 +82,10 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
         <Box sx={{
           flexGrow: 1,
           p: 2,
-          bgcolor: 'background.paper',
+          bgcolor: 'rgba(28, 27, 29, 0.85)', // #1c1b1d に変更し、透明度を維持
           borderRadius: '16px',
-          boxShadow: theme.shadows[1],
+          boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.3)', // 影を強調
+          backdropFilter: 'blur(10px)', // すりガラス効果
         }}>
           {children}
         </Box>
