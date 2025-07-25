@@ -19,9 +19,9 @@ vertexai.init() # .envの認証情報を自動で読み込みます
 
 # --- モデルのロード ---
 # 画像生成モデル
-image_model = ImageGenerationModel.from_pretrained("imagen-4.0-generate-preview-06-06") 
+image_model = ImageGenerationModel.from_pretrained("imagen-4.0-ultra-generate-preview-06-06") 
 # テキスト生成・画像認識モデル (多モーダル)
-multimodal_model = GenerativeModel("gemini-2.5-flash")
+multimodal_model = GenerativeModel("gemini-2.5-flash-lite")
 
 # --- APIエンドポイントの定義 ---
 # 画像生成用のエンドポイント
@@ -47,8 +47,7 @@ def generate_image():
             f.write(image_data)
 
         print(f"✅ Image saved: {filepath}")
-        
-        # 修正：URLの代わりに、保存したファイルの絶対パスを返す
+
         return jsonify({'image_path': os.path.abspath(filepath)})
 
     except Exception as e:
@@ -75,7 +74,7 @@ def generate_text():
         print(f"❌ Error generating text: {e}")
         return jsonify({'error': str(e)}), 500
 
-# ★★★ 新しいエンドポイント: 画像認識 ★★★
+# エンドポイント: 画像認識
 @app.route('/describe-image', methods=['POST'])
 def describe_image():
     data = request.get_json()
@@ -116,7 +115,7 @@ def describe_image():
         return jsonify({'error': str(e)}), 500
 
 
-# ★★★ 新しいエンドポイント: JSON形式でクイズを生成 ★★★
+# エンドポイント: JSON形式でクイズを生成
 @app.route('/generate-quiz', methods=['POST'])
 def generate_quiz():
     data = request.get_json()
