@@ -18,7 +18,7 @@ import (
 func main() {
 	log := logger.New()
 
-	var musicPlayer *player.Player // musicPlayerをここで宣言
+	var musicPlayer *player.Player
 
 	if err := config.LoadConfig(log); err != nil {
 		log.Fatal("設定ファイルの読み込みに失敗しました", "error", err)
@@ -32,7 +32,7 @@ func main() {
 		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", config.Cfg.Google.CredentialsPath)
 	}
 
-	// --- サーバー群の自動起動 ---
+	// サーバーの自動起動
 	serverManager := servers.NewManager(log)
 	serverManager.AddServer(servers.NewGenericServer("Python AI Server", "python", []string{"python_server.py"}, ""))
 	// serverManager.AddServer(servers.NewGenericServer("C# OCR Server", "dotnet", []string{"run"}, "./csharp_server"))
@@ -48,7 +48,7 @@ func main() {
 	scheduler := cron.New()
 
 	// 音楽プレイヤーのインスタンスを先に生成 (Sessionは後で設定)
-		musicPlayer = player.NewPlayer(nil, log, db)
+	musicPlayer = player.NewPlayer(nil, log, db)
 
 	// Botに依存性を注入
 	b, err := bot.New(log, db, scheduler, musicPlayer)
