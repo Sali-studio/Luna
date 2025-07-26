@@ -60,7 +60,7 @@ func main() {
 	musicPlayer.Session = b.GetSession()
 
 	// コマンドハンドラーを登録
-	commandHandlers, componentHandlers, registeredCommands := commands.RegisterCommands(b.GetDBStore(), b.GetScheduler(), b.GetPlayer(), b.GetSession(), b.GetStartTime())
+	commandHandlers, componentHandlers, registeredCommands := commands.RegisterCommands(log, b.GetDBStore(), b.GetScheduler(), b.GetPlayer(), b.GetSession(), b.GetStartTime())
 
 	// Botを起動
 	if err := b.Start(commandHandlers, componentHandlers, registeredCommands); err != nil {

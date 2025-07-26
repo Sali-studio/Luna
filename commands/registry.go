@@ -17,12 +17,13 @@ type AppContext struct {
 }
 
 // RegisterCommands initializes and returns all command handlers.
-func RegisterCommands(db interfaces.DataStore, scheduler interfaces.Scheduler, player interfaces.MusicPlayer, session *discordgo.Session, startTime time.Time) (map[string]interfaces.CommandHandler, map[string]interfaces.CommandHandler, []*discordgo.ApplicationCommand) {
+func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Scheduler, player interfaces.MusicPlayer, session *discordgo.Session, startTime time.Time) (map[string]interfaces.CommandHandler, map[string]interfaces.CommandHandler, []*discordgo.ApplicationCommand) {
 	commandHandlers := make(map[string]interfaces.CommandHandler)
 	componentHandlers := make(map[string]interfaces.CommandHandler)
 	registeredCommands := make([]*discordgo.ApplicationCommand, 0)
 
 	appCtx := &AppContext{
+		Log:       log,
 		Store:     db,
 		Scheduler: scheduler,
 		Player:    player,
