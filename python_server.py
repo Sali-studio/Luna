@@ -15,10 +15,10 @@ if not os.path.exists(IMG_DIR):
 
 # FlaskアプリとVertex AIの初期化
 app = flask.Flask(__name__)
-vertexai.init() 
+vertexai.init()
 
 # 画像生成
-image_model = ImageGenerationModel.from_pretrained("imagen-4.0-generate-preview-06-06") 
+image_model = ImageGenerationModel.from_pretrained("imagen-4.0-generate-preview-06-06")
 # 多モーダル
 multimodal_model = GenerativeModel("gemini-2.5-pro")
 
@@ -31,11 +31,20 @@ def generate_image():
         return jsonify({'error': 'prompt is required'}), 400
 
     prompt = data['prompt']
+    negative_prompt = data.get('negative_prompt', None) # ネガティブプロンプトを取得
+
     print(f"✅ Received Image prompt: {prompt}")
+    if negative_prompt:
+        print(f"🚫 Received Negative Prompt: {negative_prompt}")
 
     try:
         print("⏳ Generating image...")
-        images = image_model.generate_images(prompt=prompt, number_of_images=1)
+        # モデルにネガティブプロンプトを渡す
+        images = image_model.generate_images(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            number_of_images=1
+        )
         image_data = images[0]._image_bytes
         print("✅ Image generated.")
 
