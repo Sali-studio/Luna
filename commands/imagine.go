@@ -42,6 +42,12 @@ func (c *ImagineCommand) GetCommandDef() *discordgo.ApplicationCommand {
 				Description: "生成してほしくない要素（例: 低品質, ぼやけ）",
 				Required:    false,
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Name:        "no_enhancements",
+				Description: "プロンプトの自動補完を無効化します (デフォルト: false)",
+				Required:    false,
+			},
 		},
 	}
 }
@@ -59,6 +65,10 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	if opt, ok := options["negative_prompt"]; ok {
 		userNegativePrompt = opt.StringValue()
 	}
+	noEnhancements := false
+	if opt, ok := options["no_enhancements"]; ok {
+		noEnhancements = opt.BoolValue()
+	}
 
 	// 1. まず「生成中です...」と即時応答する
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -68,21 +78,26 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		return
 	}
 
-	// 2. プロンプトを強化する
-	// 品質向上キーワード
-	qualitySuffix := ", masterpiece, best quality, ultra-detailed, 8k, photorealistic"
-	enhancedPrompt := prompt + qualitySuffix
+	finalPrompt := prompt
+	finalNegativePrompt := userNegativePrompt
 
-	// ネガティブプロンプトの組み立て
-	defaultNegativePrompt := "worst quality, low quality, normal quality, ugly, deformed, blurry, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, bad feet"
-	finalNegativePrompt := defaultNegativePrompt
-	if userNegativePrompt != "" {
-		finalNegativePrompt = strings.Join([]string{defaultNegativePrompt, userNegativePrompt}, ", ")
+	if !noEnhancements {
+		// 品質向上キーワード
+		qualitySuffix := ", masterpiece, best quality, ultra-detailed, 8k, photorealistic"
+		finalPrompt = prompt + qualitySuffix
+
+		// ネガティブプロンプトの組み立て
+		defaultNegativePrompt := "worst quality, low quality, normal quality, ugly, deformed, blurry, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, bad feet"
+		if userNegativePrompt != "" {
+			finalNegativePrompt = strings.Join([]string{defaultNegativePrompt, userNegativePrompt}, ", ")
+		} else {
+			finalNegativePrompt = defaultNegativePrompt
+		}
 	}
 
 	// 3. Pythonサーバーに送信するデータを作成
 	reqData := ImagineRequest{
-		Prompt:         enhancedPrompt,
+		Prompt:         finalPrompt,
 		NegativePrompt: finalNegativePrompt,
 	}
 	reqJson, _ := json.Marshal(reqData)
@@ -144,6 +159,10 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	if userNegativePrompt != "" {
 		description += fmt.Sprintf("\n**Negative Prompt:**\n```\n%s\n```", userNegativePrompt)
 	}
+	if noEnhancements {
+		description += "\n*プロンプトの自動補完は無効化されています。*"
+	}
+
 
 	embed := &discordgo.MessageEmbed{
 		Title: "🎨 画像生成が完了しました",
@@ -178,3 +197,4 @@ func (c *ImagineCommand) HandleComponent(s *discordgo.Session, i *discordgo.Inte
 func (c *ImagineCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *ImagineCommand) GetComponentIDs() []string                                            { return []string{} }
 func (c *ImagineCommand) GetCategory() string                                                  { return "AI" }
+
