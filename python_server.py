@@ -18,9 +18,9 @@ app = flask.Flask(__name__)
 vertexai.init() 
 
 # 画像生成
-image_model = ImageGenerationModel.from_pretrained("imagen-4.0-generate-preview-06-06") 
+image_model = ImageGenerationModel.from_pretrained("imagen-4.0-ultra-generate-preview-06-06") 
 # 多モーダル
-multimodal_model = GenerativeModel("gemini-2.5-flash")
+multimodal_model = GenerativeModel("gemini-2.5-pro")
 
 # APIエンドポイント
 # 画像生成用エンドポイント
