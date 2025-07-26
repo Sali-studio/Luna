@@ -1,4 +1,4 @@
-# Luna - 高性能多機能Discord Bot
+# Luna - Version 2.0.4
 
 Lunaは、Goの高性能な多機能Botです。将来的にはReact製のWebダッシュボードからの操作も可能です。
 
