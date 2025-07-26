@@ -13,18 +13,17 @@ IMG_DIR = "generated_images"
 if not os.path.exists(IMG_DIR):
     os.makedirs(IMG_DIR)
 
-# --- FlaskアプリとVertex AIの初期化 ---
+# FlaskアプリとVertex AIの初期化
 app = flask.Flask(__name__)
-vertexai.init() # .envの認証情報を自動で読み込みます
+vertexai.init() 
 
-# --- モデルのロード ---
-# 画像生成モデル
+# 画像生成
 image_model = ImageGenerationModel.from_pretrained("imagen-4.0-generate-preview-06-06") 
-# テキスト生成・画像認識モデル (多モーダル)
+# 多モーダル
 multimodal_model = GenerativeModel("gemini-2.5-flash")
 
-# --- APIエンドポイントの定義 ---
-# 画像生成用のエンドポイント
+# APIエンドポイント
+# 画像生成用エンドポイント
 @app.route('/generate-image', methods=['POST'])
 def generate_image():
     data = request.get_json()
@@ -47,15 +46,14 @@ def generate_image():
             f.write(image_data)
 
         print(f"✅ Image saved: {filepath}")
-        
-        # 修正：URLの代わりに、保存したファイルの絶対パスを返す
+
         return jsonify({'image_path': os.path.abspath(filepath)})
 
     except Exception as e:
         print(f"❌ Error generating image: {e}")
         return jsonify({'error': str(e)}), 500
 
-# テキスト生成用のエンドポイント
+# テキスト生成用エンドポイント
 @app.route('/generate-text', methods=['POST'])
 def generate_text():
     data = request.get_json()
@@ -75,7 +73,7 @@ def generate_text():
         print(f"❌ Error generating text: {e}")
         return jsonify({'error': str(e)}), 500
 
-# ★★★ 新しいエンドポイント: 画像認識 ★★★
+# 用画像認識エンドポイント
 @app.route('/describe-image', methods=['POST'])
 def describe_image():
     data = request.get_json()
@@ -93,10 +91,10 @@ def describe_image():
         image_content = image_response.content
         print("✅ Image downloaded.")
 
-        # Vertex AIに渡すための画像パートを作成
+        # Vertex AIに渡すための画像パート
         image_part = Part.from_data(
             data=image_content,
-            mime_type="image/png" # Discordの添付ファイルはPNGが多いと仮定
+            mime_type="image/png"
         )
 
         # プロンプトと画像をモデルに渡す
@@ -116,7 +114,7 @@ def describe_image():
         return jsonify({'error': str(e)}), 500
 
 
-# ★★★ 新しいエンドポイント: JSON形式でクイズを生成 ★★★
+# クイズ用エンドポイント
 @app.route('/generate-quiz', methods=['POST'])
 def generate_quiz():
     data = request.get_json()
@@ -177,7 +175,7 @@ def generate_quiz():
         return jsonify({'error': str(e)}), 500
 
 
-# ★★★ 新しいエンドポイント: ユーザー活動分析 ★★★
+# ユーザー活動分析用エンドポイント
 @app.route('/analyze-user-activity', methods=['POST'])
 def analyze_user_activity():
     data = request.get_json()
@@ -213,11 +211,11 @@ def analyze_user_activity():
         return jsonify({'error': str(e)}), 500
 
 
-# 画像を配信するためのエンドポイント
+# 画像配信エンドポイント
 @app.route('/images/<filename>')
 def get_image(filename):
     return flask.send_from_directory(IMG_DIR, filename)
 
-# --- サーバーの起動 ---
+# サーバー起動
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001)
