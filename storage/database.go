@@ -128,7 +128,6 @@ func (s *DBStore) initTables() error {
 			PRIMARY KEY (guild_id, word)
 		);`,
 	}
-	}
 	for _, table := range tables {
 		if _, err := s.db.Exec(table); err != nil {
 			return err
