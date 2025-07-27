@@ -20,25 +20,23 @@ func NewMemberEventHandler(store interfaces.DataStore, log interfaces.Logger) *M
 
 // RegisterHandlers はこのハンドラのイベントリスナーを登録します。
 func (h *MemberEventHandler) RegisterHandlers(s *discordgo.Session) {
-	s.AddHandler(h.onGuildMemberAdd)
-}
-
-// onGuildMemberAdd はユーザーがサーバーに参加したときにトリガーされます。
-func (h *MemberEventHandler) onGuildMemberAdd(s *discordgo.Session, m *discordgo.GuildMemberAdd) {
-	// 自動ロール付与の処理
-	var config storage.AutoRoleConfig
-	err := h.Store.GetConfig(m.GuildID, "autorole_config", &config)
-	if err != nil {
-		h.Log.Error("Failed to get autorole config on member add", "error", err, "guild_id", m.GuildID)
-		return
-	}
-
-	if config.Enabled && config.RoleID != "" {
-		err := s.GuildMemberRoleAdd(m.GuildID, m.User.ID, config.RoleID)
+	// ユーザーがサーバーに参加したときのイベントハンドラを登録
+	s.AddHandler(func(s *discordgo.Session, m *discordgo.GuildMemberAdd) {
+		// 自動ロール付与の処理
+		var config storage.AutoRoleConfig
+		err := h.Store.GetConfig(m.GuildID, "autorole_config", &config)
 		if err != nil {
-			h.Log.Error("Failed to add autorole to member", "error", err, "user_id", m.User.ID, "role_id", config.RoleID)
-		} else {
-			h.Log.Info("Successfully added autorole to member", "user_id", m.User.ID, "role_id", config.RoleID)
+			h.Log.Error("Failed to get autorole config on member add", "error", err, "guild_id", m.GuildID)
+			return
 		}
-	}
+
+		if config.Enabled && config.RoleID != "" {
+			err := s.GuildMemberRoleAdd(m.GuildID, m.User.ID, config.RoleID)
+			if err != nil {
+				h.Log.Error("Failed to add autorole to member", "error", err, "user_id", m.User.ID, "role_id", config.RoleID)
+			} else {
+				h.Log.Info("Successfully added autorole to member", "user_id", m.User.ID, "role_id", config.RoleID)
+			}
+		}
+	})
 }
