@@ -122,6 +122,46 @@ def describe_image():
         print(f"❌ Error describing image: {e}")
         return jsonify({'error': str(e)}), 500
 
+# OCR用エンドポイント
+@app.route('/ocr', methods=['POST'])
+def ocr():
+    data = request.get_json()
+    if not data or 'image_url' not in data:
+        return jsonify({'error': 'image_url is required'}), 400
+
+    image_url = data['image_url']
+    print(f"✅ Received OCR Request for URL: {image_url}")
+
+    try:
+        # URLから画像データをダウンロード
+        print("⏳ Downloading image for OCR...")
+        image_response = requests.get(image_url)
+        image_response.raise_for_status() # エラーチェック
+        image_content = image_response.content
+        print("✅ Image downloaded for OCR.")
+
+        # Vertex AIに渡すための画像パート
+        image_part = Part.from_data(
+            data=image_content,
+            mime_type="image/png" # MIMEタイプは適宜変更してください
+        )
+
+        # OCRに特化したプロンプト
+        prompt = "この画像に含まれているすべてのテキストを、一字一句正確に書き出してください。他の説明や前置きは一切不要です。"
+        print("⏳ Performing OCR...")
+        response = multimodal_model.generate_content([image_part, prompt])
+        print("✅ OCR completed.")
+        
+        # テキスト部分だけを返す
+        return jsonify({'text': response.text})
+
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error downloading image for OCR: {e}")
+        return jsonify({'error': f"Failed to download image from URL: {e}"}), 500
+    except Exception as e:
+        print(f"❌ Error during OCR: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 # クイズ用エンドポイント
 @app.route('/generate-quiz', methods=['POST'])
