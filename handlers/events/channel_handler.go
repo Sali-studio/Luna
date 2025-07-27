@@ -31,7 +31,7 @@ func (h *ChannelHandler) onChannelCreate(s *discordgo.Session, e *discordgo.Chan
 
 	embed := &discordgo.MessageEmbed{
 		Title: "📬 チャンネル作成",
-		Color: ColorGreen,
+				Color:       0x77b255, // Green
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "チャンネル", Value: fmt.Sprintf("<#%s> (%s)", e.ID, e.Name), Inline: true},
 			{Name: "種類", Value: ChannelTypeToString(e.Type), Inline: true},

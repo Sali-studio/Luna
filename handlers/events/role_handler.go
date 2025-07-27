@@ -31,7 +31,7 @@ func (h *RoleHandler) onRoleCreate(s *discordgo.Session, e *discordgo.GuildRoleC
 
 	embed := &discordgo.MessageEmbed{
 		Title: "✨ ロール作成",
-		Color: ColorGreen,
+				Color:       0x77b255, // Green
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "ロール", Value: fmt.Sprintf("<@&%s> (%s)", e.Role.ID, e.Role.Name), Inline: true},
 			{Name: "実行者", Value: executorMention, Inline: true},
