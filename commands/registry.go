@@ -62,6 +62,7 @@ func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler 
 		&QueueCommand{Player: appCtx.Player, Log: appCtx.Log},
 		&LeaveCommand{Player: appCtx.Player, Log: appCtx.Log},
 		&WTBRCommand{Log: appCtx.Log},
+		&AutoRoleCommand{Store: appCtx.Store, Log: appCtx.Log},
 	}
 
 	for _, cmd := range commands {

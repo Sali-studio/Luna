@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"luna/config"
+	"luna/handlers/events"
 	"luna/interfaces"
 
 	"github.com/bwmarrin/discordgo"
@@ -80,6 +81,9 @@ func (b *Bot) Start(commandHandlers map[string]interfaces.CommandHandler, compon
 			}
 		}
 	})
+
+	// イベントハンドラの登録
+	events.NewMemberEventHandler(b.dbStore, b.log).RegisterHandlers(b.Session)
 
 	if err := b.Session.Open(); err != nil {
 		return err
