@@ -1,4 +1,4 @@
-# Luna - Version 2.0.6
+# Luna - Version 2.0.7
 
 Lunaは、Goの高性能な多機能Botです。将来的にはReact製のWebダッシュボードからの操作も可能です。
 
