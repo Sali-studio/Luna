@@ -19,23 +19,20 @@ jobs:
 
       - name: Extract version from commit message
         id: get_version
-        run: echo "VERSION=$(echo "${{ github.event.head_commit.message }}" | sed -n 's/^Bump to //p')" >> $GITHUB_ENV
+        run: echo "VERSION=${{{{ github.event.head_commit.message | sed 's/Bump to //' }}}}" >> $GITHUB_ENV
 
       - name: Create Git Tag
         run: |
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git tag -a "v${{ env.VERSION }}" -m "Release v${{ env.VERSION }}"
-          git push origin "v${{ env.VERSION }}"
+          git config user.name "${{{{ github.actor }}}}"
+          git config user.email "${{{{ github.actor }}}}@users.noreply.github.com"
+          git tag -a "v${{{{ env.VERSION }}}}" -m "Release v${{{{ env.VERSION }}}}"
+          git push origin "v${{{{ env.VERSION }}}}"
 
       - name: Create GitHub Release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}
         with:
-          tag_name: v${{ env.VERSION }}
-          release_name: Release v${{ env.VERSION }}
-          body: |
-            ${{ github.event.head_commit.message }}
-          draft: false
-          prerelease: false
+          tag_name: v${{{{ env.VERSION }}}}
+          release_name: Release v${{{{ env.VERSION }}}}
+          generate_release_notes: true
