@@ -17,7 +17,7 @@ jobs:
 
       - name: Extract version from commit message
         id: get_version
-        run: echo "VERSION=$(echo "${{ github.event.head_commit.message }}" | sed -n 's/^Bump to v//p')" >> $GITHUB_ENV
+        run: echo "VERSION=$(echo "${{ github.event.head_commit.message }}" | sed -n 's/^Bump to //p')" >> $GITHUB_ENV
 
       - name: Create Git Tag
         run: |
