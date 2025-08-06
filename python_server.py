@@ -286,6 +286,66 @@ def analyze_user_activity():
         print(f"❌ Error analyzing user activity: {e}")
         return jsonify({'error': str(e)}), 500
 
+# 新しいプロフィール分析エンドポイント
+@app.route('/analyze-profile', methods=['POST'])
+def analyze_profile():
+    data = request.get_json()
+    if not data or 'username' not in data:
+        return jsonify({'error': 'username is required'}), 400
+
+    username = data['username']
+    roles = data.get('roles', [])
+    recent_messages = data.get('recent_messages', [])
+
+    print(f"✅ Received Profile Analysis request for {username}")
+
+    # メッセージ履歴を整形
+    message_history = "\n".join(recent_messages) if recent_messages else "まだ発言がありません。"
+
+    # Geminiに渡すプロンプトを作成
+    prompt = f"""
+あなたはプロのプロファイラーです。
+以下のDiscordユーザーの情報を元に、そのユーザーの人物像を創造的かつ洞察に満ちた文章で分析してください。
+分析結果は、本人に直接見せることを想定し、ポジティブで面白い内容にしてください。
+
+# ユーザー情報
+- ユーザー名: {username}
+- サーバー内でのロール: {', '.join(roles) if roles else 'なし'}
+
+# 最近の発言 (直近最大50件)
+{message_history}
+
+# 分析のポイント
+- **話し方の特徴:** 丁寧、フレンドリー、絵文字をよく使うなど。
+- **興味・関心:** 最近の会話から、何に興味があるように見えるか。
+- **サーバー内での役割:** ムードメーカー、情報通、特定の話題の専門家など、どのような役割を担っているように見えるか。
+- **ユニークなキャッチコピー:** 全てを総合して、その人に面白いキャッチコピーを付けてください。
+
+分析結果は、以下のフォーマットで、マークダウンを使って記述してください。
+
+### 🗣️ 話し方の特徴
+ここに分析結果を記述。
+
+### 興味・関心
+ここに分析結果を記述。
+
+### サーバー内での役割
+ここに分析結果を記述。
+
+### ✨ キャッチコピー
+**ここにキャッチコピーを記述**
+"""
+
+    try:
+        print("⏳ Analyzing profile...")
+        response = multimodal_model.generate_content(prompt)
+        print("✅ Profile analyzed.")
+        return jsonify({'text': response.text})
+
+    except Exception as e:
+        print(f"❌ Error analyzing profile: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 # 画像配信エンドポイント
 @app.route('/images/<filename>')
