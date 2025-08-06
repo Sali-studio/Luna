@@ -24,8 +24,8 @@ const (
 type QuizBetState int
 
 const (
-	StateQuizBetting QuizBetState = iota
-	StateQuizFinished
+	QBStateQuizBetting QuizBetState = iota
+	QBStateQuizFinished
 )
 
 // QuizBet は個々のベット情報を表します。
@@ -125,7 +125,7 @@ func (c *QuizBetCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		defer c.mu.Unlock()
 
 		game := &QuizBetGame{
-			State:              StateQuizBetting,
+			State:              QBStateQuizBetting,
 			ChannelID:          i.ChannelID,
 			Interaction:        i.Interaction,
 			Question:           quiz.Question,
@@ -198,7 +198,7 @@ func (c *QuizBetCommand) handleBetButton(s *discordgo.Session, i *discordgo.Inte
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if game.State != StateQuizBetting {
+	if game.State != QBStateQuizBetting {
 		sendErrorResponse(s, i, "ベット受付は終了しました。")
 		return
 	}
@@ -316,7 +316,7 @@ func (c *QuizBetCommand) buildBettingEmbed(game *QuizBetGame) *discordgo.Message
 	}
 
 	footer := fmt.Sprintf("ベット受付終了まで: %d秒", int(time.Until(game.EndTime).Seconds()))
-	if game.State == StateQuizFinished {
+	if game.State == QBStateQuizFinished {
 		footer = "ベット受付は終了しました。"
 	}
 
@@ -355,7 +355,7 @@ func (c *QuizBetCommand) scheduleEndBetting(s *discordgo.Session, game *QuizBetG
 		case <-ticker.C:
 			c.mu.Lock()
 			// ゲームがまだアクティブか確認
-			if g, exists := c.games[game.ChannelID]; !exists || g.State != StateQuizBetting {
+			if g, exists := c.games[game.ChannelID]; !exists || g.State != QBStateQuizBetting {
 				c.mu.Unlock()
 				return
 			}
@@ -374,7 +374,7 @@ func (c *QuizBetCommand) scheduleEndBetting(s *discordgo.Session, game *QuizBetG
 		case <-timer.C:
 			c.mu.Lock()
 			defer c.mu.Unlock()
-			if g, exists := c.games[game.ChannelID]; !exists || g.State != StateQuizBetting {
+			if g, exists := c.games[game.ChannelID]; !exists || g.State != QBStateQuizBetting {
 				return
 			}
 			c.endBetting(s, game)
@@ -384,7 +384,7 @@ func (c *QuizBetCommand) scheduleEndBetting(s *discordgo.Session, game *QuizBetG
 }
 
 func (c *QuizBetCommand) endBetting(s *discordgo.Session, game *QuizBetGame) {
-	game.State = StateQuizFinished
+	game.State = QBStateQuizFinished
 
 	correctOption := game.Options[game.CorrectAnswerIndex]
 	resultEmbed := &discordgo.MessageEmbed{

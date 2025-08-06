@@ -23,9 +23,9 @@ const (
 type RaceState int
 
 const (
-	StateBetting RaceState = iota
-	StateRacing
-	StateFinished
+	HRStateBetting RaceState = iota
+	HRStateRacing
+	HRStateFinished
 )
 
 // Horse は馬の情報を表します。
@@ -88,7 +88,7 @@ func (c *HorseRaceCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 	}
 
 	game := &HorseRaceGame{
-		State:       StateBetting,
+		State:       HRStateBetting,
 		ChannelID:   i.ChannelID,
 		Interaction: i.Interaction,
 		CreatorID:   i.Member.User.ID,
@@ -166,7 +166,7 @@ func (c *HorseRaceCommand) handleBetButton(s *discordgo.Session, i *discordgo.In
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if game.State != StateBetting {
+	if game.State != HRStateBetting {
 		sendErrorResponse(s, i, "ベット受付は終了しました。")
 		return
 	}
@@ -255,11 +255,11 @@ func (c *HorseRaceCommand) handleBetModalSubmit(s *discordgo.Session, i *discord
 
 func (c *HorseRaceCommand) startRace(s *discordgo.Session, game *HorseRaceGame) {
 	c.mu.Lock()
-	if game.State != StateBetting {
+	if game.State != HRStateBetting {
 		c.mu.Unlock()
 		return
 	}
-	game.State = StateRacing
+	game.State = HRStateRacing
 	c.mu.Unlock()
 
 	embed := &discordgo.MessageEmbed{
@@ -281,7 +281,7 @@ func (c *HorseRaceCommand) startRace(s *discordgo.Session, game *HorseRaceGame) 
 
 	for {
 		c.mu.Lock()
-		if game.State == StateFinished {
+		if game.State == HRStateFinished {
 			c.mu.Unlock()
 			return
 		}
@@ -320,10 +320,10 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if game.State == StateFinished {
+	if game.State == HRStateFinished {
 		return
 	}
-	game.State = StateFinished
+	game.State = HRStateFinished
 
 	var resultEmbed *discordgo.MessageEmbed
 
