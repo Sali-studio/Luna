@@ -198,7 +198,9 @@ def generate_quiz():
         return jsonify({'error': 'topic is required'}), 400
 
     topic = data.get('topic', 'ランダムなトピック')
-    history = data.get('history', []) # 過去の質問リストを受け取る
+    history = data.get('history')
+    if history is None:
+        history = []
 
     print(f"✅ Received Quiz request for topic: {topic}")
     print(f"📖 Received history with {len(history)} questions.")
