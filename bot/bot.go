@@ -52,30 +52,21 @@ func New(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Sc
 
 // Start はBotを起動し、Discordに接続します。
 func (b *Bot) Start(commandHandlers map[string]interfaces.CommandHandler, componentHandlers map[string]interfaces.CommandHandler, registeredCommands []*discordgo.ApplicationCommand) error {
+	// ボット起動時に一度だけ実行されるハンドラ
 	b.Session.AddHandlerOnce(func(s *discordgo.Session, r *discordgo.Ready) {
-		b.log.Info("Bot is ready.")
-
+		b.log.Info("Bot is ready. Clearing old global commands...")
 		// 古いグローバルコマンドをクリア
-		b.log.Info("Clearing old global commands...")
 		if _, err := s.ApplicationCommandBulkOverwrite(s.State.User.ID, "", []*discordgo.ApplicationCommand{}); err != nil {
 			b.log.Error("Failed to clear global commands", "error", err)
 		}
-
-		// コマンドをギルドごとに登録
-		for _, guild := range r.Guilds {
-			b.log.Info("Registering commands for guild", "guild_id", guild.ID, "guild_name", guild.Name)
-			if _, err := s.ApplicationCommandBulkOverwrite(s.State.User.ID, guild.ID, registeredCommands); err != nil {
-				b.log.Error("Failed to register commands for guild", "guild_id", guild.ID, "error", err)
-			}
-		}
-		b.log.Info("All commands registered successfully.")
+		b.log.Info("Global commands cleared.")
 	})
 
-	// 新しいギルドに参加したときにコマンドを登録するハンドラ
+	// ギルドが利用可能になった（起動時や新規参加時）ときにコマンドを登録するハンドラ
 	b.Session.AddHandler(func(s *discordgo.Session, g *discordgo.GuildCreate) {
-		b.log.Info("Joined a new guild, registering commands...", "guild_id", g.ID, "guild_name", g.Name)
+		b.log.Info("Registering commands for guild", "guild_id", g.ID, "guild_name", g.Name)
 		if _, err := s.ApplicationCommandBulkOverwrite(s.State.User.ID, g.ID, registeredCommands); err != nil {
-			b.log.Error("Failed to register commands for new guild", "guild_id", g.ID, "error", err)
+			b.log.Error("Failed to register commands for guild", "guild_id", g.ID, "error", err)
 		}
 	})
 
