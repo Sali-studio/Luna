@@ -72,6 +72,7 @@ func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler 
 		&CoinflipCommand{Store: appCtx.Store, Log: appCtx.Log},
 		&PayCommand{Store: appCtx.Store, Log: appCtx.Log},
 		NewHorseRaceCommand(appCtx.Store, appCtx.Log),
+		NewQuizBetCommand(appCtx.Store, appCtx.Log),
 	}
 
 	for _, cmd := range commands {
