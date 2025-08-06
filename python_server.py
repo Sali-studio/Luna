@@ -1,6 +1,6 @@
 import os
 import flask
-from flask import request, jsonify
+from flask import request, jsonify, Response
 import vertexai
 from vertexai.preview.vision_models import ImageGenerationModel
 from vertexai.generative_models import GenerativeModel, Part
@@ -81,6 +81,33 @@ def generate_text():
     except Exception as e:
         print(f"❌ Error generating text: {e}")
         return jsonify({'error': str(e)}), 500
+
+# テキスト生成用エンドポイント(ストリーミング)
+@app.route('/generate-text-stream', methods=['POST'])
+def generate_text_stream():
+    data = request.get_json()
+    if not data or 'prompt' not in data:
+        return jsonify({'error': 'prompt is required'}), 400
+
+    prompt = data['prompt']
+    print(f"✅ Received Text Stream prompt: {prompt}")
+
+    def generate():
+        try:
+            print("⏳ Generating text stream...")
+            # stream=Trueを指定して、レスポンスをストリームで受け取る
+            responses = multimodal_model.generate_content(prompt, stream=True)
+            print("✅ Text stream started.")
+            for response in responses:
+                # 各チャンクをそのままクライアントに送信
+                yield response.text
+        except Exception as e:
+            print(f"❌ Error generating text stream: {e}")
+            # エラーが発生した場合も、ストリームを閉じるために空のデータを送信
+            yield ""
+
+    # ストリーミングレスポンスを返す
+    return Response(generate(), mimetype='text/plain')
 
 # 用画像認識エンドポイント
 @app.route('/describe-image', methods=['POST'])
