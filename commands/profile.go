@@ -7,7 +7,6 @@ import (
 	"io"
 	"luna/interfaces"
 	"net/http"
-	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -60,7 +59,7 @@ func (c *ProfileCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	member, err := s.GuildMember(i.GuildID, targetUser.ID)
 	if err != nil {
 		c.Log.Error("Failed to get member info for profile", "error", err)
-		sendErrorResponse(s, i.Interaction, "ユーザー情報の取得に失敗しました。")
+		sendErrorResponse(s, i, "ユーザー情報の取得に失敗しました。")
 		return
 	}
 
