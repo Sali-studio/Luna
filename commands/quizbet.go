@@ -1,8 +1,10 @@
 package commands
 
 import (
-	"context"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"luna/interfaces"
 	"strconv"
 	"strings"
@@ -21,15 +23,15 @@ const (
 type QuizBetState int
 
 const (
-	QuizStateBetting QuizBetState = iota
-	QuizStateFinished
+	StateQuizBetting QuizBetState = iota
+	StateQuizFinished
 )
 
 // QuizBet は個々のベット情報を表します。
 type QuizBet struct {
-	UserID       string
-	ChoiceIndex  int
-	Amount       int64
+	UserID      string
+	ChoiceIndex int
+	Amount      int64
 }
 
 // QuizBetGame はクイズベットゲーム全体の管理を行います。
@@ -54,6 +56,8 @@ type QuizBetCommand struct {
 	mu    sync.Mutex
 }
 
+// --- Command/Component/Modal Handlers ---
+
 func NewQuizBetCommand(store interfaces.DataStore, log interfaces.Logger) *QuizBetCommand {
 	return &QuizBetCommand{
 		Store: store,
@@ -77,8 +81,6 @@ func (c *QuizBetCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	}
 }
 
-// Handle, HandleComponent, HandleModal etc. will follow
-
 func (c *QuizBetCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -95,27 +97,26 @@ func (c *QuizBetCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		topic = "ランダムなトピック"
 	}
 
-	// Get quiz from Python server
 	quiz, err := c.getQuizFromAI(topic)
 	if err != nil {
 		c.Log.Error("Failed to get quiz from AI", "error", err)
-		sendErrorResponse(s, i, "クイズの取得に失敗しました。")
+		sendErrorResponse(s, i, "クイズの取得に失敗しました。AIサーバーが起動しているか確認してください。")
 		return
 	}
 
 	game := &QuizBetGame{
-		State:       StateBetting,
-		ChannelID:   i.ChannelID,
-		Interaction: i,
-		Question:    quiz.Question,
-		Options:     quiz.Options,
+		State:              StateQuizBetting,
+		ChannelID:          i.ChannelID,
+		Interaction:        i.Interaction,
+		Question:           quiz.Question,
+		Options:            quiz.Options,
 		CorrectAnswerIndex: quiz.CorrectAnswerIndex,
-		Explanation: quiz.Explanation,
-		EndTime:     time.Now().Add(30 * time.Second),
+		Explanation:        quiz.Explanation,
+		EndTime:            time.Now().Add(30 * time.Second),
 	}
 
 	embed := c.buildBettingEmbed(game)
-	components := c.buildBettingComponents(game)
+	components := c.buildBettingComponents(game, false)
 
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -137,7 +138,6 @@ func (c *QuizBetCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	game.MessageID = msg.ID
 	c.games[i.ChannelID] = game
 
-	// Schedule the end of the betting phase
 	go c.scheduleEndBetting(s, game)
 }
 
@@ -175,14 +175,17 @@ func (c *QuizBetCommand) GetComponentIDs() []string {
 	return []string{QuizBetButtonPrefix, QuizBetModalID}
 }
 
+func (c *QuizBetCommand) GetCategory() string {
 	return "カジノ"
 }
+
+// --- Handler Logic ---
 
 func (c *QuizBetCommand) handleBetButton(s *discordgo.Session, i *discordgo.InteractionCreate, game *QuizBetGame) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if game.State != StateBetting {
+	if game.State != StateQuizBetting {
 		sendErrorResponse(s, i, "ベット受付は終了しました。")
 		return
 	}
@@ -237,7 +240,6 @@ func (c *QuizBetCommand) handleBetModalSubmit(s *discordgo.Session, i *discordgo
 		return
 	}
 
-	// Subtract bet amount immediately
 	casinoData.Chips -= betAmount
 	if err := c.Store.UpdateCasinoData(casinoData); err != nil {
 		c.Log.Error("Failed to update casino data on bet", "error", err)
@@ -245,7 +247,7 @@ func (c *QuizBetCommand) handleBetModalSubmit(s *discordgo.Session, i *discordgo
 		return
 	}
 
-	game.Bets = append(game.Bets, Bet{UserID: userID, ChoiceIndex: choiceIndex, Amount: betAmount})
+	game.Bets = append(game.Bets, QuizBet{UserID: userID, ChoiceIndex: choiceIndex, Amount: betAmount})
 
 	content := fmt.Sprintf("✅ <@%s> が **%d番** に **%d** チップをベットしました。", userID, choiceIndex+1, betAmount)
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -256,12 +258,12 @@ func (c *QuizBetCommand) handleBetModalSubmit(s *discordgo.Session, i *discordgo
 		},
 	})
 }
+}
 
 // --- Helper functions and game logic ---
 
-// In a real implementation, this would involve http.Post, json.Marshal, etc.
 func (c *QuizBetCommand) getQuizFromAI(topic string) (*QuizResponse, error) {
-	history, err := c.Store.GetRecentQuizQuestions("global", topic, 20) // Using a global history for now
+	history, err := c.Store.GetRecentQuizQuestions("global", topic, 20)
 	if err != nil {
 		c.Log.Warn("Failed to get quiz history", "error", err)
 		history = []string{}
@@ -290,7 +292,6 @@ func (c *QuizBetCommand) getQuizFromAI(topic string) (*QuizResponse, error) {
 		return nil, fmt.Errorf("AI returned an error: %s", quizResp.Error)
 	}
 
-	// Save the new question to history
 	c.Store.SaveQuizQuestion("global", topic, quizResp.Question)
 
 	return &quizResp, nil
@@ -302,15 +303,20 @@ func (c *QuizBetCommand) buildBettingEmbed(game *QuizBetGame) *discordgo.Message
 		optionsStr += fmt.Sprintf("**%d.** %s\n", i+1, opt)
 	}
 
+	footer := fmt.Sprintf("ベット受付終了まで: %d秒", int(time.Until(game.EndTime).Seconds()))
+	if game.State == StateQuizFinished {
+		footer = "ベット受付は終了しました。"
+	}
+
 	return &discordgo.MessageEmbed{
 		Title:       "🧠 クイズ＆ベット！",
 		Description: fmt.Sprintf("**Q.** %s\n\n%s", game.Question, optionsStr),
 		Color:       0x3498db, // Blue
-		Footer:      &discordgo.MessageEmbedFooter{Text: fmt.Sprintf("ベット受付終了まで: %d秒", int(time.Until(game.EndTime).Seconds()))},
+		Footer:      &discordgo.MessageEmbedFooter{Text: footer},
 	}
 }
 
-func (c *QuizBetCommand) buildBettingComponents(game *QuizBetGame) []discordgo.MessageComponent {
+func (c *QuizBetCommand) buildBettingComponents(game *QuizBetGame, disabled bool) []discordgo.MessageComponent {
 	var components []discordgo.MessageComponent
 	var buttons []discordgo.MessageComponent
 	for i := range game.Options {
@@ -318,6 +324,7 @@ func (c *QuizBetCommand) buildBettingComponents(game *QuizBetGame) []discordgo.M
 			Label:    fmt.Sprintf("%d番にベット", i+1),
 			Style:    discordgo.SecondaryButton,
 			CustomID: fmt.Sprintf("%s%d", QuizBetButtonPrefix, i),
+			Disabled: disabled,
 		})
 	}
 	components = append(components, discordgo.ActionsRow{Components: buttons})
@@ -331,7 +338,7 @@ func (c *QuizBetCommand) scheduleEndBetting(s *discordgo.Session, game *QuizBetG
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if g, exists := c.games[game.ChannelID]; !exists || g.State != StateBetting {
+	if g, exists := c.games[game.ChannelID]; !exists || g.State != StateQuizBetting {
 		return
 	}
 
@@ -339,7 +346,7 @@ func (c *QuizBetCommand) scheduleEndBetting(s *discordgo.Session, game *QuizBetG
 }
 
 func (c *QuizBetCommand) endBetting(s *discordgo.Session, game *QuizBetGame) {
-	game.State = StateFinished
+	game.State = StateQuizFinished
 
 	correctOption := game.Options[game.CorrectAnswerIndex]
 	resultEmbed := &discordgo.MessageEmbed{
@@ -349,8 +356,8 @@ func (c *QuizBetCommand) endBetting(s *discordgo.Session, game *QuizBetGame) {
 	}
 
 	var totalPot int64 = 0
-	winners := []Bet{}
-	losers := []Bet{}
+	winner := []QuizBet{}
+	losers := []QuizBet{}
 
 	for _, bet := range game.Bets {
 		totalPot += bet.Amount
@@ -372,7 +379,7 @@ func (c *QuizBetCommand) endBetting(s *discordgo.Session, game *QuizBetGame) {
 			resultDescription.WriteString(fmt.Sprintf("<@%s> が **%d** チップを獲得！\n", winner.UserID, payoutPerWinner))
 		}
 	} else {
-		resultDescription.WriteString("**😥 勝者なし**\nポットのチップは次のゲームに持ち越されます！ (未実装)\n")
+		resultDescription.WriteString("**😥 勝者なし**\n")
 	}
 
 	if len(losers) > 0 {
@@ -387,58 +394,17 @@ func (c *QuizBetCommand) endBetting(s *discordgo.Session, game *QuizBetGame) {
 		Value: resultDescription.String(),
 	}}
 
-	var disabledComponents []discordgo.MessageComponent
-	for _, row := range c.buildBettingComponents(game) {
-		newRow := row.(discordgo.ActionsRow)
-		for i := range newRow.Components {
-			newRow.Components[i].(discordgo.Button).Disabled = true
-		}
-		disabledComponents = append(disabledComponents, newRow)
-	}
+	disabledComponents := c.buildBettingComponents(game, true)
 
-	originalMessage, err := s.InteractionResponse(game.Interaction)
-	if err == nil {
-		s.ChannelMessageEditComplex(&discordgo.MessageEdit{
-			Channel:    originalMessage.ChannelID,
-			ID:         originalMessage.ID,
-			Embeds:     []*discordgo.MessageEmbed{c.buildBettingEmbed(game)},
-			Components: disabledComponents,
-		})
+	_, err := s.InteractionResponseEdit(game.Interaction, &discordgo.WebhookEdit{
+		Embeds:     []*discordgo.MessageEmbed{c.buildBettingEmbed(game)},
+		Components: &disabledComponents,
+	})
+	if err != nil {
+		c.Log.Warn("Failed to edit original quizbet message", "error", err)
 	}
 
 	s.ChannelMessageSendEmbed(game.ChannelID, resultEmbed)
 
 	delete(c.games, game.ChannelID)
 }
-
-
-func (c *QuizBetCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	c.mu.Lock()
-	game, exists := c.games[i.ChannelID]
-	c.mu.Unlock()
-
-	if !exists {
-		return
-	}
-
-	customID := i.MessageComponentData().CustomID
-	if strings.HasPrefix(customID, QuizBetButtonPrefix) {
-		c.handleBetButton(s, i, game)
-	}
-}
-
-func (c *QuizBetCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	c.mu.Lock()
-	game, exists := c.games[i.ChannelID]
-	c.mu.Unlock()
-
-	if !exists {
-		return
-	}
-
-	customID := i.ModalSubmitData().CustomID
-	if strings.HasPrefix(customID, QuizBetModalID) {
-		c.handleBetModalSubmit(s, i, game)
-	}
-}
-
