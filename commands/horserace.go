@@ -5,6 +5,7 @@ import (
 	"luna/interfaces"
 	"math/rand"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,7 +19,7 @@ const (
 	RaceTrackLength      = 20
 )
 
-// レースの状態
+// RaceState はレースの状態を表します。
 type RaceState int
 
 const (
@@ -27,28 +28,29 @@ const (
 	StateFinished
 )
 
-// 馬の情報
+// Horse は馬の情報を表します。
 type Horse struct {
 	Name  string
 	Odds  float64
 	Emoji string
 }
 
-// ベット情報
+// Bet はベット情報を表します。
 type Bet struct {
 	UserID     string
 	HorseIndex int
 	Amount     int64
 }
 
-// レースゲーム全体の管理	ype HorseRaceGame struct {
-	State         RaceState
-	Horses        []Horse
-	Bets          []Bet
-	MessageID     string
-	ChannelID     string
-	Interaction   *discordgo.Interaction
-	CreatorID     string // レースを開始した人のID
+// HorseRaceGame はレースゲーム全体の管理を行います。
+type HorseRaceGame struct {
+	State       RaceState
+	Horses      []Horse
+	Bets        []Bet
+	MessageID   string
+	ChannelID   string
+	Interaction *discordgo.Interaction
+	CreatorID   string
 }
 
 // HorseRaceCommand は /horserace コマンドを処理します。
@@ -59,7 +61,8 @@ type HorseRaceCommand struct {
 	mu    sync.Mutex
 }
 
-// NewHorseRaceCommand は新しいHorseRaceCommandを返します。
+// --- Command/Component/Modal Handlers ---
+
 func NewHorseRaceCommand(store interfaces.DataStore, log interfaces.Logger) *HorseRaceCommand {
 	return &HorseRaceCommand{
 		Store: store,
@@ -75,113 +78,175 @@ func (c *HorseRaceCommand) GetCommandDef() *discordgo.ApplicationCommand {
 	}
 }
 
-// ここにHandle, HandleComponent, HandleModalが続く
+func (c *HorseRaceCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-// レース情報を保存
-	c.traces[i.ChannelID] = game
+	if _, exists := c.races[i.ChannelID]; exists {
+		sendErrorResponse(s, i, "このチャンネルでは既にレースが進行中です。")
+		return
+	}
+
+	game := &HorseRaceGame{
+		State:       StateBetting,
+		ChannelID:   i.ChannelID,
+		Interaction: i.Interaction,
+		CreatorID:   i.Member.User.ID,
+	}
+
+	game.Horses = generateHorses(5)
+	embed := c.buildBettingEmbed(game)
+	components := c.buildBettingComponents(game)
+
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds:     []*discordgo.MessageEmbed{embed},
+			Components: components,
+		},
+	})
+	if err != nil {
+		c.Log.Error("Failed to send initial race message", "error", err)
+		return
+	}
+
+	msg, err := s.InteractionResponse(i.Interaction)
+	if err != nil {
+		c.Log.Error("Failed to get interaction response message", "error", err)
+		return
+	}
+	game.MessageID = msg.ID
+	c.races[i.ChannelID] = game
 }
 
 func (c *HorseRaceCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	game, exists := c.races[i.ChannelID]
+	c.mu.Unlock()
 
-	game, exists := c.traces[i.ChannelID]
 	if !exists {
-		return // No active race in this channel
+		return
 	}
 
 	customID := i.MessageComponentData().CustomID
 
 	if strings.HasPrefix(customID, BetButtonPrefix) {
-		if game.State != StateBetting {
-			sendErrorResponse(s, i, "ベット受付は終了しました。")
-			return
-		}
-
-		horseIndexStr := strings.TrimPrefix(customID, BetButtonPrefix)
-		horseIndex, _ := strconv.Atoi(horseIndexStr)
-
-		modal := discordgo.InteractionResponseModal{
-			CustomID: BetModalCustomID + "_" + horseIndexStr,
-			Title:    fmt.Sprintf("%s にベット", game.Horses[horseIndex].Name),
-			Components: []discordgo.MessageComponent{
-				discordgo.ActionsRow{
-					Components: []discordgo.MessageComponent{
-						discordgo.TextInput{
-							CustomID:    "bet_amount",
-							Label:       "ベットするチップの額",
-							Style:       discordgo.TextInputShort,
-							Placeholder: "100",
-							Required:    true,
-						},
-					},
-				},
-			},
-		}
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseModal, Data: &discordgo.InteractionResponseData{CustomID: modal.CustomID, Title: modal.Title, Components: modal.Components}})
-
+		c.handleBetButton(s, i, game)
 	} else if customID == StartRaceButtonID {
-		if i.Member.User.ID != game.CreatorID {
-			sendErrorResponse(s, i, "レースを開始できるのは、レースを開始した本人だけです。")
-			return
-		}
-		go c.startRace(s, game)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
+		c.handleStartRaceButton(s, i, game)
 	}
 }
 
 func (c *HorseRaceCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	game, exists := c.races[i.ChannelID]
+	c.mu.Unlock()
 
-	game, exists := c.traces[i.ChannelID]
 	if !exists {
 		return
 	}
 
 	customID := i.ModalSubmitData().CustomID
 	if strings.HasPrefix(customID, BetModalCustomID) {
-		horseIndexStr := strings.TrimPrefix(customID, BetModalCustomID+"_")
-		horseIndex, _ := strconv.Atoi(horseIndexStr)
-		betAmountStr := i.ModalSubmitData().Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
-		betAmount, err := strconv.ParseInt(betAmountStr, 10, 64)
-
-		if err != nil || betAmount <= 0 {
-			sendErrorResponse(s, i, "有効なベット額を入力してください。")
-			return
-		}
-
-		userID := i.Member.User.ID
-		casinoData, err := c.Store.GetCasinoData(i.GuildID, userID)
-		if err != nil {
-			c.Log.Error("Failed to get casino data for horse race bet", "error", err)
-			sendErrorResponse(s, i, "エラーが発生しました。")
-			return
-		}
-
-		if casinoData.Chips < betAmount {
-			sendErrorResponse(s, i, fmt.Sprintf("チップが足りません！現在の所持チップ: %d", casinoData.Chips))
-			return
-		}
-
-		// Add the bet
-		game.Bets = append(game.Bets, Bet{UserID: userID, HorseIndex: horseIndex, Amount: betAmount})
-
-		// Confirm the bet
-		content := fmt.Sprintf("✅ <@%s> が **%s** に **%d** チップをベットしました。", userID, game.Horses[horseIndex].Name, betAmount)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: content,
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
+		c.handleBetModalSubmit(s, i, game)
 	}
 }
 
+func (c *HorseRaceCommand) GetComponentIDs() []string {
+	return []string{BetButtonPrefix, StartRaceButtonID, BetModalCustomID}
+}
+
+func (c *HorseRaceCommand) GetCategory() string {
+	return "カジノ"
+}
+
+// --- Handler Logic ---
+
+func (c *HorseRaceCommand) handleBetButton(s *discordgo.Session, i *discordgo.InteractionCreate, game *HorseRaceGame) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if game.State != StateBetting {
+		sendErrorResponse(s, i, "ベット受付は終了しました。")
+		return
+	}
+
+	horseIndexStr := strings.TrimPrefix(i.MessageComponentData().CustomID, BetButtonPrefix)
+	horseIndex, _ := strconv.Atoi(horseIndexStr)
+
+	modal := discordgo.InteractionResponseData{
+		CustomID: BetModalCustomID + "_" + horseIndexStr,
+		Title:    fmt.Sprintf("%s にベット", game.Horses[horseIndex].Name),
+		Components: []discordgo.MessageComponent{
+			discordgo.ActionsRow{
+				Components: []discordgo.MessageComponent{
+					discordgo.TextInput{
+						CustomID:    "bet_amount",
+						Label:       "ベットするチップの額",
+						Style:       discordgo.TextInputShort,
+						Placeholder: "100",
+						Required:    true,
+					},
+				},
+			},
+		},
+	}
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseModal, Data: &modal})
+}
+
+func (c *HorseRaceCommand) handleStartRaceButton(s *discordgo.Session, i *discordgo.InteractionCreate, game *HorseRaceGame) {
+	if i.Member.User.ID != game.CreatorID {
+		sendErrorResponse(s, i, "レースを開始できるのは、レースを開始した本人だけです。")
+		return
+	}
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
+	go c.startRace(s, game)
+}
+
+func (c *HorseRaceCommand) handleBetModalSubmit(s *discordgo.Session, i *discordgo.InteractionCreate, game *HorseRaceGame) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	customID := i.ModalSubmitData().CustomID
+	horseIndexStr := strings.TrimPrefix(customID, BetModalCustomID+"_")
+	horseIndex, _ := strconv.Atoi(horseIndexStr)
+	betAmountStr := i.ModalSubmitData().Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	betAmount, err := strconv.ParseInt(betAmountStr, 10, 64)
+
+	if err != nil || betAmount <= 0 {
+		sendErrorResponse(s, i, "有効なベット額を入力してください。")
+		return
+	}
+
+	userID := i.Member.User.ID
+	casinoData, err := c.Store.GetCasinoData(i.GuildID, userID)
+	if err != nil {
+		c.Log.Error("Failed to get casino data for bet", "error", err)
+		sendErrorResponse(s, i, "エラーが発生しました。")
+		return
+	}
+
+	if casinoData.Chips < betAmount {
+		sendErrorResponse(s, i, fmt.Sprintf("チップが足りません！現在の所持チップ: %d", casinoData.Chips))
+		return
+	}
+
+	game.Bets = append(game.Bets, Bet{UserID: userID, HorseIndex: horseIndex, Amount: betAmount})
+
+	content := fmt.Sprintf("✅ <@%s> が **%s** に **%d** チップをベットしました。", userID, game.Horses[horseIndex].Name, betAmount)
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: content,
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
+}
+
+// --- Race Logic ---
+
 func (c *HorseRaceCommand) startRace(s *discordgo.Session, game *HorseRaceGame) {
 	c.mu.Lock()
-	// ベット受付中の場合のみレースを開始
 	if game.State != StateBetting {
 		c.mu.Unlock()
 		return
@@ -189,14 +254,11 @@ func (c *HorseRaceCommand) startRace(s *discordgo.Session, game *HorseRaceGame) 
 	game.State = StateRacing
 	c.mu.Unlock()
 
-	// Update message to "Racing"
 	embed := &discordgo.MessageEmbed{
 		Title:       "🏇 レース中！",
 		Description: "各馬一斉にスタート！",
 		Color:       0xf1c40f, // Yellow
 	}
-	// Remove buttons during the race
-	// An empty slice of components will remove all of them.
 	var emptyComponents []discordgo.MessageComponent
 	_, err := s.InteractionResponseEdit(game.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}, Components: &emptyComponents})
 	if err != nil {
@@ -209,9 +271,7 @@ func (c *HorseRaceCommand) startRace(s *discordgo.Session, game *HorseRaceGame) 
 	horsePositions := make([]int, len(game.Horses))
 	rand.Seed(time.Now().UnixNano())
 
-	// Animation loop
 	for {
-		// Check if the game has been forcefully finished
 		c.mu.Lock()
 		if game.State == StateFinished {
 			c.mu.Unlock()
@@ -219,12 +279,10 @@ func (c *HorseRaceCommand) startRace(s *discordgo.Session, game *HorseRaceGame) 
 		}
 		c.mu.Unlock()
 
-		// Update horse positions
 		winner := -1
 		for i := range horsePositions {
-			// Lower odds = higher chance to move
-			if rand.Float64() > (game.Horses[i].Odds/20.0) { // Adjust this logic for race balance
-				horsePositions[i] += rand.Intn(3) + 1 // Move 1 to 3 steps
+			if rand.Float64() > (game.Horses[i].Odds / 20.0) {
+				horsePositions[i] += rand.Intn(3) + 1
 			}
 			if horsePositions[i] >= RaceTrackLength {
 				horsePositions[i] = RaceTrackLength
@@ -233,13 +291,11 @@ func (c *HorseRaceCommand) startRace(s *discordgo.Session, game *HorseRaceGame) 
 			}
 		}
 
-		// Build and update the race track embed
 		trackEmbed := c.buildRaceTrackEmbed(game, horsePositions)
 		_, err := s.InteractionResponseEdit(game.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{trackEmbed}})
 		if err != nil {
 			c.Log.Error("Failed to edit race track embed", "error", err)
-			// If editing fails, we should probably stop the race
-			c.finishRace(s, game, -1, horsePositions) // -1 indicates no winner due to error
+			c.finishRace(s, game, -1, horsePositions)
 			return
 		}
 
@@ -256,7 +312,6 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Ensure this runs only once
 	if game.State == StateFinished {
 		return
 	}
@@ -275,7 +330,6 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 		winningsMap := make(map[string]int64)
 		var winnerMentions []string
 
-		// Calculate winnings and update database
 		for _, bet := range game.Bets {
 			casinoData, err := c.Store.GetCasinoData(game.Interaction.GuildID, bet.UserID)
 			if err != nil {
@@ -285,10 +339,10 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 
 			if bet.HorseIndex == winnerIndex {
 				payout := int64(float64(bet.Amount) * winnerHorse.Odds)
-				casinoData.Chips += payout // Add the full payout
+				casinoData.Chips += payout
 				winningsMap[bet.UserID] += payout
 			} else {
-				casinoData.Chips -= bet.Amount // Subtract the bet amount for losers
+				casinoData.Chips -= bet.Amount
 			}
 
 			if err := c.Store.UpdateCasinoData(casinoData); err != nil {
@@ -300,7 +354,6 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 			winnerMentions = append(winnerMentions, fmt.Sprintf("<@%s>", userID))
 		}
 
-		// Build final result embed
 		resultEmbed = &discordgo.MessageEmbed{
 			Title:       fmt.Sprintf("🏁 レース終了！ 優勝は %s %s！", winnerHorse.Emoji, winnerHorse.Name),
 			Description: c.buildRaceTrack(game, positions),
@@ -308,19 +361,15 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 		}
 
 		if len(winnerMentions) > 0 {
-			resultEmbed.Fields = []*discordgo.MessageEmbedField{
-				{
-					Name:  "🎉 勝者",
-					Value: strings.Join(winnerMentions, " "),
-				},
-			}
+			resultEmbed.Fields = []*discordgo.MessageEmbedField{{
+				Name:  "🎉 勝者",
+				Value: strings.Join(winnerMentions, " "),
+			}}
 		} else {
-			resultEmbed.Fields = []*discordgo.MessageEmbedField{
-				{
-					Name:  "🎉 勝者",
-					Value: "なし",
-				},
-			}
+			resultEmbed.Fields = []*discordgo.MessageEmbedField{{
+				Name:  "🎉 勝者",
+				Value: "なし",
+			}}
 		}
 	}
 
@@ -329,32 +378,10 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 		c.Log.Error("Failed to edit final race result", "error", err)
 	}
 
-	// Clean up the race from the map
-	delete(c.traces, game.ChannelID)
+	delete(c.races, game.ChannelID)
 }
 
-func (c *HorseRaceCommand) buildRaceTrackEmbed(game *HorseRaceGame, positions []int) *discordgo.MessageEmbed {
-	return &discordgo.MessageEmbed{
-		Title:       "🏇 レース中！",
-		Description: c.buildRaceTrack(game, positions),
-		Color:       0xf1c40f, // Yellow
-	}
-}
-
-func (c *HorseRaceCommand) buildRaceTrack(game *HorseRaceGame, positions []int) string {
-	var track strings.Builder
-	for i, horse := range game.Horses {
-		pos := positions[i]
-		track.WriteString(fmt.Sprintf("**%d.** ", i+1))
-		track.WriteString(strings.Repeat("-", pos))
-		track.WriteString(horse.Emoji)
-		track.WriteString(strings.Repeat("-", RaceTrackLength-pos))
-		track.WriteString("🏁\n")
-	}
-	return track.String()
-}
-
-// --- Helper functions for Handle ---
+// --- Helper Functions ---
 
 var horseNames = []string{"シンボリルドルフ", "ディープインパクト", "オルフェーヴル", "キタサンブラック", "ハルウララ", "サイレンススズカ", "ウオッカ", "ダイワスカーレット", "ゴールドシップ", "メジロマックイーン"}
 var horseEmojis = []string{"🏇", "🐎", "🐴", "🦄", "🦓"}
@@ -370,7 +397,7 @@ func generateHorses(count int) []Horse {
 		horses[i] = Horse{
 			Name:  names[i],
 			Emoji: horseEmojis[i],
-			Odds:  1.5 + rand.Float64()*15, // 1.5倍から16.5倍のランダムなオッズ
+			Odds:  1.5 + rand.Float64()*15,
 		}
 	}
 	return horses
@@ -395,7 +422,7 @@ func (c *HorseRaceCommand) buildBettingEmbed(game *HorseRaceGame) *discordgo.Mes
 }
 
 func (c *HorseRaceCommand) buildBettingComponents(game *HorseRaceGame) []discordgo.MessageComponent {
-	var rows []discordgo.ActionsRow
+	var actionRows []discordgo.ActionsRow
 	var buttons []discordgo.MessageComponent
 
 	for i, horse := range game.Horses {
@@ -406,13 +433,12 @@ func (c *HorseRaceCommand) buildBettingComponents(game *HorseRaceGame) []discord
 			Emoji:    &discordgo.ComponentEmoji{Name: horse.Emoji},
 		})
 		if (i+1)%5 == 0 || i == len(game.Horses)-1 {
-			rows = append(rows, discordgo.ActionsRow{Components: buttons})
+			actionRows = append(actionRows, discordgo.ActionsRow{Components: buttons})
 			buttons = []discordgo.MessageComponent{}
 		}
 	}
 
-	// レース開始ボタンを追加
-	rows = append(rows, discordgo.ActionsRow{
+	actionRows = append(actionRows, discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "レース開始",
@@ -423,6 +449,30 @@ func (c *HorseRaceCommand) buildBettingComponents(game *HorseRaceGame) []discord
 		},
 	})
 
-	return rows
+	components := make([]discordgo.MessageComponent, len(actionRows))
+	for i, row := range actionRows {
+		components[i] = row
+	}
+	return components
 }
 
+func (c *HorseRaceCommand) buildRaceTrackEmbed(game *HorseRaceGame, positions []int) *discordgo.MessageEmbed {
+	return &discordgo.MessageEmbed{
+		Title:       "🏇 レース中！",
+		Description: c.buildRaceTrack(game, positions),
+		Color:       0xf1c40f, // Yellow
+	}
+}
+
+func (c *HorseRaceCommand) buildRaceTrack(game *HorseRaceGame, positions []int) string {
+	var track strings.Builder
+	for i, horse := range game.Horses {
+		pos := positions[i]
+		track.WriteString(fmt.Sprintf("**%d.** ", i+1))
+		track.WriteString(strings.Repeat("-", pos))
+		track.WriteString(horse.Emoji)
+		track.WriteString(strings.Repeat("-", RaceTrackLength-pos))
+		track.WriteString("🏁\n")
+	}
+	return track.String()
+}
