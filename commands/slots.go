@@ -101,8 +101,8 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 
 	// 2. Reach animation (stop one by one)
 	stoppedReels := []string{"❓", "❓", "❓"}
-	for i := 0; i < 3; i++ {
-		stoppedReels[i] = finalResult[i]
+	for reelIndex := 0; reelIndex < 3; reelIndex++ {
+		stoppedReels[reelIndex] = finalResult[reelIndex]
 		animationEmbed.Description = fmt.Sprintf("**[ %s | %s | %s ]**", stoppedReels[0], stoppedReels[1], stoppedReels[2])
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{animationEmbed}}); err != nil {
 			c.Log.Error("Failed to edit reach embed", "error", err)
