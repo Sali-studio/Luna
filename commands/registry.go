@@ -51,7 +51,7 @@ func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler 
 		&QuizCommand{Log: appCtx.Log, Store: appCtx.Store},
 		&DescribeImageCommand{Log: appCtx.Log},
 		&OcrCommand{Log: appCtx.Log},
-		&AnalyzeUserActivityCommand{Log: appCtx.Log},
+		&ProfileCommand{Log: appCtx.Log, Store: appCtx.Store},
 		&WordCountCommand{Store: appCtx.Store, Log: appCtx.Log},
 		&WordRankingCommand{Store: appCtx.Store, Log: appCtx.Log},
 		&WordConfigCommand{Store: appCtx.Store, Log: appCtx.Log},

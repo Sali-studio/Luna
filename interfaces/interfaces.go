@@ -39,6 +39,7 @@ type DataStore interface {
 	GetCasinoData(guildID, userID string) (*storage.CasinoData, error)
 	UpdateCasinoData(data *storage.CasinoData) error
 	GetChipLeaderboard(guildID string, limit int) ([]storage.CasinoData, error)
+	GetRecentMessagesByUser(guildID, userID string, limit int) ([]string, error)
 }
 
 // Scheduler は、タスクのスケジューリング機能のインターフェースを定義します。
