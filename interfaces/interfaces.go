@@ -35,6 +35,10 @@ type DataStore interface {
 	AddCountableWord(guildID, word string) error
 	RemoveCountableWord(guildID, word string) error
 	GetCountableWords(guildID string) ([]string, error)
+	// Casino features
+	GetCasinoData(guildID, userID string) (*storage.CasinoData, error)
+	UpdateCasinoData(data *storage.CasinoData) error
+	GetChipLeaderboard(guildID string, limit int) ([]storage.CasinoData, error)
 }
 
 // Scheduler は、タスクのスケジューリング機能のインターフェースを定義します。
