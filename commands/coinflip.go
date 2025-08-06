@@ -86,12 +86,14 @@ func (c *CoinflipCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 		result = "heads"
 	}
 
+	// First, subtract the bet amount
+	casinoData.Chips -= bet
+
 	won := result == choice
 
 	if won {
-		casinoData.Chips += bet
-	} else {
-		casinoData.Chips -= bet
+		// On win, add double the bet (bet back + winnings)
+		casinoData.Chips += bet * 2
 	}
 
 	if err := c.Store.UpdateCasinoData(casinoData); err != nil {

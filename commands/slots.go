@@ -113,14 +113,15 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 
 	resultStr := strings.Join(finalResult, "")
 
+	// First, subtract the bet amount
+	casinoData.Chips -= bet
+
 	// Calculate winnings
 	winnings := 0
 	payout, won := payouts[resultStr]
 	if won {
 		winnings = int(bet) * payout
-		casinoData.Chips += int64(winnings) - bet // Correctly add net winnings
-	} else {
-		casinoData.Chips -= bet
+		casinoData.Chips += int64(winnings)
 	}
 
 	if err := c.Store.UpdateCasinoData(casinoData); err != nil {

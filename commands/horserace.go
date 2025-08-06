@@ -231,6 +231,14 @@ func (c *HorseRaceCommand) handleBetModalSubmit(s *discordgo.Session, i *discord
 		return
 	}
 
+	// Subtract the bet amount from the user's balance first
+	casinoData.Chips -= betAmount
+	if err := c.Store.UpdateCasinoData(casinoData); err != nil {
+		c.Log.Error("Failed to update casino data on bet", "error", err)
+		sendErrorResponse(s, i, "ベット処理中にエラーが発生しました。")
+		return
+	}
+
 	game.Bets = append(game.Bets, Bet{UserID: userID, HorseIndex: horseIndex, Amount: betAmount})
 
 	content := fmt.Sprintf("✅ <@%s> が **%s** に **%d** チップをベットしました。", userID, game.Horses[horseIndex].Name, betAmount)
@@ -331,22 +339,19 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 		var winnerMentions []string
 
 		for _, bet := range game.Bets {
-			casinoData, err := c.Store.GetCasinoData(game.Interaction.GuildID, bet.UserID)
-			if err != nil {
-				c.Log.Error("Failed to get user data for payout", "error", err, "userID", bet.UserID)
-				continue
-			}
-
 			if bet.HorseIndex == winnerIndex {
+				casinoData, err := c.Store.GetCasinoData(game.Interaction.GuildID, bet.UserID)
+				if err != nil {
+					c.Log.Error("Failed to get winner data for payout", "error", err, "userID", bet.UserID)
+					continue
+				}
 				payout := int64(float64(bet.Amount) * winnerHorse.Odds)
-				casinoData.Chips += payout
+				casinoData.Chips += payout // Add the full payout
 				winningsMap[bet.UserID] += payout
-			} else {
-				casinoData.Chips -= bet.Amount
-			}
 
-			if err := c.Store.UpdateCasinoData(casinoData); err != nil {
-				c.Log.Error("Failed to update user data after race", "error", err, "userID", bet.UserID)
+				if err := c.Store.UpdateCasinoData(casinoData); err != nil {
+					c.Log.Error("Failed to update winner data after race", "error", err, "userID", bet.UserID)
+				}
 			}
 		}
 
