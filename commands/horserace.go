@@ -472,7 +472,7 @@ func (c *HorseRaceCommand) buildRaceTrack(game *HorseRaceGame, positions []int) 
 		track.WriteString(strings.Repeat("-", pos))
 		track.WriteString(horse.Emoji)
 		track.WriteString(strings.Repeat("-", RaceTrackLength-pos))
-		track.WriteString("🏁\n")
+		track.WriteString(fmt.Sprintf("🏁 %s\n", horse.Name))
 	}
 	return track.String()
 }
