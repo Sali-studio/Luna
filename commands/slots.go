@@ -74,32 +74,51 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 		return
 	}
 
-	// Animation
-	animationEmbed := &discordgo.MessageEmbed{
-		Title:       "🎰 スロット回転中...",
-		Description: "**[ ❓ | ❓ | ❓ ]**",
-		Color:       0x3498db, // Blue
-	}
-	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{animationEmbed}}); err != nil {
-		c.Log.Error("Failed to edit animation embed", "error", err)
-	}
-	time.Sleep(2 * time.Second)
-
-	// Spin the reels
 	rand.Seed(time.Now().UnixNano())
-	result := []string{
+
+	// --- Animation --- 
+	finalResult := []string{
 		reels[0][rand.Intn(len(reels[0]))],
 		reels[1][rand.Intn(len(reels[1]))],
 		reels[2][rand.Intn(len(reels[2]))],
 	}
-	resultStr := strings.Join(result, "")
+
+	// 1. Fast spinning animation
+	animationEmbed := &discordgo.MessageEmbed{
+		Title: "🎰 スロット回転中...",
+		Color: 0x3498db, // Blue
+	}
+	for j := 0; j < 5; j++ { // Spin for a short duration
+		r1 := reels[0][rand.Intn(len(reels[0]))]
+		r2 := reels[1][rand.Intn(len(reels[1]))]
+		r3 := reels[2][rand.Intn(len(reels[2]))]
+		animationEmbed.Description = fmt.Sprintf("**[ %s | %s | %s ]**", r1, r2, r3)
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{animationEmbed}}); err != nil {
+			c.Log.Error("Failed to edit animation embed", "error", err)
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+
+	// 2. Reach animation (stop one by one)
+	stoppedReels := []string{"❓", "❓", "❓"}
+	for i := 0; i < 3; i++ {
+		stoppedReels[i] = finalResult[i]
+		animationEmbed.Description = fmt.Sprintf("**[ %s | %s | %s ]**", stoppedReels[0], stoppedReels[1], stoppedReels[2])
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{animationEmbed}}); err != nil {
+			c.Log.Error("Failed to edit reach embed", "error", err)
+		}
+		time.Sleep(1 * time.Second) // Pause for dramatic effect
+	}
+	// --- End Animation ---
+
+	resultStr := strings.Join(finalResult, "")
 
 	// Calculate winnings
 	winnings := 0
 	payout, won := payouts[resultStr]
 	if won {
 		winnings = int(bet) * payout
-		casinoData.Chips += int64(winnings - int(bet))
+		casinoData.Chips += int64(winnings) - bet // Correctly add net winnings
 	} else {
 		casinoData.Chips -= bet
 	}
@@ -113,7 +132,7 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	// Final result embed
 	resultEmbed := &discordgo.MessageEmbed{
 		Title: "🎰 スロット結果！",
-		Description: fmt.Sprintf("**[ %s | %s | %s ]**", result[0], result[1], result[2]),
+		Description: fmt.Sprintf("**[ %s | %s | %s ]**", finalResult[0], finalResult[1], finalResult[2]),
 	}
 
 	if won {

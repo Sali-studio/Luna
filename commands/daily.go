@@ -35,8 +35,12 @@ func (c *DailyCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	// Check if the user is eligible for the daily reward
 	if casinoData.LastDaily.Valid && time.Since(casinoData.LastDaily.Time) < 24*time.Hour {
 		remaining := (24 * time.Hour) - time.Since(casinoData.LastDaily.Time)
-		content := fmt.Sprintf("次のデイリーチップまであと **%%s** です。", formatDuration(remaining))
-		sendErrorResponse(s, i, content)
+		embed := &discordgo.MessageEmbed{
+			Title:       "⏰ また後で！",
+			Description: fmt.Sprintf("次のデイリーチップが受け取れるまで、あと **%s** です。", formatDuration(remaining)),
+			Color:       0xf1c40f, // Yellow
+		}
+		sendEmbedResponse(s, i, embed)
 		return
 	}
 
