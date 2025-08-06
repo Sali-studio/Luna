@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"luna/interfaces"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
