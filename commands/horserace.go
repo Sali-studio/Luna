@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	BetButtonPrefix      = "hr_bet_"
-	StartRaceButtonID    = "hr_start_race"
-	BetModalCustomID     = "hr_bet_modal"
-	RaceTrackLength      = 20
+	BetButtonPrefix   = "hr_bet_"
+	StartRaceButtonID = "hr_start_race"
+	BetModalCustomID  = "hr_bet_modal"
+	RaceTrackLength   = 20
 )
 
 // RaceState はレースの状態を表します。
@@ -383,7 +383,7 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 
 // --- Helper Functions ---
 
-var horseNames = []string{"シンボリルドルフ", "ディープインパクト", "オルフェーヴル", "キタサンブラック", "ハルウララ", "サイレンススズカ", "ウオッカ", "ダイワスカーレット", "ゴールドシップ", "メジロマックイーン"}
+var horseNames = []string{"スミレバカノフ", "シンボリルドルフ", "ディープインパクト", "オルフェーヴル", "キタサンブラック", "ハルウララ", "サイレンススズカ", "ウオッカ", "ダイワスカーレット", "ゴールドシップ", "メジロマックイーン"}
 var horseEmojis = []string{"🏇", "🐎", "🐴", "🦄", "🦓"}
 
 func generateHorses(count int) []Horse {
