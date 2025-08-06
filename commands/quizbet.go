@@ -344,17 +344,43 @@ func (c *QuizBetCommand) buildBettingComponents(game *QuizBetGame, disabled bool
 }
 
 func (c *QuizBetCommand) scheduleEndBetting(s *discordgo.Session, game *QuizBetGame) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
 	timer := time.NewTimer(time.Until(game.EndTime))
-	<-	timer.C
+	defer timer.Stop()
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	for {
+		select {
+		case <-ticker.C:
+			c.mu.Lock()
+			// ゲームがまだアクティブか確認
+			if g, exists := c.games[game.ChannelID]; !exists || g.State != StateQuizBetting {
+				c.mu.Unlock()
+				return
+			}
 
-	if g, exists := c.games[game.ChannelID]; !exists || g.State != StateQuizBetting {
-		return
+			// 新しい時間でEmbedを更新
+			embed := c.buildBettingEmbed(game)
+			// コンポーネントは変更しないようにnilのままにする
+			_, err := s.InteractionResponseEdit(game.Interaction, &discordgo.WebhookEdit{
+				Embeds: &[]*discordgo.MessageEmbed{embed},
+			})
+			if err != nil {
+				c.Log.Warn("Failed to update quizbet timer", "error", err)
+			}
+			c.mu.Unlock()
+
+		case <-timer.C:
+			c.mu.Lock()
+			defer c.mu.Unlock()
+			if g, exists := c.games[game.ChannelID]; !exists || g.State != StateQuizBetting {
+				return
+			}
+			c.endBetting(s, game)
+			return
+		}
 	}
-
-	c.endBetting(s, game)
 }
 
 func (c *QuizBetCommand) endBetting(s *discordgo.Session, game *QuizBetGame) {
