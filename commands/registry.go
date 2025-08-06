@@ -64,6 +64,11 @@ func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler 
 		&LeaveCommand{Player: appCtx.Player, Log: appCtx.Log},
 		&WTBRCommand{Log: appCtx.Log},
 		&AutoRoleCommand{Store: appCtx.Store, Log: appCtx.Log},
+		// Casino Commands
+		&DailyCommand{Store: appCtx.Store, Log: appCtx.Log},
+		&BalanceCommand{Store: appCtx.Store, Log: appCtx.Log},
+		&SlotsCommand{Store: appCtx.Store, Log: appCtx.Log},
+		&LeaderboardCommand{Store: appCtx.Store, Log: appCtx.Log},
 	}
 
 	for _, cmd := range commands {
