@@ -310,9 +310,8 @@ def analyze_profile():
 
 # ユーザー情報
 - ユーザー名: {username}
-- サーバー内でのロール: {', '.join(roles) if roles else 'なし'}
 
-# 最近の発言 (直近最大50件)
+# 最近の発言 (直近最大100件)
 {message_history}
 
 # 分析のポイント

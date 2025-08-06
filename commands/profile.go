@@ -55,24 +55,8 @@ func (c *ProfileCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		return
 	}
 
-	// ユーザー情報を収集
-	member, err := s.GuildMember(i.GuildID, targetUser.ID)
-	if err != nil {
-		c.Log.Error("Failed to get member info for profile", "error", err)
-		sendErrorResponse(s, i, "ユーザー情報の取得に失敗しました。")
-		return
-	}
-
-	var roleNames []string
-	for _, roleID := range member.Roles {
-		role, err := s.State.Role(i.GuildID, roleID)
-		if err == nil {
-			roleNames = append(roleNames, role.Name)
-		}
-	}
-
-	// 最近のメッセージを取得 (最大50件)
-	recentMessages, err := c.Store.GetRecentMessagesByUser(i.GuildID, targetUser.ID, 50)
+	// 最近のメッセージを取得 (最大100件)
+	recentMessages, err := c.Store.GetRecentMessagesByUser(i.GuildID, targetUser.ID, 100)
 	if err != nil {
 		c.Log.Error("Failed to get recent messages for profile", "error", err)
 		// エラーでも続行するが、メッセージは空として扱う
@@ -82,7 +66,6 @@ func (c *ProfileCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	// Pythonサーバーに送信するデータを作成
 	reqData := ProfileAnalysisRequest{
 		Username:       targetUser.Username,
-		Roles:          roleNames,
 		RecentMessages: recentMessages,
 	}
 	reqJson, _ := json.Marshal(reqData)
@@ -116,7 +99,7 @@ func (c *ProfileCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	}
 
 	embed := &discordgo.MessageEmbed{
-		Title:       fmt.Sprintf("🤖 AIによる %s のプロフィール", targetUser.Username),
+		Title:       fmt.Sprintf("🤖 Lunaによる %s のプロフィール", targetUser.Username),
 		Description: textResp.Text,
 		Color:       0x824ff1, // Gemini Purple
 		Author: &discordgo.MessageEmbedAuthor{
@@ -124,7 +107,7 @@ func (c *ProfileCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 			IconURL: targetUser.AvatarURL(""),
 		},
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "Powered by Vertex AI",
+			Text: "Powered by Luna AI",
 		},
 	}
 
