@@ -492,3 +492,27 @@ func (s *DBStore) GetChipLeaderboard(guildID string, limit int) ([]CasinoData, e
 
 	return leaderboard, nil
 }
+
+// GetRecentMessagesByUser retrieves the most recent messages by a specific user in a guild.
+func (s *DBStore) GetRecentMessagesByUser(guildID, userID string, limit int) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	query := "SELECT content FROM message_cache WHERE author_id = ? ORDER BY created_at DESC LIMIT ?"
+	rows, err := s.db.Query(query, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []string
+	for rows.Next() {
+		var content string
+		if err := rows.Scan(&content); err != nil {
+			return nil, err
+		}
+		messages = append(messages, content)
+	}
+
+	return messages, nil
+}
