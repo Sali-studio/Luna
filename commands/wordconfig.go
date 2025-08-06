@@ -122,32 +122,7 @@ func (c *WordConfigCommand) handleList(s *discordgo.Session, i *discordgo.Intera
 	sendEmbedResponse(s, i, embed)
 }
 
-// --- Helper Functions for Responses ---
-func sendEmbedResponse(s *discordgo.Session, i *discordgo.InteractionCreate, embed *discordgo.MessageEmbed) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{embed},
-			Flags:  discordgo.MessageFlagsEphemeral,
-		},
-	})
-	if err != nil {
-		// Log the error, but we can't send another response
-	}
-}
 
-func sendErrorResponse(s *discordgo.Session, i *discordgo.InteractionCreate, message string) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: message,
-			Flags:   discordgo.MessageFlagsEphemeral,
-		},
-	})
-	if err != nil {
-		// Log the error
-	}
-}
 
 func (c *WordConfigCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *WordConfigCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
