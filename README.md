@@ -1,114 +1,120 @@
-# Luna - Version 2.0.11
+# Luna - 2.0.11
 
-Lunaは、Goの高性能な多機能Botです。将来的にはReact製のWebダッシュボードからの操作も可能です。
+Lunaは、AI、カジノゲーム、音楽再生、サーバー管理など、多彩な機能を備えた多機能Discordボットです。
 
-## ✨ 主要機能
+## ✨ 主な機能
 
-Lunaは、あなたのDiscordサーバーをより楽しく、より便利にするための多彩な機能を提供します。
+- **AI機能 (Luna AI):**
+  - `/ask`: AIに質問できます。
+  - `/imagine`: 指示に基づいて画像を生成します。
+  - `/describe-image`: 画像の内容を説明します。
+  - `/ocr`: 画像からテキストを抽出します。
+  - `/quiz`: AIが生成したクイズに挑戦できます。
+  - `/profile`: ユーザーの活動履歴からAIが分析します。
 
-- **AIアシスタント機能 (Luna Assistant)**
-  - `/ask`: Lunaに質問を投げかけると、文脈を理解して的確に回答します。
-  - `/imagine`: 最新の画像生成AI（Luna Assitant Imagen Module）で、あなたのアイデアを美しい画像に変換します。
-    - ネガティブプロンプトや、AIによる自動画質向上機能のON/OFFもサポート。
-  - `/describe_image`: 画像をアップロードまたはURLを指定すると、その内容を詳細に説明します。
+- **カジノ & ゲーム機能:**
+  - `/daily`: 毎日チップを2000受け取れます。
+  - `/balance`: チップの残高を確認します。
+  - `/leaderboard`: チップの所持数ランキングを表示します。
+  - `/pay`: 他のユーザーにチップを送金します。
+  - `/slots`: スロットマシンをプレイします。
+  - `/coinflip`: コイントスでギャンブルします。
+  - `/horserace`: 競馬にベットしてレースを観戦します。
+  - `/quizbet`: AIクイズにチップを賭けて挑戦します。
+  - `/blackjack`: ディーラーとブラックジャックで勝負します。
 
-- **高音質な音楽再生**
-  - `/play`: YouTube動画のURLや検索クエリから音楽を再生します。
-  - `/queue`: 再生待ちの曲リストを表示・管理します。
-  - `/skip`, `/stop`, `/leave`: 音楽再生を直感的にコントロール。
+- **音楽再生機能(破損):**
+  - `/join`: ボイスチャンネルに参加します。
+  - `/play`: YouTubeの動画やプレイリストを再生します。
+  - `/stop`: 再生を停止します。
+  - `/skip`: 現在の曲をスキップします。
+  - `/queue`: 再生キューを表示します。
+  - `/leave`: ボイスチャンネルから退出します。
 
-- **サーバー管理・便利ツール**
-  - `/poll`: サーバー内で簡単に投票を作成できます。
-  - `/moderate`: メッセージの削除など、モデレーション作業を支援します。
-  - `/user_info`: ユーザーの情報を表示します。
-  - `/ticket`: サポートや問い合わせのためのチケットを発行・管理します。
-  - `/word_ranking`: サーバー内での単語使用頻度をランキング表示します。
+- **サーバー管理 & ユーティリティ:**
+  - `/config`: サーバー固有の設定を管理します。
+  - `/ticket`: サポート用のチケットを作成します。
+  - `/poll`: 投票を作成します。
+  - `/moderate`: メッセージの削除など、モデレーションを行います。
+  - その他、アバター表示、電卓、翻訳など多数の便利コマンド。
 
-- **エンターテイメント**
-  - `/quiz`: 様々なトピックの4択クイズを出題します。
-  - `/roulette`: ランダムな選択やゲームに使えます。
+- **Webダッシュボード (開発中):**
+  - サーバーの設定や統計情報をWebブラウザから確認できます。
 
-## 💻 技術スタック
+## 🛠️ アーキテクチャ
 
-Lunaの技術スタック情報。
+Lunaは、Go言語で書かれたメインのボットアプリケーションと、AI機能を提供するためのPythonサーバーで構成されています。
 
-- **バックエンド:** Go
-- **AIサーバー:** Python (Flask) + Google Vertex AI (Gemini, Imagen)
-- **フロントエンド:** React, TypeScript (Webダッシュボード)
-- **データベース:** SQLite
-- **ライブラリ:**
-  - `discordgo` (Go)
-  - `viper` (Go)
-  - `gocron` (Go)
-  - `vertexai` (Python)
-  - `flask` (Python)
+- **バックエンド (Go):**
+  - `discordgo` ライブラリを使用してDiscord APIと通信します。
+  - コマンド処理、イベントハンドリング、データベースとの連携を担当します。
+  - データベースには `SQLite` を使用しており、ユーザーデータやサーバー設定を永続化します。
 
-## 🚀セットアップ
-### 1. 前提
+- **AIサーバー (Python):**
+  - `Flask` フレームワークで構築されたAPIサーバーです。
+  - Googleの `Vertex AI` (Gemini) と連携し、テキスト生成、画像生成、画像認識などの高度なAI機能を提供します。
+  - Goバックエンドからのリクエストに応じて、AIモデルを呼び出します。
 
-- Go (1.21以上)
-- Python (3.13以上)
-- Node.js (18.x以上)
+## 🚀 セットアップ方法
 
-### 2. クローン
+### 必要なもの
+
+- Go (1.24.4 以上)
+- Python (3.x)
+- Google Cloud Platform (GCP) アカウントとプロジェクト
+  - Vertex AI APIが有効になっていること
+  - GCPの認証情報 (サービスアカウントキー) JSONファイル
+
+### 1. リポジトリのクローン
 
 ```bash
 git clone https://github.com/your-username/luna.git
 cd luna
 ```
 
-### 3. 設定ファイル
+### 2. Goバックエンドの設定
 
-プロジェクトのルートに `config.yaml` ファイルを作成し、以下の内容を記述してください。
+1.  Goの依存関係をインストールします。
 
-```yaml
-discord:
-  token: "YOUR_DISCORD_BOT_TOKEN_HERE"
+    ```bash
+    go mod tidy
+    ```
 
-google:
-  project_id: "YOUR_GOOGLE_CLOUD_PROJECT_ID"
-  credentials_path: "path/to/your/google_credentials.json" # 省略可
+2.  設定ファイル `config.yaml` をプロジェクトのルートディレクトリに作成します。`config.example.yaml` を参考に、以下の内容を記述してください。
 
-web:
-  client_id: "YOUR_DISCORD_OAUTH_CLIENT_ID"
-  client_secret: "YOUR_DISCORD_OAUTH_CLIENT_SECRET"
-  redirect_uri: "http://localhost:3000/auth/callback"
-  session_secret: "a-very-secret-key-for-sessions"
-```
+    ```yaml
+    discord:
+      token: "YOUR_DISCORD_BOT_TOKEN"
 
-- **Discord Token:** [Discord Developer Portal](https://discord.com/developers/applications) でBotを作成し、トークンを取得します。`Bot` と `applications.commands` のスコープ権限、そして必要な特権インテント（サーバーメンバー、メッセージ内容）を有効にしてください。
-- **Google Cloud:** Vertex AIを使用するために、Google CloudプロジェクトのIDと、サービスアカウントの認証情報（JSONファイル）へのパスを設定します。
-- **Web OAuth:** Webダッシュボード機能のためのDiscord OAuth2設定です。
+    google:
+      project_id: "YOUR_GCP_PROJECT_ID"
+      credentials_path: "path/to/your/gcp-credentials.json"
 
-### 4. AIサーバー
+    web:
+      client_id: "YOUR_DISCORD_APP_CLIENT_ID"
+      client_secret: "YOUR_DISCORD_APP_CLIENT_SECRET"
+      redirect_uri: "http://localhost:8080/auth/callback"
+      session_secret: "a-very-secret-key-for-sessions"
+    ```
+
+### 3. Python AIサーバーの設定
+
+1.  Pythonの依存関係をインストールします。
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+2.  GCPの認証情報が正しく設定されていることを確認してください。(`config.yaml` の `credentials_path`)
+
+### 4. 起動
+
+メインのGoアプリケーションを起動すると、PythonのAIサーバーも自動的に起動します。
 
 ```bash
-cd python_server
-pip install -r requirements.txt
-```
-
-### 5. フロントエンド
-
-```bash
-cd frontend/frontend
-npm install
-npm start
-```
-
-### 6. 起動
-
-```bash
-go mod tidy
 go run main.go
 ```
 
-## 使い方
+## 🤝 貢献
 
-1.  [Discord Developer Portal](https://discord.com/developers/applications) のあなたのBotのページで、`OAuth2 > URL Generator` を開きます。
-2.  `bot` と `applications.commands` のスコープを選択します。
-3.  必要なBot権限（管理者権限を推奨）を選択し、生成されたURLを使ってあなたのDiscordサーバーにBotを招待します。
-4.  サーバー内で `/` を入力すると、利用可能なコマンドの一覧が表示されます。
-
-## 📜 ライセンス
-
-このプロジェクトは [LGPL-3.0](LICENSE.md) の下で公開されています。
+バグ報告や機能提案は、GitHubのIssuesまでお気軽にどうぞ。
