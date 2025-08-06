@@ -84,62 +84,74 @@ func (c *QuizBetCommand) GetCommandDef() *discordgo.ApplicationCommand {
 
 func (c *QuizBetCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if _, exists := c.games[i.ChannelID]; exists {
+		c.mu.Unlock()
 		sendErrorResponse(s, i, "このチャンネルでは既にクイズベットが進行中です。")
 		return
 	}
+	c.mu.Unlock()
 
-	var topic string
-	if len(i.ApplicationCommandData().Options) > 0 {
-		topic = i.ApplicationCommandData().Options[0].StringValue()
-	} else {
-		topic = "ランダムなトピック"
-	}
-
-	quiz, err := c.getQuizFromAI(topic)
-	if err != nil {
-		c.Log.Error("Failed to get quiz from AI", "error", err)
-		sendErrorResponse(s, i, "クイズの取得に失敗しました。AIサーバーが起動しているか確認してください。")
-		return
-	}
-
-	game := &QuizBetGame{
-		State:              StateQuizBetting,
-		ChannelID:          i.ChannelID,
-		Interaction:        i.Interaction,
-		Question:           quiz.Question,
-		Options:            quiz.Options,
-		CorrectAnswerIndex: quiz.CorrectAnswerIndex,
-		Explanation:        quiz.Explanation,
-		EndTime:            time.Now().Add(30 * time.Second),
-	}
-
-	embed := c.buildBettingEmbed(game)
-	components := c.buildBettingComponents(game, false)
-
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds:     []*discordgo.MessageEmbed{embed},
-			Components: components,
-		},
+	// Immediately defer the response
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
 	if err != nil {
-		c.Log.Error("Failed to send initial quizbet message", "error", err)
+		c.Log.Error("Failed to defer quizbet response", "error", err)
 		return
 	}
 
-	msg, err := s.InteractionResponse(i.Interaction)
-	if err != nil {
-		c.Log.Error("Failed to get interaction response message for quizbet", "error", err)
-		return
-	}
-	game.MessageID = msg.ID
-	c.games[i.ChannelID] = game
+	go func() {
+		var topic string
+		if len(i.ApplicationCommandData().Options) > 0 {
+			topic = i.ApplicationCommandData().Options[0].StringValue()
+		} else {
+			topic = "ランダムなトピック"
+		}
 
-	go c.scheduleEndBetting(s, game)
+		quiz, err := c.getQuizFromAI(topic)
+		if err != nil {
+			c.Log.Error("Failed to get quiz from AI", "error", err)
+			errorContent := "クイズの取得に失敗しました。AIサーバーが起動しているか確認してください。"
+			_, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Content: &errorContent,
+			})
+			if err != nil {
+				c.Log.Error("Failed to send error response for quizbet", "error", err)
+			}
+			return
+		}
+
+		c.mu.Lock()
+		defer c.mu.Unlock()
+
+		game := &QuizBetGame{
+			State:              StateQuizBetting,
+			ChannelID:          i.ChannelID,
+			Interaction:        i.Interaction,
+			Question:           quiz.Question,
+			Options:            quiz.Options,
+			CorrectAnswerIndex: quiz.CorrectAnswerIndex,
+			Explanation:        quiz.Explanation,
+			EndTime:            time.Now().Add(30 * time.Second),
+		}
+
+		embed := c.buildBettingEmbed(game)
+		components := c.buildBettingComponents(game, false)
+
+		msg, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Embeds:     &[]*discordgo.MessageEmbed{embed},
+			Components: &components,
+		})
+		if err != nil {
+			c.Log.Error("Failed to send initial quizbet message", "error", err)
+			return
+		}
+
+		game.MessageID = msg.ID
+		c.games[i.ChannelID] = game
+
+		go c.scheduleEndBetting(s, game)
+	}()
 }
 
 func (c *QuizBetCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
