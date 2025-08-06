@@ -54,6 +54,13 @@ func New(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Sc
 func (b *Bot) Start(commandHandlers map[string]interfaces.CommandHandler, componentHandlers map[string]interfaces.CommandHandler, registeredCommands []*discordgo.ApplicationCommand) error {
 	b.Session.AddHandlerOnce(func(s *discordgo.Session, r *discordgo.Ready) {
 		b.log.Info("Bot is ready.")
+
+		// 古いグローバルコマンドをクリア
+		b.log.Info("Clearing old global commands...")
+		if _, err := s.ApplicationCommandBulkOverwrite(s.State.User.ID, "", []*discordgo.ApplicationCommand{}); err != nil {
+			b.log.Error("Failed to clear global commands", "error", err)
+		}
+
 		// コマンドをギルドごとに登録
 		for _, guild := range r.Guilds {
 			b.log.Info("Registering commands for guild", "guild_id", guild.ID, "guild_name", guild.Name)
