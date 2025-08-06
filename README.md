@@ -68,7 +68,7 @@ Lunaは、Go言語で書かれたメインのボットアプリケーション�
 ### 1. リポジトリのクローン
 
 ```bash
-git clone https://github.com/your-username/luna.git
+git clone https://github.com/Sumire-Labs/luna.git
 cd luna
 ```
 
