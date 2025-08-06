@@ -365,15 +365,26 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 			Color:       0x2ecc71, // Green
 		}
 
-		if len(winnerMentions) > 0 {
+		var resultDescription strings.Builder
+		for _, bet := range game.Bets {
+			if bet.HorseIndex == winnerIndex {
+				payout := winningsMap[bet.UserID]
+				profit := payout - bet.Amount
+				resultDescription.WriteString(fmt.Sprintf("👑 <@%s> は **%d** チップをベットして **%d** チップの配当を獲得！ (収支: **+%d**)\n", bet.UserID, bet.Amount, payout, profit))
+			} else {
+				resultDescription.WriteString(fmt.Sprintf("💔 <@%s> は **%d** チップを失いました...\n", bet.UserID, bet.Amount))
+			}
+		}
+
+		if len(game.Bets) > 0 {
 			resultEmbed.Fields = []*discordgo.MessageEmbedField{{
-				Name:  "🎉 勝者",
-				Value: strings.Join(winnerMentions, " "),
+				Name:  "ベット結果",
+				Value: resultDescription.String(),
 			}}
 		} else {
 			resultEmbed.Fields = []*discordgo.MessageEmbedField{{
-				Name:  "🎉 勝者",
-				Value: "なし",
+				Name:  "ベット結果",
+				Value: "誰もベットしていませんでした。",
 			}}
 		}
 	}

@@ -104,16 +104,25 @@ func (c *CoinflipCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 
 	resultEmbed := &discordgo.MessageEmbed{}
 	if won {
+		profit := bet
 		resultEmbed.Title = "🎉 勝利！"
-		resultEmbed.Description = fmt.Sprintf("コインは **%s** でした！\n**%d** チップを獲得しました！", translateChoice(result), bet)
+		resultEmbed.Description = fmt.Sprintf("コインは **%s** でした！", translateChoice(result))
 		resultEmbed.Color = 0x2ecc71 // Green
+		resultEmbed.Fields = []*discordgo.MessageEmbedField{
+			{Name: "ベット", Value: fmt.Sprintf("`%d` チップ", bet), Inline: true},
+			{Name: "配当", Value: fmt.Sprintf("`%d` チップ", bet*2), Inline: true},
+			{Name: "収支", Value: fmt.Sprintf("**`+%d`** チップ", profit), Inline: true},
+			{Name: "💰 所持チップ", Value: fmt.Sprintf("**%d**", casinoData.Chips)},
+		}
 	} else {
 		resultEmbed.Title = "😥 敗北..."
-		resultEmbed.Description = fmt.Sprintf("コインは **%s** でした...\n**%d** チップを失いました。", translateChoice(result), bet)
+		resultEmbed.Description = fmt.Sprintf("コインは **%s** でした...", translateChoice(result))
 		resultEmbed.Color = 0xe74c3c // Red
-	}
-	resultEmbed.Fields = []*discordgo.MessageEmbedField{
-		{Name: "現在のチップ", Value: fmt.Sprintf("%d", casinoData.Chips)},
+		resultEmbed.Fields = []*discordgo.MessageEmbedField{
+			{Name: "ベット", Value: fmt.Sprintf("`%d` チップ", bet), Inline: true},
+			{Name: "収支", Value: fmt.Sprintf("**`-%d`** チップ", bet), Inline: true},
+			{Name: "💰 所持チップ", Value: fmt.Sprintf("**%d**", casinoData.Chips)},
+		}
 	}
 
 	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{resultEmbed}}); err != nil {

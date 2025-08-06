@@ -137,16 +137,20 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	}
 
 	if won {
+		profit := int64(winnings) - bet
 		resultEmbed.Color = 0x2ecc71 // Green
 		resultEmbed.Fields = []*discordgo.MessageEmbedField{
-			{Name: "結果", Value: fmt.Sprintf("🎉 おめでとうございます！ **%d** チップを獲得しました！", winnings)},
-			{Name: "現在のチップ", Value: fmt.Sprintf("%d", casinoData.Chips)},
+			{Name: "ベット", Value: fmt.Sprintf("`%d` チップ", bet), Inline: true},
+			{Name: "配当", Value: fmt.Sprintf("`%d` チップ", winnings), Inline: true},
+			{Name: "収支", Value: fmt.Sprintf("**`+%d`** チップ", profit), Inline: true},
+			{Name: "💰 所持チップ", Value: fmt.Sprintf("**%d**", casinoData.Chips)},
 		}
 	} else {
 		resultEmbed.Color = 0xe74c3c // Red
 		resultEmbed.Fields = []*discordgo.MessageEmbedField{
-			{Name: "結果", Value: "残念、ハズレです..."},
-			{Name: "現在のチップ", Value: fmt.Sprintf("%d", casinoData.Chips)},
+			{Name: "ベット", Value: fmt.Sprintf("`%d` チップ", bet), Inline: true},
+			{Name: "収支", Value: fmt.Sprintf("**`-%d`** チップ", bet), Inline: true},
+			{Name: "💰 所持チップ", Value: fmt.Sprintf("**%d**", casinoData.Chips)},
 		}
 	}
 
