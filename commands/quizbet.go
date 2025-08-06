@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"luna/interfaces"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -258,7 +259,6 @@ func (c *QuizBetCommand) handleBetModalSubmit(s *discordgo.Session, i *discordgo
 		},
 	})
 }
-}
 
 // --- Helper functions and game logic ---
 
@@ -356,13 +356,13 @@ func (c *QuizBetCommand) endBetting(s *discordgo.Session, game *QuizBetGame) {
 	}
 
 	var totalPot int64 = 0
-	winner := []QuizBet{}
-	losers := []QuizBet{}
+	var winners []QuizBet
+	var losers []QuizBet
 
 	for _, bet := range game.Bets {
 		totalPot += bet.Amount
 		if bet.ChoiceIndex == game.CorrectAnswerIndex {
-			winner = append(winners, bet)
+			winners = append(winners, bet)
 		} else {
 			losers = append(losers, bet)
 		}
@@ -397,7 +397,7 @@ func (c *QuizBetCommand) endBetting(s *discordgo.Session, game *QuizBetGame) {
 	disabledComponents := c.buildBettingComponents(game, true)
 
 	_, err := s.InteractionResponseEdit(game.Interaction, &discordgo.WebhookEdit{
-		Embeds:     []*discordgo.MessageEmbed{c.buildBettingEmbed(game)},
+		Embeds:     &[]*discordgo.MessageEmbed{c.buildBettingEmbed(game)},
 		Components: &disabledComponents,
 	})
 	if err != nil {
