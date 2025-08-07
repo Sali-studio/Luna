@@ -140,27 +140,48 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	resultStr := strings.Join(finalResult, "")
 
 	// --- Payout Calculation ---
-	winnings := 0
-	payout, won := payouts[resultStr]
-	jackpotWon := resultStr == "💎💎💎"
+	var winnings int64 = 0
+	won := false
+	jackpotWon := false
+	winDescription := ""
 
-	if jackpotWon {
-		winnings = int(currentJackpot)
-		casinoData.Chips += int64(winnings)
+	// 1. Check for Jackpot
+	if resultStr == "💎💎💎" {
+		won = true
+		jackpotWon = true
+		winDescription = "👑 JACKPOT! 👑"
+		winnings = int64(currentJackpot)
+		casinoData.Chips += winnings
 		if err := c.Store.UpdateJackpot(guildID, 0); err != nil {
 			c.Log.Error("Failed to reset jackpot", "error", err)
 		}
-	} else if won {
-		winnings = int(bet) * payout
-		casinoData.Chips += int64(winnings)
+	} else if p, ok := payouts[resultStr]; ok {
+		// 2. Check for 3-of-a-kind
+		won = true
+		winDescription = fmt.Sprintf("%s 揃い！", resultStr)
+		winnings = bet * int64(p)
+		casinoData.Chips += winnings
+	} else {
+		// 3. Check for small wins (2 cherries)
+		cherryCount := 0
+		for _, s := range finalResult {
+			if s == "🍒" {
+				cherryCount++
+			}
+		}
+
+		if cherryCount == 2 {
+			won = true
+			winDescription = "🍒 チェリー2つ！"
+			winnings = bet * 2 // 2x payout for 2 cherries
+			casinoData.Chips += winnings
+		}
 	}
 
 	// If there were winnings, update the database again
-	if winnings > 0 {
+	if won {
 		if err := c.Store.UpdateCasinoData(casinoData); err != nil {
 			c.Log.Error("Failed to update casino data after slots win", "error", err)
-			// We can't do much here, but the user won't see the updated balance.
-			// Maybe send a follow-up message? For now, just log.
 		}
 	}
 
@@ -173,15 +194,16 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 
 	if jackpotWon {
 		resultEmbed.Color = 0xFFD700 // Gold for Jackpot
-		resultEmbed.Title = "👑 JACKPOT! 👑"
+		resultEmbed.Title = winDescription
 		resultEmbed.Fields = []*discordgo.MessageEmbedField{
 			{Name: "ベット", Value: fmt.Sprintf("`%d` チップ", bet), Inline: true},
 			{Name: "ジャックポット獲得！", Value: fmt.Sprintf("`%d` チップ", winnings), Inline: true},
 			{Name: "💰 所持チップ", Value: fmt.Sprintf("**%d**", casinoData.Chips)},
 		}
 	} else if won {
-		profit := int64(winnings) - bet
+		profit := winnings - bet
 		resultEmbed.Color = 0x2ecc71 // Green
+		resultEmbed.Title = winDescription
 		resultEmbed.Fields = []*discordgo.MessageEmbedField{
 			{Name: "ベット", Value: fmt.Sprintf("`%d` チップ", bet), Inline: true},
 			{Name: "配当", Value: fmt.Sprintf("`%d` チップ", winnings), Inline: true},
