@@ -60,7 +60,7 @@ type BlackjackGame struct {
 type BlackjackCommand struct {
 	Store interfaces.DataStore
 	Log   interfaces.Logger
-	games map[string]*BlackjackGame // channelID -> game
+	games map[string]*BlackjackGame // userID -> game
 	mu    sync.Mutex
 }
 
@@ -95,17 +95,18 @@ func (c *BlackjackCommand) GetCommandDef() *discordgo.ApplicationCommand {
 // --- Handlers ---
 
 func (c *BlackjackCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	userID := i.Member.User.ID
+
 	c.mu.Lock()
-	// Check for existing game in channel
-	if _, exists := c.games[i.ChannelID]; exists {
+	// Check for existing game for the user
+	if _, exists := c.games[userID]; exists {
 		c.mu.Unlock()
-		sendBlackjackErrorResponse(s, i, "このチャンネルでは既にブラックジャックが進行中です。")
+		sendBlackjackErrorResponse(s, i, "既にブラックジャックのゲームが進行中です。まずはそれを終了してください。")
 		return
 	}
 	c.mu.Unlock()
 
 	betAmount := i.ApplicationCommandData().Options[0].IntValue()
-	userID := i.Member.User.ID
 
 	// Check user's balance
 	casinoData, err := c.Store.GetCasinoData(i.GuildID, userID)
@@ -156,10 +157,10 @@ func (c *BlackjackCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 	game.CanDoubleDown = len(game.PlayerHand) == 2 && (playerValue == 9 || playerValue == 10 || playerValue == 11) && casinoData.Chips >= betAmount
 
 	c.mu.Lock()
-	c.games[i.ChannelID] = game
+	c.games[userID] = game
 	c.mu.Unlock()
 
-	// Send initial game embed
+	// Send initial game embed as an ephemeral message
 	embed := c.buildGameEmbed(game, "あなたのターン")
 	components := c.buildGameComponents(game)
 
@@ -168,6 +169,7 @@ func (c *BlackjackCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		Data: &discordgo.InteractionResponseData{
 			Embeds:     []*discordgo.MessageEmbed{embed},
 			Components: components,
+			Flags:      discordgo.MessageFlagsEphemeral,
 		},
 	})
 	if err != nil {
@@ -196,9 +198,17 @@ func (c *BlackjackCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 
 func (c *BlackjackCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	c.mu.Lock()
-	game, exists := c.games[i.ChannelID]
-	if !exists || i.Member.User.ID != game.PlayerID {
+	game, exists := c.games[i.Member.User.ID] // Find game by User ID
+	if !exists {
 		c.mu.Unlock()
+		// Respond with an error if the game is not found or has expired
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "このゲームは終了したか、見つかりませんでした。新しいゲームを開始するには `/blackjack` を使用してください。",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
 		return
 	}
 	c.mu.Unlock()
@@ -783,7 +793,7 @@ func (c *BlackjackCommand) determineWinner(s *discordgo.Session, game *Blackjack
 		c.Log.Error("Failed to edit blackjack final message", "error", err)
 	}
 
-	delete(c.games, game.Interaction.ChannelID)
+	delete(c.games, game.PlayerID)
 }
 
 // calculateHandResult calculates the payout and result text for a single hand.
