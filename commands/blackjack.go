@@ -243,7 +243,7 @@ func (c *BlackjackCommand) handleHit(s *discordgo.Session, game *BlackjackGame) 
 	// Deal a new card
 	dealCard(game, hand)
 
-	playerValue, _ := CalculateHandValue(*hand)
+	playerValue, _, _ := CalculateHandValue(*hand)
 
 	// Check for bust
 	if playerValue > 21 {
@@ -330,8 +330,14 @@ func (c *BlackjackCommand) handleStand(s *discordgo.Session, game *BlackjackGame
 	// Dealer plays
 	go func() {
 		time.Sleep(1 * time.Second)
-		dealerValue, _ := CalculateHandValue(game.DealerHand)
-		for dealerValue < 17 {
+		for {
+			dealerValue, _, isSoft := CalculateHandValue(game.DealerHand)
+			// Dealer must stand on hard 17 or more, and soft 18 or more.
+			// Dealer must hit on 16 or less, and on soft 17.
+			if dealerValue > 17 || (dealerValue == 17 && !isSoft) {
+				break
+			}
+
 			time.Sleep(1 * time.Second)
 			c.mu.Lock()
 			if game.State == BJStateFinished { // Check if game ended while sleeping
@@ -339,7 +345,6 @@ func (c *BlackjackCommand) handleStand(s *discordgo.Session, game *BlackjackGame
 				return
 			}
 			dealCard(game, &game.DealerHand)
-			dealerValue, _ = CalculateHandValue(game.DealerHand)
 			embed := c.buildGameEmbed(game, "ディーラーのターン")
 			_, err := s.InteractionResponseEdit(game.Interaction, &discordgo.WebhookEdit{
 				Embeds: &[]*discordgo.MessageEmbed{embed},
@@ -493,10 +498,12 @@ var suits = []string{"♠️", "♥️", "♦️", "♣️"}
 var ranks = []string{"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"}
 
 func NewDeck() []Card {
-	deck := make([]Card, 0, 52)
-	for _, suit := range suits {
-		for _, rank := range ranks {
-			deck = append(deck, Card{Suit: suit, Rank: rank})
+	deck := make([]Card, 0, 52*6) // Use 6 decks
+	for i := 0; i < 6; i++ {
+		for _, suit := range suits {
+			for _, rank := range ranks {
+				deck = append(deck, Card{Suit: suit, Rank: rank})
+			}
 		}
 	}
 	return deck
@@ -535,7 +542,7 @@ func HandToString(hand []Card, hideFirst bool) string {
 	return strings.Join(parts, " | ")
 }
 
-func CalculateHandValue(hand []Card) (int, bool) {
+func CalculateHandValue(hand []Card) (int, bool, bool) {
 	value := 0
 	aces := 0
 	for _, card := range hand {
@@ -553,19 +560,24 @@ func CalculateHandValue(hand []Card) (int, bool) {
 		}
 	}
 
+	isSoft := aces > 0
 	for value > 21 && aces > 0 {
 		value -= 10
 		aces--
 	}
 
-	return value, len(hand) == 2 && value == 21
+	if (aces == 0) {
+		isSoft = false
+	}
+
+	return value, len(hand) == 2 && value == 21, isSoft
 }
 
 // --- Helper Functions ---
 
 func (c *BlackjackCommand) buildGameEmbed(game *BlackjackGame, title string) *discordgo.MessageEmbed {
-	playerValue, _ := CalculateHandValue(game.PlayerHand)
-	playerValue2, _ := CalculateHandValue(game.PlayerHand2)
+	playerValue, _, _ := CalculateHandValue(game.PlayerHand)
+	playerValue2, _, _ := CalculateHandValue(game.PlayerHand2)
 
 	var dealerHandStr string
 	var dealerValue int
@@ -574,11 +586,11 @@ func (c *BlackjackCommand) buildGameEmbed(game *BlackjackGame, title string) *di
 		dealerHandStr = HandToString(game.DealerHand, true)
 		if len(game.DealerHand) > 1 {
 			// Show only the value of the up-card
-			dealerValue, _ = CalculateHandValue([]Card{game.DealerHand[1]})
+			dealerValue, _, _ = CalculateHandValue([]Card{game.DealerHand[1]})
 		}
 	} else {
 		dealerHandStr = HandToString(game.DealerHand, false)
-		dealerValue, _ = CalculateHandValue(game.DealerHand)
+		dealerValue, _, _ = CalculateHandValue(game.DealerHand)
 	}
 
 	description := fmt.Sprintf("ベット額: **%d** チップ", game.BetAmount)
@@ -710,7 +722,7 @@ func (c *BlackjackCommand) determineWinner(s *discordgo.Session, game *Blackjack
 	}
 	game.State = BJStateFinished
 
-	dealerValue, dealerBlackjack := CalculateHandValue(game.DealerHand)
+	_, dealerBlackjack, _ := CalculateHandValue(game.DealerHand)
 	var finalResultText strings.Builder
 	var totalPayout int64 = 0
 
@@ -776,8 +788,8 @@ func (c *BlackjackCommand) determineWinner(s *discordgo.Session, game *Blackjack
 
 // calculateHandResult calculates the payout and result text for a single hand.
 func (c *BlackjackCommand) calculateHandResult(playerHand, dealerHand []Card, betAmount int64) (int64, string) {
-	playerValue, playerBlackjack := CalculateHandValue(playerHand)
-	dealerValue, dealerBlackjack := CalculateHandValue(dealerHand)
+	playerValue, playerBlackjack, _ := CalculateHandValue(playerHand)
+	dealerValue, dealerBlackjack, _ := CalculateHandValue(dealerHand)
 
 	if playerBlackjack && !dealerBlackjack {
 		payout := int64(float64(betAmount) * 2.5)
