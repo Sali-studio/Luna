@@ -413,6 +413,32 @@ func (c *BlackjackCommand) handleDoubleDown(s *discordgo.Session, game *Blackjac
 	// After doubling, the turn for this hand ends. Move to the next, or to the dealer.
 	game.CanDoubleDown = false
 
+	// Check for bust immediately after doubling
+	playerValue, _ := CalculateHandValue(*hand)
+	if playerValue > 21 {
+		// If it was the first hand of a split, just move to the next hand
+		if game.CurrentHand == 1 && len(game.PlayerHand2) > 0 {
+			game.CurrentHand = 2
+			embed := c.buildGameEmbed(game, "手札1はバスト！あなたのターン (2つ目の手)")
+			components := c.buildGameComponents(game)
+			_, err = s.InteractionResponseEdit(game.Interaction, &discordgo.WebhookEdit{
+				Embeds:     &[]*discordgo.MessageEmbed{embed},
+				Components: &components,
+			})
+			if err != nil {
+				c.Log.Error("Failed to edit message on double down bust", "error", err)
+			}
+			return // End the function here
+		} else {
+			// If it wasn't a split, or was the second hand, the game ends
+			go func() {
+				time.Sleep(1 * time.Second)
+				c.determineWinner(s, game)
+			}()
+			return
+		}
+	}
+
 	if game.CurrentHand == 1 && len(game.PlayerHand2) > 0 {
 		game.CurrentHand = 2
 		// Update UI for the second hand
