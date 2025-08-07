@@ -224,4 +224,8 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	}
 }
 
+func (c *SlotsCommand) GetCategory() string {
+	return "カジノ"
+}
+
 
