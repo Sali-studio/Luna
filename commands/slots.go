@@ -67,11 +67,36 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 		return
 	}
 
+	// --- Debit user's bet and contribute to jackpot BEFORE animation ---
+	casinoData.Chips -= bet
+	jackpotContribution := int64(float64(bet) * 0.01)
+	if jackpotContribution < 1 {
+		jackpotContribution = 1
+	}
+
+	// Update the user's balance first to prevent race conditions
+	if err := c.Store.UpdateCasinoData(casinoData); err != nil {
+		c.Log.Error("Failed to update casino data on bet", "error", err)
+		sendErrorResponse(s, i, "ベット処理中にエラーが発生しました。")
+		return
+	}
+
+	// Now, add to the jackpot
+	currentJackpot, err := c.Store.AddToJackpot(guildID, jackpotContribution)
+	if err != nil {
+		c.Log.Error("Failed to add to jackpot", "error", err)
+		// If this fails, we'll just use the last known jackpot value for display
+		currentJackpot, _ = c.Store.GetJackpot(guildID)
+	}
+
 	// Initial response
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	}); err != nil {
 		c.Log.Error("Failed to send initial slots response", "error", err)
+		// Attempt to refund the bet if we can't even start the animation
+		casinoData.Chips += bet
+		c.Store.UpdateCasinoData(casinoData)
 		return
 	}
 
@@ -113,38 +138,30 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	// --- End Animation ---
 
 	resultStr := strings.Join(finalResult, "")
-	jackpotContribution := int64(float64(bet) * 0.01) // 1% of the bet goes to the jackpot
-	if jackpotContribution < 1 {
-		jackpotContribution = 1 // Minimum 1 chip contribution
-	}
-	currentJackpot, err := c.Store.AddToJackpot(guildID, jackpotContribution)
-	if err != nil {
-		c.Log.Error("Failed to update jackpot", "error", err)
-		// Continue without jackpot functionality if there's an error
-		currentJackpot, _ = c.Store.GetJackpot(guildID)
-	}
 
-	// First, subtract the bet amount
-	casinoData.Chips -= bet
-
-	// Calculate winnings
+	// --- Payout Calculation ---
 	winnings := 0
 	payout, won := payouts[resultStr]
 	jackpotWon := resultStr == "💎💎💎"
 
 	if jackpotWon {
-		winnings = int(currentJackpot) // Winner takes the entire jackpot
+		winnings = int(currentJackpot)
 		casinoData.Chips += int64(winnings)
-		c.Store.UpdateJackpot(guildID, 0) // Reset jackpot
+		if err := c.Store.UpdateJackpot(guildID, 0); err != nil {
+			c.Log.Error("Failed to reset jackpot", "error", err)
+		}
 	} else if won {
 		winnings = int(bet) * payout
 		casinoData.Chips += int64(winnings)
 	}
 
-	if err := c.Store.UpdateCasinoData(casinoData); err != nil {
-		c.Log.Error("Failed to update casino data after slots", "error", err)
-		sendErrorResponse(s, i, "エラーが発生しました。")
-		return
+	// If there were winnings, update the database again
+	if winnings > 0 {
+		if err := c.Store.UpdateCasinoData(casinoData); err != nil {
+			c.Log.Error("Failed to update casino data after slots win", "error", err)
+			// We can't do much here, but the user won't see the updated balance.
+			// Maybe send a follow-up message? For now, just log.
+		}
 	}
 
 	// Final result embed
@@ -179,11 +196,6 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 			{Name: "💰 所持チップ", Value: fmt.Sprintf("**%d**", casinoData.Chips)},
 		}
 	}
-
-	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{resultEmbed}}); err != nil {
-		c.Log.Error("Failed to edit final slots response", "error", err)
-	}
-}
 
 func (c *SlotsCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *SlotsCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}

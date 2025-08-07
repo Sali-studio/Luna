@@ -14,11 +14,12 @@ import (
 
 // --- Constants ---
 const (
-	BlackjackHitButton      = "bj_hit"
-	BlackjackStandButton    = "bj_stand"
-	BlackjackDoubleDownButton = "bj_double_down"
-	BlackjackSplitButton    = "bj_split"
+	BlackjackHitButton       = "bj_hit"
+	BlackjackStandButton     = "bj_stand"
+	BlackjackDoubleDownButton  = "bj_double_down"
+	BlackjackSplitButton     = "bj_split"
 	BlackjackInsuranceButton = "bj_insurance"
+	BlackjackSurrenderButton = "bj_surrender"
 )
 
 // --- Data Structures ---
@@ -53,6 +54,7 @@ type BlackjackGame struct {
 	CurrentHand   int // 1 or 2, for split
 	CanDoubleDown bool
 	CanSplit      bool
+	CanSurrender  bool
 	rand          *rand.Rand // Game-specific random source
 }
 
@@ -153,8 +155,9 @@ func (c *BlackjackCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 
 	// Check for split and double down options
 	game.CanSplit = len(game.PlayerHand) == 2 && game.PlayerHand[0].Rank == game.PlayerHand[1].Rank && casinoData.Chips >= betAmount
-	playerValue, _, _ := CalculateHandValue(game.PlayerHand)
+	playerValue, _ := CalculateHandValue(game.PlayerHand)
 	game.CanDoubleDown = len(game.PlayerHand) == 2 && (playerValue == 9 || playerValue == 10 || playerValue == 11) && casinoData.Chips >= betAmount
+	game.CanSurrender = len(game.PlayerHand) == 2
 
 	c.mu.Lock()
 	c.games[userID] = game
@@ -182,8 +185,8 @@ func (c *BlackjackCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 
 	// Check for insurance option or initial blackjacks
 	dealerUpCardIsAce := game.DealerHand[1].Rank == "A"
-	_, playerBlackjack, _ := CalculateHandValue(game.PlayerHand)
-	_, dealerBlackjack, _ := CalculateHandValue(game.DealerHand)
+	_, playerBlackjack := CalculateHandValue(game.PlayerHand)
+	_, dealerBlackjack := CalculateHandValue(game.DealerHand)
 
 	if !dealerUpCardIsAce && (playerBlackjack || dealerBlackjack) {
 		// If no insurance is offered and someone has blackjack, end the game immediately.
@@ -234,6 +237,8 @@ func (c *BlackjackCommand) HandleComponent(s *discordgo.Session, i *discordgo.In
 		c.handleSplit(s, game)
 	case BlackjackInsuranceButton:
 		c.handleInsurance(s, game)
+	case BlackjackSurrenderButton:
+		c.handleSurrender(s, game)
 	}
 }
 
@@ -248,6 +253,7 @@ func (c *BlackjackCommand) handleHit(s *discordgo.Session, game *BlackjackGame) 
 	// Disable special moves after hitting
 	game.CanDoubleDown = false
 	game.CanSplit = false
+	game.CanSurrender = false
 
 	// Determine which hand to hit
 	hand := &game.PlayerHand
@@ -258,7 +264,7 @@ func (c *BlackjackCommand) handleHit(s *discordgo.Session, game *BlackjackGame) 
 	// Deal a new card
 	dealCard(game, hand)
 
-	playerValue, _, _ := CalculateHandValue(*hand)
+	playerValue, _ := CalculateHandValue(*hand)
 
 	// Check for bust
 	if playerValue > 21 {
@@ -345,14 +351,8 @@ func (c *BlackjackCommand) handleStand(s *discordgo.Session, game *BlackjackGame
 	// Dealer plays
 	go func() {
 		time.Sleep(1 * time.Second)
-		for {
-			dealerValue, _, isSoft := CalculateHandValue(game.DealerHand)
-			// Dealer must stand on hard 17 or more, and soft 18 or more.
-			// Dealer must hit on 16 or less, and on soft 17.
-			if dealerValue > 17 || (dealerValue == 17 && !isSoft) {
-				break
-			}
-
+		dealerValue, _ := CalculateHandValue(game.DealerHand)
+		for dealerValue < 17 {
 			time.Sleep(1 * time.Second)
 			c.mu.Lock()
 			if game.State == BJStateFinished { // Check if game ended while sleeping
@@ -360,6 +360,7 @@ func (c *BlackjackCommand) handleStand(s *discordgo.Session, game *BlackjackGame
 				return
 			}
 			dealCard(game, &game.DealerHand)
+			dealerValue, _ = CalculateHandValue(game.DealerHand)
 			embed := c.buildGameEmbed(game, "ディーラーのターン")
 			_, err := s.InteractionResponseEdit(game.Interaction, &discordgo.WebhookEdit{
 				Embeds: &[]*discordgo.MessageEmbed{embed},
@@ -489,12 +490,49 @@ func (c *BlackjackCommand) handleInsurance(s *discordgo.Session, game *Blackjack
 	}
 
 	// Check if dealer has blackjack immediately
-	_, dealerBlackjack, _ := CalculateHandValue(game.DealerHand)
+	_, dealerBlackjack := CalculateHandValue(game.DealerHand)
 	if dealerBlackjack {
 		time.AfterFunc(1*time.Second, func() {
 			c.determineWinner(s, game)
 		})
 	}
+}
+
+func (c *BlackjackCommand) handleSurrender(s *discordgo.Session, game *BlackjackGame) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if game.State != BJStatePlayerTurn || !game.CanSurrender {
+		return
+	}
+
+	game.State = BJStateFinished
+
+	// Refund half of the bet
+	refund := game.BetAmount / 2
+	casinoData, err := c.Store.GetCasinoData(game.Interaction.GuildID, game.PlayerID)
+	if err == nil {
+		casinoData.Chips += refund
+		c.Store.UpdateCasinoData(casinoData)
+	}
+
+	// Update UI to show surrender result
+	embed := c.buildGameEmbed(game, "サレンダー")
+	embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+		Name:  "結果",
+		Value: fmt.Sprintf("サレンダーしました。ベットの半分 (**%d** チップ) が返却されます。", refund),
+	})
+	components := c.buildGameComponents(game) // Disable buttons
+
+	_, err = s.InteractionResponseEdit(game.Interaction, &discordgo.WebhookEdit{
+		Embeds:     &[]*discordgo.MessageEmbed{embed},
+		Components: &components,
+	})
+	if err != nil {
+		c.Log.Error("Failed to edit message on surrender", "error", err)
+	}
+
+	delete(c.games, game.PlayerID)
 }
 
 func (c *BlackjackCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) { /* No modal for now */ }
@@ -504,7 +542,7 @@ func (c *BlackjackCommand) GetCategory() string {
 }
 
 func (c *BlackjackCommand) GetComponentIDs() []string {
-	return []string{BlackjackHitButton, BlackjackStandButton, BlackjackDoubleDownButton, BlackjackSplitButton, BlackjackInsuranceButton}
+	return []string{BlackjackHitButton, BlackjackStandButton, BlackjackDoubleDownButton, BlackjackSplitButton, BlackjackInsuranceButton, BlackjackSurrenderButton}
 }
 
 // --- Game Logic ---
@@ -557,7 +595,7 @@ func HandToString(hand []Card, hideFirst bool) string {
 	return strings.Join(parts, " | ")
 }
 
-func CalculateHandValue(hand []Card) (int, bool, bool) {
+func CalculateHandValue(hand []Card) (int, bool) {
 	value := 0
 	aces := 0
 	for _, card := range hand {
@@ -575,24 +613,19 @@ func CalculateHandValue(hand []Card) (int, bool, bool) {
 		}
 	}
 
-	isSoft := aces > 0
 	for value > 21 && aces > 0 {
 		value -= 10
 		aces--
 	}
 
-	if (aces == 0) {
-		isSoft = false
-	}
-
-	return value, len(hand) == 2 && value == 21, isSoft
+	return value, len(hand) == 2 && value == 21
 }
 
 // --- Helper Functions ---
 
 func (c *BlackjackCommand) buildGameEmbed(game *BlackjackGame, title string) *discordgo.MessageEmbed {
-	playerValue, _, _ := CalculateHandValue(game.PlayerHand)
-	playerValue2, _, _ := CalculateHandValue(game.PlayerHand2)
+	playerValue, _ := CalculateHandValue(game.PlayerHand)
+	playerValue2, _ := CalculateHandValue(game.PlayerHand2)
 
 	var dealerHandStr string
 	var dealerValue int
@@ -601,11 +634,11 @@ func (c *BlackjackCommand) buildGameEmbed(game *BlackjackGame, title string) *di
 		dealerHandStr = HandToString(game.DealerHand, true)
 		if len(game.DealerHand) > 1 {
 			// Show only the value of the up-card
-			dealerValue, _, _ = CalculateHandValue([]Card{game.DealerHand[1]})
+			dealerValue, _ = CalculateHandValue([]Card{game.DealerHand[1]})
 		}
 	} else {
 		dealerHandStr = HandToString(game.DealerHand, false)
-		dealerValue, _, _ = CalculateHandValue(game.DealerHand)
+		dealerValue, _ = CalculateHandValue(game.DealerHand)
 	}
 
 	description := fmt.Sprintf("ベット額: **%d** チップ", game.BetAmount)
@@ -701,19 +734,27 @@ func (c *BlackjackCommand) buildGameComponents(game *BlackjackGame) []discordgo.
 		actionsRow2 = &discordgo.ActionsRow{Components: specialButtons}
 	}
 
-	// Third row for Insurance
+	// Third row for Insurance and Surrender
 	var actionsRow3 *discordgo.ActionsRow
+	var specialButtons2 []discordgo.MessageComponent
 	if showInsurance {
-		actionsRow3 = &discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.Button{
-					Label:    "インシュランス",
-					Style:    discordgo.SecondaryButton,
-					CustomID: BlackjackInsuranceButton,
-					Disabled: disabled,
-				},
-			},
-		}
+		specialButtons2 = append(specialButtons2, discordgo.Button{
+			Label:    "インシュランス",
+			Style:    discordgo.SecondaryButton,
+			CustomID: BlackjackInsuranceButton,
+			Disabled: disabled,
+		})
+	}
+	if game.CanSurrender {
+		specialButtons2 = append(specialButtons2, discordgo.Button{
+			Label:    "サレンダー",
+			Style:    discordgo.SecondaryButton,
+			CustomID: BlackjackSurrenderButton,
+			Disabled: disabled,
+		})
+	}
+	if len(specialButtons2) > 0 {
+		actionsRow3 = &discordgo.ActionsRow{Components: specialButtons2}
 	}
 
 	var components []discordgo.MessageComponent
@@ -737,7 +778,7 @@ func (c *BlackjackCommand) determineWinner(s *discordgo.Session, game *Blackjack
 	}
 	game.State = BJStateFinished
 
-	_, dealerBlackjack, _ := CalculateHandValue(game.DealerHand)
+	_, dealerBlackjack := CalculateHandValue(game.DealerHand)
 	var finalResultText strings.Builder
 	var totalPayout int64 = 0
 
@@ -803,11 +844,11 @@ func (c *BlackjackCommand) determineWinner(s *discordgo.Session, game *Blackjack
 
 // calculateHandResult calculates the payout and result text for a single hand.
 func (c *BlackjackCommand) calculateHandResult(playerHand, dealerHand []Card, betAmount int64) (int64, string) {
-	playerValue, playerBlackjack, _ := CalculateHandValue(playerHand)
-	dealerValue, dealerBlackjack, _ := CalculateHandValue(dealerHand)
+	playerValue, playerBlackjack := CalculateHandValue(playerHand)
+	dealerValue, dealerBlackjack := CalculateHandValue(dealerHand)
 
 	if playerBlackjack && !dealerBlackjack {
-		payout := int64(float64(betAmount) * 2.5)
+		payout := int64(float64(betAmount) * 2.2)
 		return payout, fmt.Sprintf("ブラックジャック！あなたの勝ちです！🎉 (配当: %d)", payout)
 	} else if playerValue > 21 {
 		return 0, "バスト！あなたの負けです...😢"
