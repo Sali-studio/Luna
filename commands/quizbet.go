@@ -393,14 +393,13 @@ func (c *QuizBetCommand) endBetting(s *discordgo.Session, game *QuizBetGame) {
 		Color:       0x2ecc71, // Green
 	}
 
-	var totalPot int64 = 0
 	var winners []QuizBet
 	var losers []QuizBet
 
 	for _, bet := range game.Bets {
-		totalPot += bet.Amount
 		if bet.ChoiceIndex == game.CorrectAnswerIndex {
-			winners = append(winners, bet)
+			winner := bet
+			winners = append(winners, winner)
 		} else {
 			losers = append(losers, bet)
 		}
@@ -408,15 +407,10 @@ func (c *QuizBetCommand) endBetting(s *discordgo.Session, game *QuizBetGame) {
 
 	var resultDescription strings.Builder
 	if len(winners) > 0 {
-		var totalWinnerBet int64 = 0
-		for _, winner := range winners {
-			totalWinnerBet += winner.Amount
-		}
-
 		resultDescription.WriteString("**🎉 勝者**\n")
 		for _, winner := range winners {
-			// Calculate payout based on the proportion of their bet to the total winners' bet
-			payout := int64(float64(winner.Amount) / float64(totalWinnerBet) * float64(totalPot))
+			// Payout is 1.2x the bet amount
+			payout := int64(float64(winner.Amount) * 1.2)
 			casinoData, _ := c.Store.GetCasinoData(game.Interaction.GuildID, winner.UserID)
 			casinoData.Chips += payout
 			c.Store.UpdateCasinoData(casinoData)
