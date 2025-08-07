@@ -408,16 +408,29 @@ func (c *QuizBetCommand) endBetting(s *discordgo.Session, game *QuizBetGame) {
 
 	var resultDescription strings.Builder
 	if len(winners) > 0 {
-		payoutPerWinner := totalPot / int64(len(winners))
+		var totalWinnerBet int64 = 0
+		for _, winner := range winners {
+			totalWinnerBet += winner.Amount
+		}
+
 		resultDescription.WriteString("**🎉 勝者**\n")
 		for _, winner := range winners {
+			// Calculate payout based on the proportion of their bet to the total winners' bet
+			payout := int64(float64(winner.Amount) / float64(totalWinnerBet) * float64(totalPot))
 			casinoData, _ := c.Store.GetCasinoData(game.Interaction.GuildID, winner.UserID)
-			casinoData.Chips += payoutPerWinner
+			casinoData.Chips += payout
 			c.Store.UpdateCasinoData(casinoData)
-			resultDescription.WriteString(fmt.Sprintf("<@%s> が **%d** チップを獲得！\n", winner.UserID, payoutPerWinner))
+			profit := payout - winner.Amount
+			resultDescription.WriteString(fmt.Sprintf("<@%s> が **%d** チップをベットして **%d** チップを獲得！ (収支: **+%d**)\n", winner.UserID, winner.Amount, payout, profit))
 		}
 	} else {
-		resultDescription.WriteString("**😥 勝者なし**\n")
+		resultDescription.WriteString("**😥 勝者なし**\n誰も正解できなかったため、ベットしたチップは返金されます。\n")
+		// Refund all bets
+		for _, bet := range game.Bets {
+			casinoData, _ := c.Store.GetCasinoData(game.Interaction.GuildID, bet.UserID)
+			casinoData.Chips += bet.Amount
+			c.Store.UpdateCasinoData(casinoData)
+		}
 	}
 
 	if len(losers) > 0 {
