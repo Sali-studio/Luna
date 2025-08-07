@@ -108,6 +108,7 @@ func (s *DBStore) initTables() error {
 			bump_config TEXT DEFAULT '{}',
 			welcome_config TEXT DEFAULT '{}',
 			autorole_config TEXT DEFAULT '{}',
+			jackpot INTEGER DEFAULT 0,
 			ticket_counter INTEGER DEFAULT 0
 		);`,
 		`CREATE TABLE IF NOT EXISTS tickets (
@@ -491,6 +492,79 @@ func (s *DBStore) GetChipLeaderboard(guildID string, limit int) ([]CasinoData, e
 	}
 
 	return leaderboard, nil
+}
+
+// GetJackpot retrieves the current jackpot for a guild.
+func (s *DBStore) GetJackpot(guildID string) (int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var jackpot int64
+	query := "SELECT jackpot FROM guilds WHERE guild_id = ?"
+	err := s.db.QueryRow(query, guildID).Scan(&jackpot)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Guild might not exist yet, so we can treat the jackpot as 0.
+			// The upsert logic will handle creating the guild row later.
+			return 0, nil
+		}
+		return 0, err
+	}
+	return jackpot, nil
+}
+
+// UpdateJackpot updates the jackpot for a guild.
+func (s *DBStore) UpdateJackpot(guildID string, newJackpot int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := s.upsertGuild(tx, guildID); err != nil {
+		return err
+	}
+
+	query := "UPDATE guilds SET jackpot = ? WHERE guild_id = ?"
+	_, err = tx.Exec(query, newJackpot, guildID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// AddToJackpot adds an amount to the current jackpot for a guild.
+func (s *DBStore) AddToJackpot(guildID string, amount int64) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := s.upsertGuild(tx, guildID); err != nil {
+		return 0, err
+	}
+
+	var currentJackpot int64
+	query := "SELECT jackpot FROM guilds WHERE guild_id = ?"
+	if err := tx.QueryRow(query, guildID).Scan(&currentJackpot); err != nil {
+		return 0, err
+	}
+
+	newJackpot := currentJackpot + amount
+	updateQuery := "UPDATE guilds SET jackpot = ? WHERE guild_id = ?"
+	if _, err := tx.Exec(updateQuery, newJackpot, guildID); err != nil {
+		return 0, err
+	}
+
+	return newJackpot, tx.Commit()
 }
 
 // GetRecentMessagesByUser retrieves the most recent messages by a specific user in a guild.
