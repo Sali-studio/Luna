@@ -224,12 +224,4 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	}
 }
 
-func (c *SlotsCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
-func (c *SlotsCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
-func (c *SlotsCommand) GetComponentIDs() []string                                            { return []string{} }
-func (c *SlotsCommand) GetCategory() string                                                  { return "カジノ" }
 
-func (c *SlotsCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
-func (c *SlotsCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
-func (c *SlotsCommand) GetComponentIDs() []string                                            { return []string{} }
-func (c *SlotsCommand) GetCategory() string                                                  { return "カジノ" }
