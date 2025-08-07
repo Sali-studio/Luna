@@ -537,7 +537,7 @@ func (s *DBStore) UpdateJackpot(guildID string, newJackpot int64) error {
 	return tx.Commit()
 }
 
-// AddToJackpot adds an amount to the current jackpot for a guild.
+// AddToJackpot adds an amount to the current jackpot for a guild atomically.
 func (s *DBStore) AddToJackpot(guildID string, amount int64) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -552,15 +552,16 @@ func (s *DBStore) AddToJackpot(guildID string, amount int64) (int64, error) {
 		return 0, err
 	}
 
-	var currentJackpot int64
-	query := "SELECT jackpot FROM guilds WHERE guild_id = ?"
-	if err := tx.QueryRow(query, guildID).Scan(&currentJackpot); err != nil {
+	// Atomically add to the jackpot
+	updateQuery := "UPDATE guilds SET jackpot = jackpot + ? WHERE guild_id = ?"
+	if _, err := tx.Exec(updateQuery, amount, guildID); err != nil {
 		return 0, err
 	}
 
-	newJackpot := currentJackpot + amount
-	updateQuery := "UPDATE guilds SET jackpot = ? WHERE guild_id = ?"
-	if _, err := tx.Exec(updateQuery, newJackpot, guildID); err != nil {
+	// Get the new jackpot value
+	var newJackpot int64
+	selectQuery := "SELECT jackpot FROM guilds WHERE guild_id = ?"
+	if err := tx.QueryRow(selectQuery, guildID).Scan(&newJackpot); err != nil {
 		return 0, err
 	}
 
