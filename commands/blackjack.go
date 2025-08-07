@@ -152,7 +152,7 @@ func (c *BlackjackCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 
 	// Check for split and double down options
 	game.CanSplit = len(game.PlayerHand) == 2 && game.PlayerHand[0].Rank == game.PlayerHand[1].Rank && casinoData.Chips >= betAmount
-	playerValue, _ := CalculateHandValue(game.PlayerHand)
+	playerValue, _, _ := CalculateHandValue(game.PlayerHand)
 	game.CanDoubleDown = len(game.PlayerHand) == 2 && (playerValue == 9 || playerValue == 10 || playerValue == 11) && casinoData.Chips >= betAmount
 
 	c.mu.Lock()
@@ -180,8 +180,8 @@ func (c *BlackjackCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 
 	// Check for insurance option or initial blackjacks
 	dealerUpCardIsAce := game.DealerHand[1].Rank == "A"
-	playerValue, playerBlackjack := CalculateHandValue(game.PlayerHand)
-	dealerValue, dealerBlackjack := CalculateHandValue(game.DealerHand)
+	_, playerBlackjack, _ := CalculateHandValue(game.PlayerHand)
+	_, dealerBlackjack, _ := CalculateHandValue(game.DealerHand)
 
 	if !dealerUpCardIsAce && (playerBlackjack || dealerBlackjack) {
 		// If no insurance is offered and someone has blackjack, end the game immediately.
@@ -474,7 +474,7 @@ func (c *BlackjackCommand) handleInsurance(s *discordgo.Session, game *Blackjack
 	}
 
 	// Check if dealer has blackjack immediately
-	_, dealerBlackjack := CalculateHandValue(game.DealerHand)
+	_, dealerBlackjack, _ := CalculateHandValue(game.DealerHand)
 	if dealerBlackjack {
 		time.AfterFunc(1*time.Second, func() {
 			c.determineWinner(s, game)
