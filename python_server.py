@@ -4,6 +4,7 @@ from flask import request, jsonify, Response
 import vertexai
 from vertexai.preview.vision_models import ImageGenerationModel
 from vertexai.generative_models import GenerativeModel, Part
+import random
 
 import time
 import requests
@@ -198,18 +199,16 @@ def generate_quiz():
         return jsonify({'error': 'topic is required'}), 400
 
     topic = data.get('topic', 'ランダムなトピック')
-    history = data.get('history')
-    if history is None:
-        history = []
+    history = data.get('history', [])
 
     print(f"✅ Received Quiz request for topic: {topic}")
     print(f"📖 Received history with {len(history)} questions.")
 
     history_prompt = ""
     if history:
-        history_prompt = "ただし、以下のリストにある質問絶対に出題しないでください。\n- " + "\n- ".join(history)
+        history_prompt = "ただし、以下のリストにある質問は絶対に出題しないでください。\n- " + "\n- ".join(history)
 
-    prompt = f"""
+    prompt = f""
 「{topic}」に関する、ユニークで面白い4択クイズを1問生成してください。
 あなたの応答は、必ず以下のJSON形式に従ってください。他のテキストは一切含めないでください。
 
@@ -219,38 +218,62 @@ def generate_quiz():
     "選択肢A",
     "選択肢B",
     "選択肢C",
-    "選択肢D"
+    "正解の選択肢D"
   ],
-  "correct_answer_index": 2, 
+  "correct_answer": "正解の選択肢D",
   "explanation": "ここに簡単な解説"
 }}
 
 {history_prompt}
-"""
+"
 
     try:
         print("⏳ Generating new quiz...")
         response = multimodal_model.generate_content(prompt)
         print("✅ Quiz generated.")
         
-        # AIの出力からJSON部分だけを抽出する（念のため）
         json_text = response.text.strip()
         if json_text.startswith("```json"):
             json_text = json_text[7:-4].strip()
 
-        # JSONとしてパースできるか検証
         import json
-        json.loads(json_text) 
+        quiz_data = json.loads(json_text)
 
-        return app.response_class(
-            response=json_text,
-            status=200,
-            mimetype='application/json'
-        )
+        # --- Shuffle options and find the new correct index ---
+        correct_answer_str = quiz_data['correct_answer']
+        options = quiz_data['options']
+        
+        # Ensure the correct answer is actually in the options list
+        if correct_answer_str not in options:
+            # If not, something is wrong with the AI's output. Add it to be safe.
+            options.append(correct_answer_str)
+
+        random.shuffle(options)
+        
+        new_correct_index = -1
+        for i, option in enumerate(options):
+            if option == correct_answer_str:
+                new_correct_index = i
+                break
+        
+        if new_correct_index == -1:
+            # This should not happen if the logic above is correct
+            raise ValueError("Correct answer not found after shuffling")
+
+        # Build the final JSON response
+        final_quiz = {
+            "question": quiz_data['question'],
+            "options": options,
+            "correct_answer_index": new_correct_index,
+            "explanation": quiz_data['explanation']
+        }
+
+        return jsonify(final_quiz)
 
     except Exception as e:
         print(f"❌ Error generating quiz: {e}")
         return jsonify({'error': str(e)}), 500
+
 
 
 # ユーザー活動分析用エンドポイント
