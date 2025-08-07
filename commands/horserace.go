@@ -333,6 +333,18 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 			Description: "レース中にエラーが発生したため、中止されました。ベットは返金されます。",
 			Color:       0x95a5a6, // Gray
 		}
+		// Refund all bets
+		for _, bet := range game.Bets {
+			casinoData, err := c.Store.GetCasinoData(game.Interaction.GuildID, bet.UserID)
+			if err != nil {
+				c.Log.Error("Failed to get user data for refund", "error", err, "userID", bet.UserID)
+				continue
+			}
+			casinoData.Chips += bet.Amount
+			if err := c.Store.UpdateCasinoData(casinoData); err != nil {
+				c.Log.Error("Failed to update user data for refund", "error", err, "userID", bet.UserID)
+			}
+		}
 	} else {
 		winnerHorse := game.Horses[winnerIndex]
 		winningsMap := make(map[string]int64)
