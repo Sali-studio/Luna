@@ -219,6 +219,16 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 		}
 	}
 
+	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{resultEmbed}}); err != nil {
+		c.Log.Error("Failed to edit final slots response", "error", err)
+	}
+}
+
+func (c *SlotsCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
+func (c *SlotsCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
+func (c *SlotsCommand) GetComponentIDs() []string                                            { return []string{} }
+func (c *SlotsCommand) GetCategory() string                                                  { return "カジノ" }
+
 func (c *SlotsCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *SlotsCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}
 func (c *SlotsCommand) GetComponentIDs() []string                                            { return []string{} }
