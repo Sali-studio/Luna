@@ -208,8 +208,7 @@ def generate_quiz():
     if history:
         history_prompt = "ただし、以下のリストにある質問は絶対に出題しないでください。\n- " + "\n- ".join(history)
 
-    prompt = f""
-「{topic}」に関する、ユニークで面白い4択クイズを1問生成してください。
+    prompt = f'''「{topic}」に関する、ユニークで面白い4択クイズを1問生成してください。
 あなたの応答は、必ず以下のJSON形式に従ってください。他のテキストは一切含めないでください。
 
 {{
@@ -225,7 +224,7 @@ def generate_quiz():
 }}
 
 {history_prompt}
-"
+'''
 
     try:
         print("⏳ Generating new quiz...")
@@ -291,7 +290,7 @@ def analyze_user_activity():
     print(f"✅ Received User Activity Analysis request for {username} ({user_id})")
 
     # Geminiに渡すプロンプトを作成
-    prompt = f"""
+    prompt = f'''
 以下のDiscordユーザーの情報を元に、そのユーザーの活動傾向を簡潔に分析してください。
 ユーザー名: {username}
 参加日時: {joined_at}
@@ -299,7 +298,7 @@ def analyze_user_activity():
 
 分析は、ユーザーの一般的な活動傾向、サーバーへの貢献度、興味の可能性などに焦点を当ててください。
 「このユーザーは...」という形式で始めてください。
-"""
+'''
 
     try:
         print("⏳ Analyzing user activity...")
@@ -328,7 +327,7 @@ def analyze_profile():
     message_history = "\n".join(recent_messages) if recent_messages else "まだ発言がありません。"
 
     # Geminiに渡すプロンプトを作成
-    prompt = f"""
+    prompt = f'''
 あなたはプロのプロファイラーです。
 以下のDiscordユーザーの情報を元に、そのユーザーの人物像を創造的かつ洞察に満ちた文章で分析してください。
 分析結果は、本人に直接見せることを想定し、ポジティブで面白い内容にしてください。
@@ -358,7 +357,7 @@ def analyze_profile():
 
 ### ✨ キャッチコピー
 **ここにキャッチコピーを記述**
-"""
+'''
 
     try:
         print("⏳ Analyzing profile...")

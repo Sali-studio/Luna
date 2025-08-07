@@ -228,4 +228,12 @@ func (c *SlotsCommand) GetCategory() string {
 	return "カジノ"
 }
 
+func (c *SlotsCommand) GetComponentIDs() []string {
+	return nil
+}
+
+func (c *SlotsCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
+
+func (c *SlotsCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate) {}
+
 
