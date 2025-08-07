@@ -502,7 +502,6 @@ func (c *BlackjackCommand) handleSplit(s *discordgo.Session, game *BlackjackGame
 
 	// Re-evaluate double down possibility for each new hand
 	playerValue1, _ := CalculateHandValue(game.PlayerHand)
-	playerValue2, _ := CalculateHandValue(game.PlayerHand2)
 	game.CanDoubleDown = (playerValue1 == 9 || playerValue1 == 10 || playerValue1 == 11) && casinoData.Chips >= game.BetAmount
 	// Note: A more complex implementation would allow doubling down on the second hand later.
 	// For simplicity, we only check the first hand's double down possibility initially.
