@@ -32,6 +32,15 @@ var (
 		"🍋🍋🍋": 5,
 		"🍒🍒🍒": 3,
 	}
+	payoutsTwoOfAKind = map[string]float64{
+		"💎": 1.5,
+		"🍇": 1.0,
+		"🍓": 1.0,
+		"🍉": 0.5,
+		"🍊": 0.5,
+		"🍋": 0.3,
+		"🍒": 2.0,
+	}
 )
 
 func (c *SlotsCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -137,44 +146,46 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	}
 	// --- End Animation ---
 
-	resultStr := strings.Join(finalResult, "")
-
 	// --- Payout Calculation ---
 	var winnings int64 = 0
 	won := false
 	jackpotWon := false
 	winDescription := ""
 
-	// 1. Check for Jackpot
-	if resultStr == "💎💎💎" {
+	resultStr := strings.Join(finalResult, "")
+
+	// 1. Check for 3-of-a-kind (including jackpot)
+	if p, ok := payouts[resultStr]; ok {
 		won = true
-		jackpotWon = true
-		winDescription = "👑 JACKPOT! 👑"
-		winnings = int64(currentJackpot)
-		casinoData.Chips += winnings
-		if err := c.Store.UpdateJackpot(guildID, 0); err != nil {
-			c.Log.Error("Failed to reset jackpot", "error", err)
+		if resultStr == "💎💎💎" {
+			jackpotWon = true
+			winDescription = "👑 JACKPOT! 👑"
+			winnings = int64(currentJackpot)
+			if err := c.Store.UpdateJackpot(guildID, 0); err != nil {
+				c.Log.Error("Failed to reset jackpot", "error", err)
+			}
+		} else {
+			winDescription = fmt.Sprintf("%s 揃い！", resultStr)
+			winnings = bet * int64(p)
 		}
-	} else if p, ok := payouts[resultStr]; ok {
-		// 2. Check for 3-of-a-kind
-		won = true
-		winDescription = fmt.Sprintf("%s 揃い！", resultStr)
-		winnings = bet * int64(p)
 		casinoData.Chips += winnings
 	} else {
-		// 3. Check for small wins (2 cherries)
-		cherryCount := 0
+		// 2. If no 3-of-a-kind, check for 2-of-a-kind
+		counts := make(map[string]int)
 		for _, s := range finalResult {
-			if s == "🍒" {
-				cherryCount++
-			}
+			counts[s]++
 		}
 
-		if cherryCount == 2 {
-			won = true
-			winDescription = "🍒 チェリー2つ！"
-			winnings = bet * 2 // 2x payout for 2 cherries
-			casinoData.Chips += winnings
+		for symbol, count := range counts {
+			if count == 2 {
+				if multiplier, ok := payoutsTwoOfAKind[symbol]; ok {
+					won = true
+					winDescription = fmt.Sprintf("%s 2つ！", symbol)
+					winnings = int64(float64(bet) * multiplier)
+					casinoData.Chips += winnings
+					break // Found a 2-of-a-kind, no need to check others
+				}
+			}
 		}
 	}
 
