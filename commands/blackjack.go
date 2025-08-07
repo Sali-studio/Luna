@@ -250,7 +250,7 @@ func (c *BlackjackCommand) handleHit(s *discordgo.Session, game *BlackjackGame) 
 		return
 	}
 
-	// Disable special moves after hitting
+	// Disable special moves after hitting. This applies to the current hand.
 	game.CanDoubleDown = false
 	game.CanSplit = false
 	game.CanSurrender = false
@@ -384,18 +384,49 @@ func (c *BlackjackCommand) handleDoubleDown(s *discordgo.Session, game *Blackjac
 		return
 	}
 
+	// Determine which hand and bet to double
+	hand := &game.PlayerHand
+	betAmount := game.BetAmount
+	if game.CurrentHand == 2 {
+		hand = &game.PlayerHand2
+		betAmount = game.BetAmount2
+	}
+
 	// Double the bet
 	casinoData, err := c.Store.GetCasinoData(game.Interaction.GuildID, game.PlayerID)
-	if err != nil || casinoData.Chips < game.BetAmount {
+	if err != nil || casinoData.Chips < betAmount {
 		// Not enough chips, can't double down. Silently ignore.
 		return
 	}
-	casinoData.Chips -= game.BetAmount
+	casinoData.Chips -= betAmount
 	c.Store.UpdateCasinoData(casinoData)
-	game.BetAmount *= 2
+
+	if game.CurrentHand == 1 {
+		game.BetAmount *= 2
+	} else {
+		game.BetAmount2 *= 2
+	}
 
 	// Deal one more card
-	dealCard(game, &game.PlayerHand)
+	dealCard(game, hand)
+
+	// After doubling, the turn for this hand ends. Move to the next, or to the dealer.
+	game.CanDoubleDown = false
+
+	if game.CurrentHand == 1 && len(game.PlayerHand2) > 0 {
+		game.CurrentHand = 2
+		// Update UI for the second hand
+		embed := c.buildGameEmbed(game, "ダブルダウン！あなたのターン (2つ目の手)")
+		components := c.buildGameComponents(game)
+		_, err = s.InteractionResponseEdit(game.Interaction, &discordgo.WebhookEdit{
+			Embeds:     &[]*discordgo.MessageEmbed{embed},
+			Components: &components,
+		})
+		if err != nil {
+			c.Log.Error("Failed to edit message on double down split", "error", err)
+		}
+		return
+	}
 
 	// End player's turn
 	game.State = BJStateDealerTurn
@@ -443,9 +474,15 @@ func (c *BlackjackCommand) handleSplit(s *discordgo.Session, game *BlackjackGame
 	dealCard(game, &game.PlayerHand)
 	dealCard(game, &game.PlayerHand2)
 
-	// Disable further splitting or doubling for now
+	// Re-evaluate double down possibility for each new hand
+	playerValue1, _ := CalculateHandValue(game.PlayerHand)
+	playerValue2, _ := CalculateHandValue(game.PlayerHand2)
+	game.CanDoubleDown = (playerValue1 == 9 || playerValue1 == 10 || playerValue1 == 11) && casinoData.Chips >= game.BetAmount
+	// Note: A more complex implementation would allow doubling down on the second hand later.
+	// For simplicity, we only check the first hand's double down possibility initially.
+
+	// Disable further splitting
 	game.CanSplit = false
-	game.CanDoubleDown = false
 
 	// Update UI
 	embed := c.buildGameEmbed(game, "スプリット！あなたのターン (1つ目の手)")
