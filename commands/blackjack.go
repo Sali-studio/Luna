@@ -160,7 +160,7 @@ func (c *BlackjackCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 	c.games[userID] = game
 	c.mu.Unlock()
 
-	// Send initial game embed as an ephemeral message
+	// Send initial game embed as a public message
 	embed := c.buildGameEmbed(game, "あなたのターン")
 	components := c.buildGameComponents(game)
 
@@ -169,7 +169,7 @@ func (c *BlackjackCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		Data: &discordgo.InteractionResponseData{
 			Embeds:     []*discordgo.MessageEmbed{embed},
 			Components: components,
-			Flags:      discordgo.MessageFlagsEphemeral,
+			// Flags:      discordgo.MessageFlagsEphemeral, // Removed this line to make it public
 		},
 	})
 	if err != nil {
@@ -197,21 +197,26 @@ func (c *BlackjackCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 }
 
 func (c *BlackjackCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// We need to find which game this component interaction belongs to.
+	// Since multiple games can be active in a channel, we can't just use the channel ID.
+	// We will find the game based on the user who is interacting.
 	c.mu.Lock()
-	game, exists := c.games[i.Member.User.ID] // Find game by User ID
+	game, exists := c.games[i.Member.User.ID]
+	c.mu.Unlock()
+
+	// If the game doesn't exist for this user, it might be another user's game.
 	if !exists {
-		c.mu.Unlock()
-		// Respond with an error if the game is not found or has expired
+		// Check if this interaction is for ANY active game by checking the original message author.
+		// This is a bit complex, so for now, we will just send an ephemeral error.
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "このゲームは終了したか、見つかりませんでした。新しいゲームを開始するには `/blackjack` を使用してください。",
+				Content: "これはあなたのゲームではありません。",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 		return
 	}
-	c.mu.Unlock()
 
 	// Defer the response to avoid timeout
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
