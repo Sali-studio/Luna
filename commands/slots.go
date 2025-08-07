@@ -17,13 +17,14 @@ type SlotsCommand struct {
 }
 
 var (
+	// Reels are now weighted. More common symbols appear more frequently.
 	reels = [][]string{
-		{"🍒", "🍋", "🍊", "🍉", "🍇", "🍓", "💎"}, // Reel 1
-		{"🍒", "🍋", "🍊", "🍉", "🍇", "🍓", "💎"}, // Reel 2
-		{"🍒", "🍋", "🍊", "🍉", "🍇", "🍓", "💎"}, // Reel 3
+		{"🍒", "🍒", "🍒", "🍋", "🍋", "🍊", "🍊", "🍉", "🍇", "🍓", "💎"}, // Reel 1
+		{"🍒", "🍒", "🍋", "🍋", "🍋", "🍊", "🍊", "🍉", "🍉", "🍇", "🍓", "💎"}, // Reel 2
+		{"🍒", "🍒", "🍒", "🍋", "🍋", "🍊", "🍉", "🍉", "🍇", "🍇", "🍓", "💎"}, // Reel 3
 	}
 	payouts = map[string]int{
-		"💎💎💎": 50,
+		"💎💎💎": 50, // This is now the jackpot trigger, so the direct payout is less important.
 		"🍇🍇🍇": 20,
 		"🍓🍓🍓": 15,
 		"🍉🍉🍉": 10,
@@ -112,6 +113,16 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	// --- End Animation ---
 
 	resultStr := strings.Join(finalResult, "")
+	jackpotContribution := int64(float64(bet) * 0.01) // 1% of the bet goes to the jackpot
+	if jackpotContribution < 1 {
+		jackpotContribution = 1 // Minimum 1 chip contribution
+	}
+	currentJackpot, err := c.Store.AddToJackpot(guildID, jackpotContribution)
+	if err != nil {
+		c.Log.Error("Failed to update jackpot", "error", err)
+		// Continue without jackpot functionality if there's an error
+		currentJackpot, _ = c.Store.GetJackpot(guildID)
+	}
 
 	// First, subtract the bet amount
 	casinoData.Chips -= bet
@@ -119,7 +130,13 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	// Calculate winnings
 	winnings := 0
 	payout, won := payouts[resultStr]
-	if won {
+	jackpotWon := resultStr == "💎💎💎"
+
+	if jackpotWon {
+		winnings = int(currentJackpot) // Winner takes the entire jackpot
+		casinoData.Chips += int64(winnings)
+		c.Store.UpdateJackpot(guildID, 0) // Reset jackpot
+	} else if won {
 		winnings = int(bet) * payout
 		casinoData.Chips += int64(winnings)
 	}
@@ -132,11 +149,20 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 
 	// Final result embed
 	resultEmbed := &discordgo.MessageEmbed{
-		Title: "🎰 スロット結果！",
+		Title:       "🎰 スロット結果！",
 		Description: fmt.Sprintf("**[ %s | %s | %s ]**", finalResult[0], finalResult[1], finalResult[2]),
+		Footer:      &discordgo.MessageEmbedFooter{Text: fmt.Sprintf("現在のジャックポット: %d チップ", currentJackpot)},
 	}
 
-	if won {
+	if jackpotWon {
+		resultEmbed.Color = 0xFFD700 // Gold for Jackpot
+		resultEmbed.Title = "👑 JACKPOT! 👑"
+		resultEmbed.Fields = []*discordgo.MessageEmbedField{
+			{Name: "ベット", Value: fmt.Sprintf("`%d` チップ", bet), Inline: true},
+			{Name: "ジャックポット獲得！", Value: fmt.Sprintf("`%d` チップ", winnings), Inline: true},
+			{Name: "💰 所持チップ", Value: fmt.Sprintf("**%d**", casinoData.Chips)},
+		}
+	} else if won {
 		profit := int64(winnings) - bet
 		resultEmbed.Color = 0x2ecc71 // Green
 		resultEmbed.Fields = []*discordgo.MessageEmbedField{
