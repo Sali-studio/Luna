@@ -126,10 +126,20 @@ func (c *BlackjackCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		PlayerID:    userID,
 		Interaction: i.Interaction,
 		Deck:        deck,
-		PlayerHand:  []Card{deck[0], deck[2]},
-		DealerHand:  []Card{deck[1], deck[3]},
+		PlayerHand:  make([]Card, 0, 5),
+		DealerHand:  make([]Card, 0, 5),
 		BetAmount:   betAmount,
 	}
+
+	// Deal two cards to player and dealer one by one
+	game.PlayerHand = append(game.PlayerHand, game.Deck[0])
+	game.Deck = game.Deck[1:]
+	game.DealerHand = append(game.DealerHand, game.Deck[0])
+	game.Deck = game.Deck[1:]
+	game.PlayerHand = append(game.PlayerHand, game.Deck[0])
+	game.Deck = game.Deck[1:]
+	game.DealerHand = append(game.DealerHand, game.Deck[0])
+	game.Deck = game.Deck[1:]
 
 	c.mu.Lock()
 	c.games[i.ChannelID] = game
