@@ -75,6 +75,7 @@ type HorseRaceCommand struct {
 	Log   interfaces.Logger
 	races map[string]*HorseRaceGame // channelID -> game
 	mu    sync.Mutex
+	rand  *rand.Rand
 }
 
 // --- Command/Component/Modal Handlers ---
@@ -84,6 +85,7 @@ func NewHorseRaceCommand(store interfaces.DataStore, log interfaces.Logger) *Hor
 		Store: store,
 		Log:   log,
 		races: make(map[string]*HorseRaceGame),
+		rand:  rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
@@ -110,7 +112,7 @@ func (c *HorseRaceCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		CreatorID:   i.Member.User.ID,
 	}
 
-	game.Horses = generateHorses(5)
+	game.Horses = generateHorses(5, c.rand)
 	embed := c.buildBettingEmbed(game)
 	components := c.buildBettingComponents(game)
 
@@ -293,7 +295,6 @@ func (c *HorseRaceCommand) startRace(s *discordgo.Session, game *HorseRaceGame) 
 	time.Sleep(2 * time.Second)
 
 	horsePositions := make([]int, len(game.Horses))
-	rand.Seed(time.Now().UnixNano())
 
 	for {
 		c.mu.Lock()
@@ -306,8 +307,8 @@ func (c *HorseRaceCommand) startRace(s *discordgo.Session, game *HorseRaceGame) 
 		winner := -1
 		for i := range horsePositions {
 			// Modify the chance to move based on the horse's condition modifier
-			if rand.Float64() < (0.15 * game.Horses[i].Modifier) { // Base chance 15%
-				horsePositions[i] += rand.Intn(3) + 1
+			if c.rand.Float64() < (0.15 * game.Horses[i].Modifier) { // Base chance 15%
+				horsePositions[i] += c.rand.Intn(3) + 1
 			}
 			if horsePositions[i] >= RaceTrackLength {
 				horsePositions[i] = RaceTrackLength
@@ -431,11 +432,10 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 var horseNames = []string{"スミレバカノフ", "シンボリルドルフ", "ディープインパクト", "オルフェーヴル", "キタサンブラック", "ハルウララ", "サイレンススズカ", "ウオッカ", "ダイワスカーレット", "ゴールドシップ", "メジロマックイーン"}
 var horseEmojis = []string{"🏇", "🐎", "🐴", "🦄", "🦓"}
 
-func generateHorses(count int) []Horse {
-	rand.Seed(time.Now().UnixNano())
+func generateHorses(count int, r *rand.Rand) []Horse {
 	names := make([]string, len(horseNames))
 	copy(names, horseNames)
-	rand.Shuffle(len(names), func(i, j int) { names[i], names[j] = names[j], names[i] })
+	r.Shuffle(len(names), func(i, j int) { names[i], names[j] = names[j], names[i] })
 
 	horses := make([]Horse, count)
 	totalWeight := 0
@@ -444,12 +444,12 @@ func generateHorses(count int) []Horse {
 	}
 
 	for i := 0; i < count; i++ {
-		randomNum := rand.Intn(totalWeight)
+		randomNum := r.Intn(totalWeight)
 		var selectedCond Condition
 		currentWeight := 0
 		for _, cond := range conditions {
 			currentWeight += cond.Weight
-			if (randomNum < currentWeight) {
+			if randomNum < currentWeight {
 				selectedCond = cond
 				break
 			}
@@ -457,8 +457,8 @@ func generateHorses(count int) []Horse {
 
 		horses[i] = Horse{
 			Name:      names[i],
-			Emoji:     horseEmojis[i],
-			Odds:      1.5 + rand.Float64()*15,
+			Emoji:     horseEmojis[i%len(horseEmojis)], // Use modulo to prevent out of bounds
+			Odds:      1.5 + r.Float64()*15,
 			Condition: selectedCond.Name,
 			Modifier:  selectedCond.Modifier,
 		}
@@ -468,7 +468,7 @@ func generateHorses(count int) []Horse {
 
 func (c *HorseRaceCommand) buildBettingEmbed(game *HorseRaceGame) *discordgo.MessageEmbed {
 	fields := make([]*discordgo.MessageEmbedField, len(game.Horses))
-	if i, horse := range game.Horses {
+	for i, horse := range game.Horses {
 		fields[i] = &discordgo.MessageEmbedField{
 			Name:   fmt.Sprintf("%d. %s %s", i+1, horse.Emoji, horse.Name),
 			Value:  fmt.Sprintf("状態: **%s**\n単勝: %.2f倍", horse.Condition, horse.Odds),
