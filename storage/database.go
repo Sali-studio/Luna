@@ -9,6 +9,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// --- Structures ---
+
 // CachedMessage はDBに保存するメッセージの構造体です
 type CachedMessage struct {
 	MessageID string
@@ -37,20 +39,6 @@ type BumpConfig struct {
 	RoleID    string `json:"role_id"`
 	Reminder  bool   `json:"reminder"`
 }
-type ReactionRole struct {
-	MessageID string
-	EmojiID   string
-	GuildID   string
-	RoleID    string
-}
-type Schedule struct {
-	ID        int
-	GuildID   string
-	ChannelID string
-	CronSpec  string
-	Message   string
-}
-
 type WelcomeConfig struct {
 	Enabled   bool   `json:"enabled"`
 	ChannelID string `json:"channel_id"`
@@ -77,6 +65,23 @@ type CasinoData struct {
 	PepeCoinBalance int64
 	LastDaily       sql.NullTime // Use sql.NullTime to handle cases where it's not set
 }
+
+type Company struct {
+	Name                string  `json:"name"`
+	Code                string  `json:"code"`
+	Description         string  `json:"description"`
+	Price               float64 `json:"price"`
+	RelatedCategories []string `json:"related_categories"` // JSONとして保存
+}
+
+// PortfolioItem represents a single stock holding for a user.
+type PortfolioItem struct {
+	UserID      string
+	CompanyCode string
+	Shares      int64
+}
+
+// --- DBStore ---
 
 type DBStore struct {
 	db *sql.DB
@@ -144,12 +149,29 @@ func (s *DBStore) initTables() error {
 			PRIMARY KEY (guild_id, word)
 		);`,
 		`CREATE TABLE IF NOT EXISTS casino_data (
-		guild_id TEXT NOT NULL,
-		user_id TEXT NOT NULL,
-		chips INTEGER DEFAULT 1000,
-		pepecoin_balance INTEGER DEFAULT 0,
-		last_daily DATETIME,
-		PRIMARY KEY (guild_id, user_id)
+			guild_id TEXT NOT NULL,
+			user_id TEXT NOT NULL,
+			chips INTEGER DEFAULT 1000,
+			pepecoin_balance INTEGER DEFAULT 0,
+			last_daily DATETIME,
+			PRIMARY KEY (guild_id, user_id)
+		);`,
+		`CREATE TABLE IF NOT EXISTS companies (
+			code TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			description TEXT NOT NULL,
+			price REAL NOT NULL,
+			related_categories TEXT NOT NULL DEFAULT '[]'
+		);`,
+		`CREATE TABLE IF NOT EXISTS command_usage (
+			category TEXT PRIMARY KEY,
+			count INTEGER NOT NULL DEFAULT 0
+		);`,
+		`CREATE TABLE IF NOT EXISTS stocks_portfolios (
+			user_id TEXT NOT NULL,
+			company_code TEXT NOT NULL,
+			shares INTEGER NOT NULL,
+			PRIMARY KEY (user_id, company_code)
 		);`,
 	}
 	for _, table := range tables {
@@ -158,35 +180,6 @@ func (s *DBStore) initTables() error {
 		}
 	}
 	return nil
-}
-
-// CreateMessageCache はメッセージをDBに保存します
-func (s *DBStore) CreateMessageCache(messageID, content, authorID string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	_, err := s.db.Exec("INSERT OR REPLACE INTO message_cache (message_id, content, author_id) VALUES (?, ?, ?)", messageID, content, authorID)
-	return err
-}
-
-// GetMessageCache はメッセージをDBから取得し、その後削除します
-func (s *DBStore) GetMessageCache(messageID string) (*CachedMessage, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var msg CachedMessage
-	err := s.db.QueryRow("SELECT message_id, content, author_id FROM message_cache WHERE message_id = ?", messageID).Scan(&msg.MessageID, &msg.Content, &msg.AuthorID)
-	if err != nil {
-		return nil, err
-	}
-
-	// 取得後、古いレコードなので削除
-	_, err = s.db.Exec("DELETE FROM message_cache WHERE message_id = ?", messageID)
-	if err != nil {
-		// 削除に失敗しても、取得はできているのでメッセージは返す
-		return &msg, nil
-	}
-
-	return &msg, nil
 }
 
 func (s *DBStore) Close() {
@@ -204,6 +197,8 @@ func (s *DBStore) upsertGuild(tx *sql.Tx, guildID string) error {
 	return err
 }
 
+// --- Config Get/Set ---
+
 func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -216,15 +211,10 @@ func (s *DBStore) GetConfig(guildID, configName string, configStruct interface{}
 			s.mu.Lock()
 			tx, _ := s.db.Begin()
 			if err := s.upsertGuild(tx, guildID); err != nil {
-				if err := tx.Rollback(); err != nil {
-					// We can't do much if the rollback fails, so we'll just log it.
-					fmt.Printf("Failed to rollback transaction: %v", err)
-				}
+				tx.Rollback()
 				return err
 			}
-			if err := tx.Commit(); err != nil {
-				return err
-			}
+			tx.Commit()
 			s.mu.Unlock()
 			s.mu.RLock()
 			return nil
@@ -258,6 +248,260 @@ func (s *DBStore) SaveConfig(guildID, configName string, configStruct interface{
 		return err
 	}
 	return tx.Commit()
+}
+
+// --- Casino Data ---
+
+func (s *DBStore) GetCasinoData(guildID, userID string) (*CasinoData, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data := &CasinoData{GuildID: guildID, UserID: userID}
+	query := "SELECT chips, pepecoin_balance, last_daily FROM casino_data WHERE guild_id = ? AND user_id = ?"
+	err := s.db.QueryRow(query, guildID, userID).Scan(&data.Chips, &data.PepeCoinBalance, &data.LastDaily)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			data.Chips = 1000
+			data.PepeCoinBalance = 0
+			insertQuery := "INSERT INTO casino_data (guild_id, user_id, chips, pepecoin_balance, last_daily) VALUES (?, ?, ?, ?, NULL)"
+			_, insertErr := s.db.Exec(insertQuery, guildID, userID, data.Chips, data.PepeCoinBalance)
+			if insertErr != nil {
+				return nil, insertErr
+			}
+			return data, nil
+		}
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func (s *DBStore) UpdateCasinoData(data *CasinoData) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	query := "UPDATE casino_data SET chips = ?, pepecoin_balance = ?, last_daily = ? WHERE guild_id = ? AND user_id = ?"
+	_, err := s.db.Exec(query, data.Chips, data.PepeCoinBalance, data.LastDaily, data.GuildID, data.UserID)
+	return err
+}
+
+func (s *DBStore) GetChipLeaderboard(guildID string, limit int) ([]CasinoData, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	query := "SELECT user_id, chips FROM casino_data WHERE guild_id = ? ORDER BY chips DESC LIMIT ?"
+	rows, err := s.db.Query(query, guildID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var leaderboard []CasinoData
+	for rows.Next() {
+		var data CasinoData
+		data.GuildID = guildID
+		if err := rows.Scan(&data.UserID, &data.Chips); err != nil {
+			return nil, err
+		}
+		leaderboard = append(leaderboard, data)
+	}
+
+	return leaderboard, nil
+}
+
+// --- Stocks ---
+
+
+
+// --- Jackpot ---
+
+func (s *DBStore) GetJackpot(guildID string) (int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var jackpot int64
+	query := "SELECT jackpot FROM guilds WHERE guild_id = ?"
+	err := s.db.QueryRow(query, guildID).Scan(&jackpot)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return jackpot, nil
+}
+
+func (s *DBStore) UpdateJackpot(guildID string, newJackpot int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := s.upsertGuild(tx, guildID); err != nil {
+		return err
+	}
+
+	query := "UPDATE guilds SET jackpot = ? WHERE guild_id = ?"
+	_, err = tx.Exec(query, newJackpot, guildID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (s *DBStore) AddToJackpot(guildID string, amount int64) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := s.upsertGuild(tx, guildID); err != nil {
+		return 0, err
+	}
+
+	updateQuery := "UPDATE guilds SET jackpot = jackpot + ? WHERE guild_id = ?"
+	if _, err := tx.Exec(updateQuery, amount, guildID); err != nil {
+		return 0, err
+	}
+
+	var newJackpot int64
+	selectQuery := "SELECT jackpot FROM guilds WHERE guild_id = ?"
+	if err := tx.QueryRow(selectQuery, guildID).Scan(&newJackpot); err != nil {
+		return 0, err
+	}
+
+	return newJackpot, tx.Commit()
+}
+
+// --- Word Count ---
+
+func (s *DBStore) IncrementWordCount(guildID, userID, word string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	query := `
+		INSERT INTO word_counts (guild_id, user_id, word, count)
+		VALUES (?, ?, ?, 1)
+		ON CONFLICT(guild_id, user_id, word) DO UPDATE SET count = count + 1;`
+	_, err := s.db.Exec(query, guildID, userID, word)
+	return err
+}
+
+func (s *DBStore) GetWordCount(guildID, userID, word string) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var count int
+	query := "SELECT count FROM word_counts WHERE guild_id = ? AND user_id = ? AND word = ?"
+	err := s.db.QueryRow(query, guildID, userID, word).Scan(&count)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return count, nil
+}
+
+func (s *DBStore) GetWordCountRanking(guildID, word string, limit int) ([]WordCount, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	query := `
+		SELECT user_id, count
+		FROM word_counts
+		WHERE guild_id = ? AND word = ?
+		ORDER BY count DESC
+		LIMIT ?;`
+	rows, err := s.db.Query(query, guildID, word, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ranking []WordCount
+	for rows.Next() {
+		var wc WordCount
+		wc.Word = word
+		if err := rows.Scan(&wc.UserID, &wc.Count); err != nil {
+			return nil, err
+		}
+		ranking = append(ranking, wc)
+	}
+	return ranking, nil
+}
+
+// --- Countable Words ---
+
+func (s *DBStore) AddCountableWord(guildID, word string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	query := "INSERT OR IGNORE INTO countable_words (guild_id, word) VALUES (?, ?)"
+	_, err := s.db.Exec(query, guildID, word)
+	return err
+}
+
+func (s *DBStore) RemoveCountableWord(guildID, word string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	query := "DELETE FROM countable_words WHERE guild_id = ? AND word = ?"
+	_, err := s.db.Exec(query, guildID, word)
+	return err
+}
+
+func (s *DBStore) GetCountableWords(guildID string) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	query := "SELECT word FROM countable_words WHERE guild_id = ?"
+	rows, err := s.db.Query(query, guildID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var words []string
+	for rows.Next() {
+		var word string
+		if err := rows.Scan(&word); err != nil {
+			return nil, err
+		}
+		words = append(words, word)
+	}
+	return words, nil
+}
+
+// --- Misc ---
+
+func (s *DBStore) CreateMessageCache(messageID, content, authorID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, err := s.db.Exec("INSERT OR REPLACE INTO message_cache (message_id, content, author_id) VALUES (?, ?, ?)", messageID, content, authorID)
+	return err
+}
+
+func (s *DBStore) GetMessageCache(messageID string) (*CachedMessage, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var msg CachedMessage
+	err := s.db.QueryRow("SELECT message_id, content, author_id FROM message_cache WHERE message_id = ?", messageID).Scan(&msg.MessageID, &msg.Content, &msg.AuthorID)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.db.Exec("DELETE FROM message_cache WHERE message_id = ?", messageID)
+	if err != nil {
+		return &msg, nil
+	}
+
+	return &msg, nil
 }
 
 func (s *DBStore) GetNextTicketCounter(guildID string) (int, error) {
@@ -298,9 +542,6 @@ func (s *DBStore) CloseTicketRecord(channelID string) error {
 	return err
 }
 
-// --- Quiz History ---
-
-// SaveQuizQuestion saves a new quiz question to the history.
 func (s *DBStore) SaveQuizQuestion(guildID, topic, question string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -308,7 +549,6 @@ func (s *DBStore) SaveQuizQuestion(guildID, topic, question string) error {
 	return err
 }
 
-// GetRecentQuizQuestions retrieves the most recent questions for a given guild and topic.
 func (s *DBStore) GetRecentQuizQuestions(guildID, topic string, limit int) ([]string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -331,247 +571,6 @@ func (s *DBStore) GetRecentQuizQuestions(guildID, topic string, limit int) ([]st
 	return questions, nil
 }
 
-// --- Word Count ---
-
-// IncrementWordCount は指定されたユーザーの単語のカウントを1増やします。
-func (s *DBStore) IncrementWordCount(guildID, userID, word string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	query := `
-		INSERT INTO word_counts (guild_id, user_id, word, count)
-		VALUES (?, ?, ?, 1)
-		ON CONFLICT(guild_id, user_id, word) DO UPDATE SET count = count + 1;
-	`
-	_, err := s.db.Exec(query, guildID, userID, word)
-	return err
-}
-
-// GetWordCount は指定されたユーザーの単語のカウントを取得します。
-func (s *DBStore) GetWordCount(guildID, userID, word string) (int, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	var count int
-	query := "SELECT count FROM word_counts WHERE guild_id = ? AND user_id = ? AND word = ?"
-	err := s.db.QueryRow(query, guildID, userID, word).Scan(&count)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return 0, nil // レコードがない場合は0を返す
-		}
-		return 0, err
-	}
-	return count, nil
-}
-
-// GetWordCountRanking は指定された単語のサーバー内ランキングを取得します。
-func (s *DBStore) GetWordCountRanking(guildID, word string, limit int) ([]WordCount, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	query := `
-		SELECT user_id, count
-		FROM word_counts
-		WHERE guild_id = ? AND word = ?
-		ORDER BY count DESC
-		LIMIT ?;
-	`
-	rows, err := s.db.Query(query, guildID, word, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var ranking []WordCount
-	for rows.Next() {
-		var wc WordCount
-		wc.Word = word
-		if err := rows.Scan(&wc.UserID, &wc.Count); err != nil {
-			return nil, err
-		}
-		ranking = append(ranking, wc)
-	}
-	return ranking, nil
-}
-
-// --- Countable Words ---
-
-// AddCountableWord は、サーバーのカウント対象単語を追加します。
-func (s *DBStore) AddCountableWord(guildID, word string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	query := "INSERT OR IGNORE INTO countable_words (guild_id, word) VALUES (?, ?)"
-	_, err := s.db.Exec(query, guildID, word)
-	return err
-}
-
-// RemoveCountableWord は、サーバーのカウント対象単語を削除します。
-func (s *DBStore) RemoveCountableWord(guildID, word string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	query := "DELETE FROM countable_words WHERE guild_id = ? AND word = ?"
-	_, err := s.db.Exec(query, guildID, word)
-	return err
-}
-
-// GetCountableWords は、サーバーのカウント対象単語のリストを取得します。
-func (s *DBStore) GetCountableWords(guildID string) ([]string, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	query := "SELECT word FROM countable_words WHERE guild_id = ?"
-	rows, err := s.db.Query(query, guildID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var words []string
-	for rows.Next() {
-		var word string
-		if err := rows.Scan(&word); err != nil {
-			return nil, err
-		}
-		words = append(words, word)
-	}
-	return words, nil
-}
-
-// --- Casino ---
-
-// GetCasinoData retrieves a user's casino data, creating it if it doesn't exist.
-func (s *DBStore) GetCasinoData(guildID, userID string) (*CasinoData, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	data := &CasinoData{GuildID: guildID, UserID: userID}
-	query := "SELECT chips, pepecoin_balance, last_daily FROM casino_data WHERE guild_id = ? AND user_id = ?"
-	err := s.db.QueryRow(query, guildID, userID).Scan(&data.Chips, &data.PepeCoinBalance, &data.LastDaily)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			// User doesn't have data yet, create it with default values
-			data.Chips = 1000        // Initial chips
-			data.PepeCoinBalance = 0 // Initial PepeCoin
-			insertQuery := "INSERT INTO casino_data (guild_id, user_id, chips, pepecoin_balance, last_daily) VALUES (?, ?, ?, ?, NULL)"
-			_, insertErr := s.db.Exec(insertQuery, guildID, userID, data.Chips, data.PepeCoinBalance)
-			if insertErr != nil {
-				return nil, insertErr
-			}
-			return data, nil // Return the newly created data
-		}
-		return nil, err // Other real error
-	}
-
-	return data, nil
-}
-
-// UpdateCasinoData updates a user's casino data in the database.
-func (s *DBStore) UpdateCasinoData(data *CasinoData) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	query := "UPDATE casino_data SET chips = ?, pepecoin_balance = ?, last_daily = ? WHERE guild_id = ? AND user_id = ?"
-	_, err := s.db.Exec(query, data.Chips, data.PepeCoinBalance, data.LastDaily, data.GuildID, data.UserID)
-	return err
-}
-
-// GetChipLeaderboard retrieves the top users by chip count for a guild.
-func (s *DBStore) GetChipLeaderboard(guildID string, limit int) ([]CasinoData, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	query := "SELECT user_id, chips FROM casino_data WHERE guild_id = ? ORDER BY chips DESC LIMIT ?"
-	rows, err := s.db.Query(query, guildID, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var leaderboard []CasinoData
-	for rows.Next() {
-		var data CasinoData
-		data.GuildID = guildID
-		if err := rows.Scan(&data.UserID, &data.Chips); err != nil {
-			return nil, err
-		}
-		leaderboard = append(leaderboard, data)
-	}
-
-	return leaderboard, nil
-}
-
-// GetJackpot retrieves the current jackpot for a guild.
-func (s *DBStore) GetJackpot(guildID string) (int64, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	var jackpot int64
-	query := "SELECT jackpot FROM guilds WHERE guild_id = ?"
-	err := s.db.QueryRow(query, guildID).Scan(&jackpot)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			// Guild might not exist yet, so we can treat the jackpot as 0.
-			// The upsert logic will handle creating the guild row later.
-			return 0, nil
-		}
-		return 0, err
-	}
-	return jackpot, nil
-}
-
-// UpdateJackpot updates the jackpot for a guild.
-func (s *DBStore) UpdateJackpot(guildID string, newJackpot int64) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if err := s.upsertGuild(tx, guildID); err != nil {
-		return err
-	}
-
-	query := "UPDATE guilds SET jackpot = ? WHERE guild_id = ?"
-	_, err = tx.Exec(query, newJackpot, guildID)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
-}
-
-// AddToJackpot adds an amount to the current jackpot for a guild atomically.
-func (s *DBStore) AddToJackpot(guildID string, amount int64) (int64, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	tx, err := s.db.Begin()
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if err := s.upsertGuild(tx, guildID); err != nil {
-		return 0, err
-	}
-
-	// Atomically add to the jackpot
-	updateQuery := "UPDATE guilds SET jackpot = jackpot + ? WHERE guild_id = ?"
-	if _, err := tx.Exec(updateQuery, amount, guildID); err != nil {
-		return 0, err
-	}
-
-	// Get the new jackpot value
-	var newJackpot int64
-	selectQuery := "SELECT jackpot FROM guilds WHERE guild_id = ?"
-	if err := tx.QueryRow(selectQuery, guildID).Scan(&newJackpot); err != nil {
-		return 0, err
-	}
-
-	return newJackpot, tx.Commit()
-}
-
-// GetRecentMessagesByUser retrieves the most recent messages by a specific user in a guild.
 func (s *DBStore) GetRecentMessagesByUser(guildID, userID string, limit int) ([]string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -593,4 +592,210 @@ func (s *DBStore) GetRecentMessagesByUser(guildID, userID string, limit int) ([]
 	}
 
 	return messages, nil
+}
+
+// --- Stocks ---
+
+func (s *DBStore) GetUserPortfolio(userID string) (map[string]int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	rows, err := s.db.Query("SELECT company_code, shares FROM stocks_portfolios WHERE user_id = ?", userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	portfolio := make(map[string]int64)
+	for rows.Next() {
+		var companyCode string
+		var shares int64
+		if err := rows.Scan(&companyCode, &shares); err != nil {
+			return nil, err
+		}
+		portfolio[companyCode] = shares
+	}
+	return portfolio, nil
+}
+
+func (s *DBStore) UpdateUserPortfolio(userID, companyCode string, shares int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	query := `
+		INSERT INTO stocks_portfolios (user_id, company_code, shares)
+		VALUES (?, ?, ?)
+		ON CONFLICT(user_id, company_code) DO UPDATE SET shares = shares + ?;
+	`
+	_, err := s.db.Exec(query, userID, companyCode, shares, shares)
+	return err
+}
+
+// GetAllCompanies retrieves all companies from the database.
+func (s *DBStore) GetAllCompanies() ([]Company, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	rows, err := s.db.Query("SELECT code, name, description, price, related_categories FROM companies")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var companies []Company
+	for rows.Next() {
+		var c Company
+		var categoriesJSON string
+		if err := rows.Scan(&c.Code, &c.Name, &c.Description, &c.Price, &categoriesJSON); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(categoriesJSON), &c.RelatedCategories); err != nil {
+			return nil, err
+		}
+		companies = append(companies, c)
+	}
+	return companies, nil
+}
+
+// GetCompanyByCode retrieves a single company by its code.
+func (s *DBStore) GetCompanyByCode(code string) (*Company, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var c Company
+	var categoriesJSON string
+	query := "SELECT code, name, description, price, related_categories FROM companies WHERE code = ?"
+	err := s.db.QueryRow(query, code).Scan(&c.Code, &c.Name, &c.Description, &c.Price, &categoriesJSON)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // Not found
+		}
+		return nil, err
+	}
+	if err := json.Unmarshal([]byte(categoriesJSON), &c.RelatedCategories); err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// UpdateCompanyPrices updates the prices of multiple companies in a single transaction.
+func (s *DBStore) UpdateCompanyPrices(prices map[string]float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	stmt, err := tx.Prepare("UPDATE companies SET price = ? WHERE code = ?")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+
+	for code, price := range prices {
+		if _, err := stmt.Exec(price, code); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+// IncrementCommandUsage increments the usage count for a given command category.
+func (s *DBStore) IncrementCommandUsage(category string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	query := `
+		INSERT INTO command_usage (category, count)
+		VALUES (?, 1)
+		ON CONFLICT(category) DO UPDATE SET count = count + 1;
+	`
+	_, err := s.db.Exec(query, category)
+	return err
+}
+
+// GetAndResetCommandUsage retrieves all command usage counts and resets them to zero.
+func (s *DBStore) GetAndResetCommandUsage() (map[string]int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := tx.Query("SELECT category, count FROM command_usage")
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	defer rows.Close()
+
+	usage := make(map[string]int)
+	for rows.Next() {
+		var category string
+		var count int
+		if err := rows.Scan(&category, &count); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+		usage[category] = count
+	}
+
+	// Reset counts
+	_, err = tx.Exec("UPDATE command_usage SET count = 0")
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	return usage, tx.Commit()
+}
+
+// SeedInitialCompanies は、データベースに初期の企業データを投入します。
+func (s *DBStore) SeedInitialCompanies() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	initialCompanies := []Company{
+		{Name: "カジノ・ロワイヤル", Code: "CSN", Description: "カジノ運営", Price: 150.75, RelatedCategories: []string{"カジノ"}},
+		{Name: "AIイマジニアリング", Code: "AIE", Description: "画像生成AIサービス", Price: 320.50, RelatedCategories: []string{"AI"}},
+		{Name: "グローバル・トランスポート", Code: "TRN", Description: "翻訳・国際交流支援", Price: 120.00, RelatedCategories: []string{"AI"}},
+		{Name: "ペペ・プロダクション", Code: "PPC", Description: "ミームコンテンツ制作", Price: 88.20, RelatedCategories: []string{"Fun"}},
+		{Name: "デイリー・サプライ", Code: "DLY", Description: "日々の生活支援", Price: 95.60, RelatedCategories: []string{"カジノ", "ユーティリティ"}},
+		{Name: "Lunaインフラストラクチャ", Code: "LNA", Description: "Bot自身の運営", Price: 500.00, RelatedCategories: []string{"ユーティリティ", "管理"}},
+		{Name: "ギーク・トイズ", Code: "GKT", Description: "ツール・計算機開発", Price: 75.00, RelatedCategories: []string{"ユーティリティ", "ポケモン", "ツール"}},
+		{Name: "ミューズ・エンタテインメント", Code: "MUS", Description: "音楽配信サービス", Price: 180.00, RelatedCategories: []string{"音楽"}},
+		{Name: "アシスタント・ギルド", Code: "ASG", Description: "AIアシスタント・Q&A", Price: 250.00, RelatedCategories: []string{"AI"}},
+		{Name: "セキュリティ・ソリューションズ", Code: "SCS", Description: "サーバー管理・セキュリティ", Price: 220.00, RelatedCategories: []string{"管理", "ユーティリティ"}},
+		{Name: "サンダーリーグ", Code: "WTR", Description: "War Thunder関連ツール", Price: 60.00, RelatedCategories: []string{"War Thunder"}},
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	stmt, err := tx.Prepare(`INSERT OR IGNORE INTO companies (code, name, description, price, related_categories) VALUES (?, ?, ?, ?, ?)`)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+
+	for _, company := range initialCompanies {
+		categoriesJSON, _ := json.Marshal(company.RelatedCategories)
+		_, err := stmt.Exec(company.Code, company.Name, company.Description, company.Price, string(categoriesJSON))
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit()
 }

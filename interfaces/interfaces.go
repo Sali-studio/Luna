@@ -42,6 +42,14 @@ type DataStore interface {
 	GetJackpot(guildID string) (int64, error)
 	UpdateJackpot(guildID string, newJackpot int64) error
 	AddToJackpot(guildID string, amount int64) (int64, error)
+	// Stocks
+	GetUserPortfolio(userID string) (map[string]int64, error)
+	UpdateUserPortfolio(userID, companyCode string, shares int64) error
+	GetAllCompanies() ([]storage.Company, error)
+	GetCompanyByCode(code string) (*storage.Company, error)
+	UpdateCompanyPrices(prices map[string]float64) error
+	IncrementCommandUsage(category string) error
+	GetAndResetCommandUsage() (map[string]int, error)
 	GetRecentMessagesByUser(guildID, userID string, limit int) ([]string, error)
 }
 

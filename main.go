@@ -45,6 +45,10 @@ func main() {
 	if err != nil {
 		log.Fatal("データベースの初期化に失敗しました", "error", err)
 	}
+	// 初回起動時に企業データをDBに登録
+	if err := db.SeedInitialCompanies(); err != nil {
+		log.Fatal("企業データの初期化に失敗しました", "error", err)
+	}
 	scheduler := cron.New()
 
 	// 音楽プレイヤーのインスタンスを先に生成 (Sessionは後で設定)
@@ -60,7 +64,11 @@ func main() {
 	musicPlayer.Session = b.GetSession()
 
 	// コマンドハンドラーを登録
-	commandHandlers, componentHandlers, registeredCommands := commands.RegisterCommands(log, b.GetDBStore(), b.GetScheduler(), b.GetPlayer(), b.GetSession(), b.GetStartTime())
+	commandHandlers, componentHandlers, registeredCommands, stockCmd := commands.RegisterCommands(log, b.GetDBStore(), b.GetScheduler(), b.GetPlayer(), b.GetSession(), b.GetStartTime())
+
+	// 5分ごとに株価を更新
+	scheduler.AddFunc("@every 5m", stockCmd.UpdateStockPrices)
+	scheduler.Start()
 
 	// Botを起動
 	if err := b.Start(commandHandlers, componentHandlers, registeredCommands); err != nil {
