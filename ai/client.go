@@ -7,6 +7,7 @@ import (
 	"io"
 	"luna/config"
 	"net/http"
+	"time"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1beta1"
 	"cloud.google.com/go/aiplatform/apiv1beta1/aiplatformpb"
@@ -16,9 +17,10 @@ import (
 
 // Client はAIサービスとのやり取りを管理します。
 type Client struct {
-	vertexClient *aiplatform.PredictionClient
-	projectID    string
-	location     string
+	genClient    *aiplatform.GenerativeClient
+	predictClient *aiplatform.PredictionClient
+	projectID     string
+	location      string
 }
 
 // NewClient は新しいAIクライアントを作成します。
@@ -27,86 +29,62 @@ func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("Google ProjectIDまたはCredentialsPathが設定されていません")
 	}
 
-	location := "us-central1" // Imagen 4 is available in us-central1
+	location := "us-central1"
 	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
 
-	// Vertex AI Client
-	vertexClient, err := aiplatform.NewPredictionClient(ctx, option.WithCredentialsFile(cfg.Google.CredentialsPath), option.WithEndpoint(endpoint))
+	// Gemini Client (GenerativeClient)
+	genClient, err := aiplatform.NewGenerativeClient(ctx, option.WithCredentialsFile(cfg.Google.CredentialsPath), option.WithEndpoint(endpoint))
 	if err != nil {
-		return nil, fmt.Errorf("Vertex AIクライアントの作成に失敗しました: %w", err)
+		return nil, fmt.Errorf("Vertex AI GenerativeClientの作成に失敗しました: %w", err)
+	}
+
+	// Imagen Client (PredictionClient)
+	predictClient, err := aiplatform.NewPredictionClient(ctx, option.WithCredentialsFile(cfg.Google.CredentialsPath), option.WithEndpoint(endpoint))
+	if err != nil {
+		return nil, fmt.Errorf("Vertex AI PredictionClientの作成に失敗しました: %w", err)
 	}
 
 	return &Client{
-		vertexClient: vertexClient,
-		projectID:    cfg.Google.ProjectID,
-		location:     location,
+		genClient:     genClient,
+		predictClient: predictClient,
+		projectID:     cfg.Google.ProjectID,
+		location:      location,
 	}, nil
 }
 
 // Close はクライアントをクローズします。
 func (c *Client) Close() {
-	c.vertexClient.Close()
-}
-
-// --- Private Helper ---
-
-func (c *Client) predictText(ctx context.Context, modelID string, prompt string, mimeType string, imageData []byte) (string, error) {
-	var instances []*structpb.Value
-	var parts []*structpb.Value
-
-	// Prompt Part
-	textPart, _ := structpb.NewStruct(map[string]interface{}{"text": prompt})
-	parts = append(parts, structpb.NewStructValue(textPart))
-
-	// Image Part (if exists)
-	if imageData != nil {
-		imgPart, _ := structpb.NewStruct(map[string]interface{}{
-			"inline_data": base64.StdEncoding.EncodeToString(imageData),
-			"mime_type":   mimeType,
-		})
-		parts = append(parts, structpb.NewStructValue(imgPart))
-	}
-
-	// Instance
-	instance, _ := structpb.NewStruct(map[string]interface{}{
-		"messages": structpb.NewListValue(&structpb.ListValue{Values: []*structpb.Value{
-			structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
-				"role":  structpb.NewStringValue("user"),
-				"parts": structpb.NewListValue(&structpb.ListValue{Values: parts}),
-			}}),
-		}}),
-	})
-	instances = append(instances, structpb.NewStructValue(instance))
-
-	endpoint := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", c.projectID, c.location, modelID)
-
-	req := &aiplatformpb.PredictRequest{
-		Endpoint:  endpoint,
-		Instances: instances,
-	}
-
-	resp, err := c.vertexClient.Predict(ctx, req)
-	if err != nil {
-		return "", fmt.Errorf("Vertex AI予測リクエストに失敗: %w", err)
-	}
-
-	if len(resp.Predictions) == 0 {
-		return "", fmt.Errorf("AIから有効な応答がありませんでした")
-	}
-
-	content, ok := resp.Predictions[0].GetStructValue().Fields["content"]
-	if !ok {
-		return "", fmt.Errorf("応答にcontentフィールドが含まれていません")
-	}
-
-	return content.GetStringValue(), nil
+	c.genClient.Close()
+	c.predictClient.Close()
 }
 
 // --- Public Methods ---
 
 // GenerateText は、与えられたプロンプトに基づいてテキストを生成します。
 func (c *Client) GenerateText(ctx context.Context, prompt string) (string, error) {
-	return c.predictText(ctx, "gemini-2.5-pro", prompt, "", nil)
+	model := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/gemini-2.5-pro", c.projectID, c.location)
+	req := &aiplatformpb.GenerateContentRequest{
+		Model: model,
+		Contents: []*aiplatformpb.Content{
+			{
+				Role: "user",
+				Parts: []*aiplatformpb.Part{
+					{Data: &aiplatformpb.Part_Text{Text: prompt}},
+				},
+			},
+		},
+	}
+
+	resp, err := c.genClient.GenerateContent(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("Vertex AI (Gemini)からの応答生成に失敗: %w", err)
+	}
+
+	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
+		return "", fmt.Errorf("AIから有効な応答がありませんでした")
+	}
+
+	return resp.Candidates[0].Content.Parts[0].GetText(), nil
 }
 
 // GenerateTextFromImage は、画像とプロンプトに基づいてテキストを生成します。
@@ -121,12 +99,38 @@ func (c *Client) GenerateTextFromImage(ctx context.Context, prompt string, image
 	if err != nil {
 		return "", err
 	}
-	
-	return c.predictText(ctx, "gemini-2.5-pro", prompt, resp.Header.Get("Content-Type"), imageData)
+
+	model := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/gemini-2.5-pro", c.projectID, c.location)
+	req := &aiplatformpb.GenerateContentRequest{
+		Model: model,
+		Contents: []*aiplatformpb.Content{
+			{
+				Role: "user",
+				Parts: []*aiplatformpb.Part{
+					{Data: &aiplatformpb.Part_Text{Text: prompt}},
+					{Data: &aiplatformpb.Part_InlineData{InlineData: &aiplatformpb.Blob{MimeType: resp.Header.Get("Content-Type"), Data: imageData}}},
+				},
+			},
+		},
+	}
+
+	resp, err = c.genClient.GenerateContent(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("Vertex AI (Gemini)からの応答生成に失敗: %w", err)
+	}
+
+	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
+		return "", fmt.Errorf("AIから有効な応答がありませんでした")
+	}
+
+	return resp.Candidates[0].Content.Parts[0].GetText(), nil
 }
 
 // GenerateImage は、与えられたプロンプトに基づいて画像を生成します。
 func (c *Client) GenerateImage(ctx context.Context, prompt string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
 	parameters, _ := structpb.NewStruct(map[string]interface{}{
 		"sampleCount": 1,
 	})
@@ -143,7 +147,7 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string) (string, erro
 		Parameters: structpb.NewStructValue(parameters),
 	}
 
-	resp, err := c.vertexClient.Predict(ctx, req)
+	resp, err := c.predictClient.Predict(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("Vertex AI (Imagen)予測リクエストに失敗: %w", err)
 	}
@@ -152,11 +156,10 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string) (string, erro
 		return "", fmt.Errorf("AIから有効な応答がありませんでした")
 	}
 
-	// Assuming the response contains a base64 encoded image
-	bytes, ok := resp.Predictions[0].GetStructValue().Fields["bytesBase64Encoded"]
+	bytesVal, ok := resp.Predictions[0].GetStructValue().Fields["bytesBase64Encoded"]
 	if !ok {
 		return "", fmt.Errorf("応答にbytesBase64Encodedフィールドが含まれていません")
 	}
 
-	return bytes.GetStringValue(), nil
+	return bytesVal.GetStringValue(), nil
 }
