@@ -1,14 +1,9 @@
 package commands
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
-	"time"
-
+	"luna/ai"
 	"luna/interfaces"
 
 	"github.com/bwmarrin/discordgo"
@@ -27,6 +22,7 @@ import (
 
 type AskCommand struct {
 	Log interfaces.Logger
+	AI  *ai.Client
 }
 
 func (c *AskCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -57,69 +53,23 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 	// ユーザーの質問にペルソナを付け加える
 	fullPrompt := fmt.Sprintf("システムインストラクション（あなたの役割）: %s\n\n[ユーザーからの質問]\n%s", persona, prompt)
 
-	// Pythonサーバーに送信するデータを作成
-	reqData := TextRequest{Prompt: fullPrompt}
-	reqJson, _ := json.Marshal(reqData)
-
-	// Pythonサーバーのストリーミングエンドポイントにリクエストを送信
-	resp, err := http.Post("http://localhost:5001/generate-text-stream", "application/json", bytes.NewBuffer(reqJson))
+	// AIクライアントを使用してテキストを生成
+	responseText, err := c.AI.GenerateText(context.Background(), fullPrompt)
 
 	// エラーハンドリング
 	if err != nil {
-		c.Log.Error("AIサーバーへの接続に失敗", "error", err)
-		content := "エラー: AIサーバーへの接続に失敗しました。"
+		c.Log.Error("AIからの応答生成に失敗", "error", err)
+		content := "エラー: AIからの応答の取得に失敗しました。"
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
 			c.Log.Error("Failed to edit error response", "error", err)
 		}
 		return
 	}
-	defer resp.Body.Close()
-
-	// ストリーミングでレスポンスを処理
-	var responseText strings.Builder
-	var lastUpdateTime time.Time
-	buffer := make([]byte, 1024) // チャンクを読み込むためのバッファ
-
-	for {
-		n, err := resp.Body.Read(buffer)
-		if n > 0 {
-			responseText.WriteString(string(buffer[:n]))
-
-			// Discord APIのレート制限を避けるため、一定間隔でメッセージを更新
-			if time.Since(lastUpdateTime) > 1500*time.Millisecond {
-				embed := &discordgo.MessageEmbed{
-					Title:       "💬 Luna Assistantからの回答",
-					Description: responseText.String() + "...", // 生成中であることを示す
-					Color:       0x824ff1,                      // Gemini Purple
-					Author: &discordgo.MessageEmbedAuthor{
-						Name:    i.Member.User.String(),
-						IconURL: i.Member.User.AvatarURL(""),
-					},
-					Footer: &discordgo.MessageEmbedFooter{
-						Text: "Powered by Luna | 生成中...",
-					},
-				}
-				if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-					Embeds: &[]*discordgo.MessageEmbed{embed},
-				}); err != nil {
-					c.Log.Error("Failed to edit streaming response", "error", err)
-				}
-				lastUpdateTime = time.Now()
-			}
-		}
-		if err == io.EOF {
-			break // ストリームの終端
-		}
-		if err != nil {
-			c.Log.Error("ストリームの読み込みに失敗", "error", err)
-			break
-		}
-	}
 
 	// 最終的なメッセージを送信
 	embed := &discordgo.MessageEmbed{
 		Title:       "💬 Luna Assistantからの回答",
-		Description: responseText.String(),
+		Description: responseText,
 		Color:       0x824ff1, // Gemini Purple
 		Author: &discordgo.MessageEmbedAuthor{
 			Name:    i.Member.User.String(),

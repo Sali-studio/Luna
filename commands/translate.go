@@ -1,18 +1,17 @@
 package commands
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
+	"luna/ai"
 	"luna/interfaces"
-	"net/http"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 type TranslateCommand struct {
 	Log interfaces.Logger
+	AI  *ai.Client
 }
 
 func (c *TranslateCommand) GetCommandDef() *discordgo.ApplicationCommand {
