@@ -42,9 +42,9 @@ func NewMessageHandler(log interfaces.Logger, store interfaces.DataStore) *Messa
 }
 
 func (h *MessageHandler) Register(s *discordgo.Session) {
-	s.AddHandler(h.onMessageCreate)
-	s.AddHandler(h.onMessageUpdate)
-	s.AddHandler(h.onMessageDelete)
+	s.AddHandler(h.OnMessageCreate)
+	s.AddHandler(h.OnMessageUpdate)
+	s.AddHandler(h.OnMessageDelete)
 }
 
 func (h *MessageHandler) OnMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {

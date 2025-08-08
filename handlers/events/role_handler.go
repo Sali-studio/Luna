@@ -17,9 +17,9 @@ func NewRoleHandler(log interfaces.Logger, store interfaces.DataStore) *RoleHand
 }
 
 func (h *RoleHandler) Register(s *discordgo.Session) {
-	s.AddHandler(h.onRoleCreate)
-	s.AddHandler(h.onRoleDelete)
-	s.AddHandler(h.onRoleUpdate)
+	s.AddHandler(h.OnRoleCreate)
+	s.AddHandler(h.OnRoleDelete)
+	s.AddHandler(h.OnRoleUpdate)
 }
 
 func (h *RoleHandler) OnRoleCreate(s *discordgo.Session, e *discordgo.GuildRoleCreate) {

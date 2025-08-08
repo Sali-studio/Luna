@@ -17,9 +17,9 @@ func NewChannelHandler(log interfaces.Logger, store interfaces.DataStore) *Chann
 }
 
 func (h *ChannelHandler) Register(s *discordgo.Session) {
-	s.AddHandler(h.onChannelCreate)
-	s.AddHandler(h.onChannelDelete)
-	s.AddHandler(h.onChannelUpdate)
+	s.AddHandler(h.OnChannelCreate)
+	s.AddHandler(h.OnChannelDelete)
+	s.AddHandler(h.OnChannelUpdate)
 }
 
 func (h *ChannelHandler) OnChannelCreate(s *discordgo.Session, e *discordgo.ChannelCreate) {

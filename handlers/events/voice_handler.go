@@ -23,10 +23,10 @@ func NewVoiceHandler(log interfaces.Logger, store interfaces.DataStore) *VoiceHa
 }
 
 func (h *VoiceHandler) Register(s *discordgo.Session) {
-	s.AddHandler(h.onVoiceStateUpdate)
+	s.AddHandler(h.OnVoiceStateUpdate)
 }
 
-func (h *VoiceHandler) onVoiceStateUpdate(s *discordgo.Session, e *discordgo.VoiceStateUpdate) {
+func (h *VoiceHandler) OnVoiceStateUpdate(s *discordgo.Session, e *discordgo.VoiceStateUpdate) {
 	var vcConfig storage.TempVCConfig
 	if err := h.Store.GetConfig(e.GuildID, ConfigKeyTempVC, &vcConfig); err != nil || vcConfig.LobbyID == "" {
 		return

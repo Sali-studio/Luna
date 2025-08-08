@@ -20,7 +20,6 @@ type EventHandler struct {
 	channelHandler *events.ChannelHandler
 	roleHandler    *events.RoleHandler
 	voiceHandler   *events.VoiceHandler
-	memberHandler  *events.MemberEventHandler
 }
 
 // NewEventHandler は、すべてのイベントハンドラを初期化してラップする新しいEventHandlerを返します。
@@ -34,7 +33,6 @@ func NewEventHandler(log interfaces.Logger, db interfaces.DataStore, commandHand
 		channelHandler:    events.NewChannelHandler(log, db),
 		roleHandler:       events.NewRoleHandler(log, db),
 		voiceHandler:      events.NewVoiceHandler(log, db),
-		memberHandler:     events.NewMemberEventHandler(db, log),
 	}
 }
 
@@ -60,7 +58,7 @@ func (h *EventHandler) OnMessageDelete(s *discordgo.Session, m *discordgo.Messag
 
 // OnGuildMemberAdd は、メンバーがギルドに参加したときに呼び出されます。
 func (h *EventHandler) OnGuildMemberAdd(s *discordgo.Session, m *discordgo.GuildMemberAdd) {
-	h.memberHandler.OnGuildMemberAdd(s, m)
+	events.OnGuildMemberAdd(s, m, h.db, h.log)
 }
 
 // OnGuildMemberRemove は、メンバーがギルドから退出または追放されたときに呼び出されます。
