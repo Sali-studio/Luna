@@ -11,7 +11,6 @@ type Config struct {
 		Token string `mapstructure:"token"`
 	}
 	Google struct {
-		APIKey          string `mapstructure:"api_key"`
 		ProjectID       string `mapstructure:"project_id"`
 		CredentialsPath string `mapstructure:"credentials_path"`
 	}
@@ -20,9 +19,6 @@ type Config struct {
 		ClientSecret  string `mapstructure:"client_secret"`
 		RedirectURI   string `mapstructure:"redirect_uri"`
 		SessionSecret string `mapstructure:"session_secret"`
-	}
-	Replicate struct {
-		APIToken string `mapstructure:"api_token"`
 	}
 }
 

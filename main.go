@@ -10,6 +10,7 @@ import (
 	"luna/servers"
 	"luna/storage"
 	"math/rand"
+	"os"
 
 	"github.com/robfig/cron/v3"
 )
@@ -19,6 +20,11 @@ func main() {
 
 	if err := config.LoadConfig(log); err != nil {
 		log.Fatal("設定ファイルの読み込みに失敗しました", "error", err)
+	}
+
+	// Google Cloudの認証情報を環境変数に設定
+	if config.Cfg.Google.CredentialsPath != "" {
+		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", config.Cfg.Google.CredentialsPath)
 	}
 
 	// AIクライアントの初期化

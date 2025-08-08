@@ -2,7 +2,9 @@
 package commands
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"luna/ai"
 	"luna/interfaces"
@@ -112,19 +114,30 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	}
 
 	// AIに画像生成を依頼
-	imageURL, err := c.AI.GenerateImage(context.Background(), finalPrompt)
+	base64Image, err := c.AI.GenerateImage(context.Background(), finalPrompt)
 
 	// 6. 応答に応じてメッセージを編集
 	if err != nil {
 		c.Log.Error("画像の生成に失敗", "error", err)
-		content := fmt.Sprintf("エラー: 画像の生成に失敗しました。\n`%s`", err.Error())
+		content := fmt.Sprintf("エラー: 画像の生成に失敗しました.\n`%s`", err.Error())
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
 			c.Log.Error("Failed to edit error response", "error", err)
 		}
 		return
 	}
 
-	// 7. 成功した場合、Embedを更新
+	// Base64デコード
+	imageBytes, err := base64.StdEncoding.DecodeString(base64Image)
+	if err != nil {
+		c.Log.Error("Base64のデコードに失敗", "error", err)
+		content := "エラー: AIからの応答画像の解析に失敗しました。"
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
+			c.Log.Error("Failed to edit error response", "error", err)
+		}
+		return
+	}
+
+	// 7. 成功した場合、Embedとファイルを一緒に投稿
 	description := fmt.Sprintf("**Prompt:**\n```\n%s\n```", prompt)
 	if userNegativePrompt != "" {
 		description += fmt.Sprintf("\n**Negative Prompt:**\n```\n%s\n```", userNegativePrompt)
@@ -141,7 +154,7 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		},
 		Description: description,
 		Image: &discordgo.MessageEmbedImage{
-			URL: imageURL,
+			URL: "attachment://generated_image.png",
 		},
 		Color: 0x824ff1, // Gemini Purple
 		Footer: &discordgo.MessageEmbedFooter{
@@ -151,6 +164,12 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 
 	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Embeds: &[]*discordgo.MessageEmbed{embed},
+		Files: []*discordgo.File{
+			{
+				Name:   "generated_image.png",
+				Reader: bytes.NewReader(imageBytes),
+			},
+		},
 	}); err != nil {
 		c.Log.Error("Failed to edit final response", "error", err)
 	}
