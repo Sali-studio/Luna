@@ -77,7 +77,7 @@ func (c *StockCommand) handleList(s *discordgo.Session, i *discordgo.Interaction
 		})
 	}
 
-	ss.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
