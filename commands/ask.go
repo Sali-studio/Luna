@@ -90,7 +90,7 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 				embed := &discordgo.MessageEmbed{
 					Title:       "💬 Luna Assistantからの回答",
 					Description: responseText.String() + "...", // 生成中であることを示す
-					Color:       0x824ff1, // Gemini Purple
+					Color:       0x824ff1,                      // Gemini Purple
 					Author: &discordgo.MessageEmbedAuthor{
 						Name:    i.Member.User.String(),
 						IconURL: i.Member.User.AvatarURL(""),
@@ -126,7 +126,7 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 			IconURL: i.Member.User.AvatarURL(""),
 		},
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "Powered by Luna",
+			Text: "Powered by Luna AI",
 		},
 	}
 
@@ -136,7 +136,6 @@ func (c *AskCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 		c.Log.Error("Failed to edit final response", "error", err)
 	}
 }
-
 
 func (c *AskCommand) HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {}
 func (c *AskCommand) HandleModal(s *discordgo.Session, i *discordgo.InteractionCreate)     {}

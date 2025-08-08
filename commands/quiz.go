@@ -125,7 +125,7 @@ func (c *QuizCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		defer c.mu.Unlock()
 
 		game := &QuizGame{
-			State:              QBStateQuizting,
+			State:              QStateBetting,
 			ChannelID:          i.ChannelID,
 			Interaction:        i.Interaction,
 			Question:           quiz.Question,
@@ -198,7 +198,7 @@ func (c *QuizCommand) handleBetButton(s *discordgo.Session, i *discordgo.Interac
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if game.State != QBStateQuizting {
+	if game.State != QStateBetting {
 		sendErrorResponse(s, i, "ベット受付は終了しました。")
 		return
 	}
@@ -316,7 +316,7 @@ func (c *QuizCommand) buildBettingEmbed(game *QuizGame) *discordgo.MessageEmbed 
 	}
 
 	footer := fmt.Sprintf("ベット受付終了まで: %d秒", int(time.Until(game.EndTime).Seconds()))
-	if game.State == QBStateQuizFinished {
+	if game.State == QStateFinished {
 		footer = "ベット受付は終了しました。"
 	}
 
@@ -355,7 +355,7 @@ func (c *QuizCommand) scheduleEndBetting(s *discordgo.Session, game *QuizGame) {
 		case <-ticker.C:
 			c.mu.Lock()
 			// ゲームがまだアクティブか確認
-			if g, exists := c.games[game.ChannelID]; !exists || g.State != QBStateQuizting {
+			if g, exists := c.games[game.ChannelID]; !exists || g.State != QStateBetting {
 				c.mu.Unlock()
 				return
 			}
@@ -374,7 +374,7 @@ func (c *QuizCommand) scheduleEndBetting(s *discordgo.Session, game *QuizGame) {
 		case <-timer.C:
 			c.mu.Lock()
 			defer c.mu.Unlock()
-			if g, exists := c.games[game.ChannelID]; !exists || g.State != QBStateQuizting {
+			if g, exists := c.games[game.ChannelID]; !exists || g.State != QStateBetting {
 				return
 			}
 			c.endBetting(s, game)
@@ -384,7 +384,7 @@ func (c *QuizCommand) scheduleEndBetting(s *discordgo.Session, game *QuizGame) {
 }
 
 func (c *QuizCommand) endBetting(s *discordgo.Session, game *QuizGame) {
-	game.State = QBStateQuizFinished
+	game.State = QStateFinished
 
 	correctOption := game.Options[game.CorrectAnswerIndex]
 	resultEmbed := &discordgo.MessageEmbed{

@@ -99,7 +99,7 @@ func (c *OcrCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 			URL: attachment.URL,
 		},
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "Powered by Luna OCR",
+			Text: "Powered by Luna AI",
 		},
 	}
 
