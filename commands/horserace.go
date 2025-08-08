@@ -306,10 +306,21 @@ func (c *HorseRaceCommand) startRace(s *discordgo.Session, game *HorseRaceGame) 
 
 		winner := -1
 		for i := range horsePositions {
-			// Modify the chance to move based on the horse's condition modifier
-			if c.rand.Float64() < (0.15 * game.Horses[i].Modifier) { // Base chance 15%
-				horsePositions[i] += c.rand.Intn(3) + 1
+			// All horses move, but the distance depends on their condition
+			baseMove := c.rand.Intn(3) + 1 // Base move of 1-3
+			modifier := 0
+			switch game.Horses[i].Condition {
+			case "絶好調":
+				modifier = 1
+			case "不調":
+				modifier = -1
 			}
+			move := baseMove + modifier
+			if move < 1 {
+				move = 1 // Ensure horse moves at least 1 space
+			}
+			horsePositions[i] += move
+
 			if horsePositions[i] >= RaceTrackLength {
 				horsePositions[i] = RaceTrackLength
 				winner = i
@@ -330,7 +341,7 @@ func (c *HorseRaceCommand) startRace(s *discordgo.Session, game *HorseRaceGame) 
 			return
 		}
 
-		time.Sleep(1500 * time.Millisecond)
+		time.Sleep(800 * time.Millisecond)
 	}
 }
 
