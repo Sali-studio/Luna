@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"luna/ai"
 	"luna/bot"
 	"luna/commands"
 	"luna/config"
@@ -8,7 +10,6 @@ import (
 	"luna/servers"
 	"luna/storage"
 	"math/rand"
-	"os"
 
 	"github.com/robfig/cron/v3"
 )
@@ -20,14 +21,16 @@ func main() {
 		log.Fatal("設定ファイルの読み込みに失敗しました", "error", err)
 	}
 
-	// Google Cloudの認証情報を環境変数に設定
-	if config.Cfg.Google.CredentialsPath != "" {
-		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", config.Cfg.Google.CredentialsPath)
+	// AIクライアントの初期化
+	aiClient, err := ai.NewClient(context.Background(), config.Cfg)
+	if err != nil {
+		log.Fatal("AIクライアントの初期化に失敗しました", "error", err)
 	}
+	defer aiClient.Close()
 
 	// サーバーの自動起動
 	serverManager := servers.NewManager(log)
-	serverManager.AddServer(servers.NewGenericServer("Python AI Server", "python", []string{"python_server.py"}, ""))
+	// serverManager.AddServer(servers.NewGenericServer("Python AI Server", "python", []string{"python_server.py"}, ""))
 
 	serverManager.StartAll()
 	defer serverManager.StopAll()
@@ -50,7 +53,7 @@ func main() {
 	}
 
 	// コマンドハンドラーを登録
-	commandHandlers, componentHandlers, registeredCommands, stockCmd := commands.RegisterCommands(log, b.GetDBStore(), b.GetScheduler(), b.GetSession(), b.GetStartTime())
+	commandHandlers, componentHandlers, registeredCommands, stockCmd := commands.RegisterCommands(log, b.GetDBStore(), b.GetScheduler(), aiClient, b.GetSession(), b.GetStartTime())
 
 	// 5分ごとに株価を更新
 	scheduler.AddFunc("@every 5m", stockCmd.UpdateStockPrices)
