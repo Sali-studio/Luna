@@ -6,7 +6,6 @@ import (
 	"luna/config"
 	"luna/handlers/web"
 	"luna/logger"
-	"luna/player"
 	"luna/servers"
 	"luna/storage"
 	"math/rand"
@@ -17,8 +16,6 @@ import (
 
 func main() {
 	log := logger.New()
-
-	var musicPlayer *player.Player
 
 	if err := config.LoadConfig(log); err != nil {
 		log.Fatal("設定ファイルの読み込みに失敗しました", "error", err)
@@ -35,7 +32,6 @@ func main() {
 	// サーバーの自動起動
 	serverManager := servers.NewManager(log)
 	serverManager.AddServer(servers.NewGenericServer("Python AI Server", "python", []string{"python_server.py"}, ""))
-	// serverManager.AddServer(servers.NewGenericServer("C# OCR Server", "dotnet", []string{"run"}, "./csharp_server"))
 
 	serverManager.StartAll()
 	defer serverManager.StopAll()
@@ -51,20 +47,14 @@ func main() {
 	}
 	scheduler := cron.New()
 
-	// 音楽プレイヤーのインスタンスを先に生成 (Sessionは後で設定)
-	musicPlayer = player.NewPlayer(nil, log, db)
-
 	// Botに依存性を注入
-	b, err := bot.New(log, db, scheduler, musicPlayer)
+	b, err := bot.New(log, db, scheduler)
 	if err != nil {
 		log.Fatal("Botの初期化に失敗しました", "error", err)
 	}
 
-	// BotのSessionをPlayerに設定
-	musicPlayer.Session = b.GetSession()
-
 	// コマンドハンドラーを登録
-	commandHandlers, componentHandlers, registeredCommands, stockCmd := commands.RegisterCommands(log, b.GetDBStore(), b.GetScheduler(), b.GetPlayer(), b.GetSession(), b.GetStartTime())
+	commandHandlers, componentHandlers, registeredCommands, stockCmd := commands.RegisterCommands(log, b.GetDBStore(), b.GetScheduler(), b.GetSession(), b.GetStartTime())
 
 	// 5分ごとに株価を更新
 	scheduler.AddFunc("@every 5m", stockCmd.UpdateStockPrices)

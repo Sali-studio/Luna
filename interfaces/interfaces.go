@@ -70,16 +70,3 @@ type CommandHandler interface {
 	GetComponentIDs() []string
 	GetCategory() string
 }
-
-// MusicPlayer は音楽再生機能のインターフェースを定義します。
-type MusicPlayer interface {
-	JoinVC(guildID, channelID string) error
-	LeaveVC(guildID string)
-	Play(guildID string, url, title, author string) error // Song構造体ではなく、必要なフィールドを直接渡す
-	Stop(guildID string)
-	Skip(guildID string)
-	GetQueue(guildID string) []struct{ URL, Title, Author string }  // Song構造体ではなく、匿名構造体で返す
-	NowPlaying(guildID string) *struct{ URL, Title, Author string } // Song構造体ではなく、匿名構造体で返す
-	GetGuildPlayer(guildID string) interface{}                      // player.GuildPlayerの代わりにinterface{}を返す
-	GetAudioStreamURL(url string) (streamURL, title, author string, err error)
-}

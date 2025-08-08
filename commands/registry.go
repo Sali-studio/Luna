@@ -13,11 +13,10 @@ type AppContext struct {
 	Store     interfaces.DataStore
 	Scheduler interfaces.Scheduler
 	StartTime time.Time
-	Player    interfaces.MusicPlayer
 }
 
 // RegisterCommands initializes and returns all command handlers.
-func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Scheduler, player interfaces.MusicPlayer, session *discordgo.Session, startTime time.Time) (map[string]interfaces.CommandHandler, map[string]interfaces.CommandHandler, []*discordgo.ApplicationCommand, *StockCommand) {
+func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Scheduler, session *discordgo.Session, startTime time.Time) (map[string]interfaces.CommandHandler, map[string]interfaces.CommandHandler, []*discordgo.ApplicationCommand, *StockCommand) {
 	commandHandlers := make(map[string]interfaces.CommandHandler)
 	componentHandlers := make(map[string]interfaces.CommandHandler)
 	registeredCommands := make([]*discordgo.ApplicationCommand, 0)
@@ -26,7 +25,6 @@ func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler 
 		Log:       log,
 		Store:     db,
 		Scheduler: scheduler,
-		Player:    player,
 		StartTime: startTime,
 	}
 
@@ -58,12 +56,6 @@ func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler 
 		&WordRankingCommand{Store: appCtx.Store, Log: appCtx.Log},
 		&WordConfigCommand{Store: appCtx.Store, Log: appCtx.Log},
 		&RouletteCommand{Log: appCtx.Log},
-		&JoinCommand{Player: appCtx.Player, Log: appCtx.Log},
-		&PlayCommand{Player: appCtx.Player, Log: appCtx.Log},
-		&StopCommand{Player: appCtx.Player, Log: appCtx.Log},
-		&SkipCommand{Player: appCtx.Player, Log: appCtx.Log},
-		&QueueCommand{Player: appCtx.Player, Log: appCtx.Log},
-		&LeaveCommand{Player: appCtx.Player, Log: appCtx.Log},
 		&WTBRCommand{Log: appCtx.Log},
 		&AutoRoleCommand{Store: appCtx.Store, Log: appCtx.Log},
 		// Casino Commands
