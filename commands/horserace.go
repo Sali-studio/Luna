@@ -414,7 +414,13 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 				resultDescription.WriteString(fmt.Sprintf("👑 <@%s> は **%d** チップをベットして **%d** チップの配当を獲得！ (収支: **+%d**)\n", winner.UserID, winner.Amount, payout, profit))
 			}
 		} else {
-			resultDescription.WriteString("**💔 勝者なし**\n誰もこの馬にベットしていませんでした。チップは返金されません。")
+			resultDescription.WriteString("**💔 勝者なし**\n優勝した馬には誰もベットしていませんでした。\n")
+			if len(game.Bets) > 0 {
+				resultDescription.WriteString("\n**参加者一覧:**\n")
+				for _, bet := range game.Bets {
+					resultDescription.WriteString(fmt.Sprintf(" <@%s> は **%d** チップを失いました...\n", bet.UserID, bet.Amount))
+				}
+			}
 		}
 
 		if len(game.Bets) > 0 {
