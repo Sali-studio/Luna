@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"luna/ai"
 	"luna/interfaces"
 	"time"
 
@@ -12,11 +13,12 @@ type AppContext struct {
 	Log       interfaces.Logger
 	Store     interfaces.DataStore
 	Scheduler interfaces.Scheduler
+	AI        *ai.Client
 	StartTime time.Time
 }
 
 // RegisterCommands initializes and returns all command handlers.
-func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Scheduler, session *discordgo.Session, startTime time.Time) (map[string]interfaces.CommandHandler, map[string]interfaces.CommandHandler, []*discordgo.ApplicationCommand, *StockCommand) {
+func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Scheduler, aiClient *ai.Client, session *discordgo.Session, startTime time.Time) (map[string]interfaces.CommandHandler, map[string]interfaces.CommandHandler, []*discordgo.ApplicationCommand, *StockCommand) {
 	commandHandlers := make(map[string]interfaces.CommandHandler)
 	componentHandlers := make(map[string]interfaces.CommandHandler)
 	registeredCommands := make([]*discordgo.ApplicationCommand, 0)
@@ -25,6 +27,7 @@ func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler 
 		Log:       log,
 		Store:     db,
 		Scheduler: scheduler,
+		AI:        aiClient,
 		StartTime: startTime,
 	}
 
@@ -35,7 +38,7 @@ func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler 
 		&ConfigCommand{Store: appCtx.Store, Log: appCtx.Log},
 		&TicketCommand{Store: appCtx.Store, Log: appCtx.Log},
 		&PingCommand{StartTime: appCtx.StartTime, Store: appCtx.Store},
-		&AskCommand{Log: appCtx.Log},
+		&AskCommand{Log: appCtx.Log, AI: appCtx.AI},
 		&AvatarCommand{},
 		&CalculatorCommand{Log: appCtx.Log},
 		&EmbedCommand{Log: appCtx.Log},

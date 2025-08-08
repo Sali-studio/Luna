@@ -1,12 +1,9 @@
 package commands
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
-	"net/http"
-
+	"luna/ai"
 	"luna/interfaces"
 
 	"github.com/bwmarrin/discordgo"
@@ -15,6 +12,7 @@ import (
 // OcrCommand は画像からの文字起こし（OCR）を実行します。
 type OcrCommand struct {
 	Log interfaces.Logger
+	AI  *ai.Client
 }
 
 // Pythonサーバーに送る画像URLリクエストの構造体
@@ -50,38 +48,16 @@ func (c *OcrCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 		return
 	}
 
-	// 2. Pythonサーバーに送信するデータを作成
-	reqData := ImageUrlRequest{ImageUrl: attachment.URL}
-	reqJson, _ := json.Marshal(reqData)
+	// AIにOCRを依頼
+	prompt := "この画像からテキストを正確に抽出してください。画像に写っているテキストだけを、他の余計な説明や前置きなしで書き出してください。"
+	responseText, err := c.AI.GenerateTextFromImage(context.Background(), prompt, attachment.URL)
 
-	// 3. PythonサーバーのOCRエンドポイントにリクエストを送信
-	resp, err := http.Post("http://localhost:5001/ocr", "application/json", bytes.NewBuffer(reqJson))
+	// エラーハンドリング
 	if err != nil {
-		c.Log.Error("OCRサーバーへの接続に失敗", "error", err)
-		content := "エラー: OCRサーバーへの接続に失敗しました。"
+		c.Log.Error("AIからの応答生成に失敗", "error", err)
+		content := "エラー: AIからの応答の取得に失敗しました。"
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
-			c.Log.Error("Failed to edit OCR error response", "error", err)
-		}
-		return
-	}
-	defer resp.Body.Close()
-
-	// 4. レスポンスを読み取りJSONをパース
-	body, _ := io.ReadAll(resp.Body)
-	var ocrResp struct {
-		Text  string `json:"text"`
-		Error string `json:"error"`
-	}
-	if err := json.Unmarshal(body, &ocrResp); err != nil {
-		c.Log.Error("Failed to unmarshal OCR response", "error", err)
-		return
-	}
-
-	if ocrResp.Error != "" || resp.StatusCode != http.StatusOK {
-		c.Log.Error("文字の抽出に失敗", "error", ocrResp.Error, "status_code", resp.StatusCode)
-		content := fmt.Sprintf("エラー: 文字の抽出に失敗しました。\n`%s`", ocrResp.Error)
-		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
-			c.Log.Error("Failed to edit OCR error response", "error", err)
+			c.Log.Error("Failed to edit error response", "error", err)
 		}
 		return
 	}
@@ -89,7 +65,7 @@ func (c *OcrCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 	// 5. 成功メッセージをEmbedで作成
 	embed := &discordgo.MessageEmbed{
 		Title:       "📝 文字起こし結果",
-		Description: fmt.Sprintf("```\n%s\n```", ocrResp.Text),
+		Description: fmt.Sprintf("```\n%s\n```", responseText),
 		Color:       0x824ff1, // Gemini Purple
 		Author: &discordgo.MessageEmbedAuthor{
 			Name:    i.Member.User.String(),
