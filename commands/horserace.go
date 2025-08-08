@@ -30,9 +30,25 @@ const (
 
 // Horse は馬の情報を表します。
 type Horse struct {
-	Name  string
-	Odds  float64
-	Emoji string
+	Name      string
+	Odds      float64
+	Emoji     string
+	Condition string
+	Modifier  float64
+}
+
+// Condition は馬の状態を表します。
+type Condition struct {
+	Name     string
+	Modifier float64
+	Weight   int
+}
+
+var conditions = []Condition{
+	{Name: "絶好調", Modifier: 1.15, Weight: 1},
+	{Name: "好調", Modifier: 1.05, Weight: 3},
+	{Name: "普通", Modifier: 1.0, Weight: 5},
+	{Name: "不調", Modifier: 0.9, Weight: 2},
 }
 
 // Bet はベット情報を表します。
@@ -289,7 +305,8 @@ func (c *HorseRaceCommand) startRace(s *discordgo.Session, game *HorseRaceGame) 
 
 		winner := -1
 		for i := range horsePositions {
-			if rand.Float64() > (game.Horses[i].Odds / 20.0) {
+			// Modify the chance to move based on the horse's condition modifier
+			if rand.Float64() < (0.15 * game.Horses[i].Modifier) { // Base chance 15%
 				horsePositions[i] += rand.Intn(3) + 1
 			}
 			if horsePositions[i] >= RaceTrackLength {
@@ -347,28 +364,17 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 		}
 	} else {
 		winnerHorse := game.Horses[winnerIndex]
-		winningsMap := make(map[string]int64)
-		var winnerMentions []string
+		var totalPot int64 = 0
+		var totalWinnerBets int64 = 0
+		var winners []Bet
 
 		for _, bet := range game.Bets {
+			totalPot += bet.Amount
 			if bet.HorseIndex == winnerIndex {
-				casinoData, err := c.Store.GetCasinoData(game.Interaction.GuildID, bet.UserID)
-				if err != nil {
-					c.Log.Error("Failed to get winner data for payout", "error", err, "userID", bet.UserID)
-					continue
-				}
-				payout := int64(float64(bet.Amount) * winnerHorse.Odds)
-				casinoData.Chips += payout // Add the full payout
-				winningsMap[bet.UserID] += payout
-
-				if err := c.Store.UpdateCasinoData(casinoData); err != nil {
-					c.Log.Error("Failed to update winner data after race", "error", err, "userID", bet.UserID)
-				}
+				winner := bet
+				winners = append(winners, winner)
+				totalWinnerBets += bet.Amount
 			}
-		}
-
-		for userID := range winningsMap {
-			winnerMentions = append(winnerMentions, fmt.Sprintf("<@%s>", userID))
 		}
 
 		resultEmbed = &discordgo.MessageEmbed{
@@ -378,14 +384,25 @@ func (c *HorseRaceCommand) finishRace(s *discordgo.Session, game *HorseRaceGame,
 		}
 
 		var resultDescription strings.Builder
-		for _, bet := range game.Bets {
-			if bet.HorseIndex == winnerIndex {
-				payout := winningsMap[bet.UserID]
-				profit := payout - bet.Amount
-				resultDescription.WriteString(fmt.Sprintf("👑 <@%s> は **%d** チップをベットして **%d** チップの配当を獲得！ (収支: **+%d**)\n", bet.UserID, bet.Amount, payout, profit))
-			} else {
-				resultDescription.WriteString(fmt.Sprintf("💔 <@%s> は **%d** チップを失いました...\n", bet.UserID, bet.Amount))
+		if len(winners) > 0 {
+			resultDescription.WriteString("**🎉 勝者の配当**\n")
+			for _, winner := range winners {
+				// Parimutuel betting: payout is proportional to the bet amount relative to the winners' pool
+				payout := int64(float64(winner.Amount) / float64(totalWinnerBets) * float64(totalPot))
+				casinoData, err := c.Store.GetCasinoData(game.Interaction.GuildID, winner.UserID)
+				if err != nil {
+					c.Log.Error("Failed to get winner data for payout", "error", err, "userID", winner.UserID)
+					continue
+				}
+				casinoData.Chips += payout
+				if err := c.Store.UpdateCasinoData(casinoData); err != nil {
+					c.Log.Error("Failed to update winner data after race", "error", err, "userID", winner.UserID)
+				}
+				profit := payout - winner.Amount
+				resultDescription.WriteString(fmt.Sprintf("👑 <@%s> は **%d** チップをベットして **%d** チップの配当を獲得！ (収支: **+%d**)\n", winner.UserID, winner.Amount, payout, profit))
 			}
+		} else {
+			resultDescription.WriteString("**💔 勝者なし**\n誰もこの馬にベットしていませんでした。チップは返金されません。")
 		}
 
 		if len(game.Bets) > 0 {
@@ -421,11 +438,29 @@ func generateHorses(count int) []Horse {
 	rand.Shuffle(len(names), func(i, j int) { names[i], names[j] = names[j], names[i] })
 
 	horses := make([]Horse, count)
+	totalWeight := 0
+	for _, cond := range conditions {
+		totalWeight += cond.Weight
+	}
+
 	for i := 0; i < count; i++ {
+		randomNum := rand.Intn(totalWeight)
+		var selectedCond Condition
+		currentWeight := 0
+		for _, cond := range conditions {
+			currentWeight += cond.Weight
+			if (randomNum < currentWeight) {
+				selectedCond = cond
+				break
+			}
+		}
+
 		horses[i] = Horse{
-			Name:  names[i],
-			Emoji: horseEmojis[i],
-			Odds:  1.5 + rand.Float64()*15,
+			Name:      names[i],
+			Emoji:     horseEmojis[i],
+			Odds:      1.5 + rand.Float64()*15,
+			Condition: selectedCond.Name,
+			Modifier:  selectedCond.Modifier,
 		}
 	}
 	return horses
@@ -433,10 +468,10 @@ func generateHorses(count int) []Horse {
 
 func (c *HorseRaceCommand) buildBettingEmbed(game *HorseRaceGame) *discordgo.MessageEmbed {
 	fields := make([]*discordgo.MessageEmbedField, len(game.Horses))
-	for i, horse := range game.Horses {
+	if i, horse := range game.Horses {
 		fields[i] = &discordgo.MessageEmbedField{
 			Name:   fmt.Sprintf("%d. %s %s", i+1, horse.Emoji, horse.Name),
-			Value:  fmt.Sprintf("単勝: %.2f倍", horse.Odds),
+			Value:  fmt.Sprintf("状態: **%s**\n単勝: %.2f倍", horse.Condition, horse.Odds),
 			Inline: true,
 		}
 	}
