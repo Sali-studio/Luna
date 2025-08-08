@@ -3,7 +3,6 @@ package commands
 
 import (
 	"context"
-	"fmt"
 	"luna/ai"
 	"luna/interfaces"
 

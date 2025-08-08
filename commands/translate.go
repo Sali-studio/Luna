@@ -47,16 +47,12 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-	prompt := fmt.Sprintf("以下のテキストを「%s」に翻訳してください。翻訳結果のテキストだけを返してください。
+	prompt := fmt.Sprintf("以下のテキストを「%s」に翻訳してください。翻訳結果のテキストだけを返してください。\n\n[翻訳元テキスト]\n%s", targetLang, text)
 
-[翻訳元テキスト]
-%s", targetLang, text)
-
-	tupdatedText, err := c.AI.GenerateText(context.Background(), prompt)
+	translatedText, err := c.AI.GenerateText(context.Background(), prompt)
 	if err != nil {
 		c.Log.Error("翻訳に失敗", "error", err)
-		content := fmt.Sprintf("エラー: 翻訳に失敗しました。
-`%s`", err.Error())
+		content := fmt.Sprintf("エラー: 翻訳に失敗しました。\n`%s`", err.Error())
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
 			c.Log.Error("Failed to edit error response", "error", err)
 		}
@@ -68,7 +64,7 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		Color: 0x4CAF50,
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "翻訳元", Value: "```\n" + text + "\n```"},
-			{Name: "翻訳先 (" + targetLang + ")", Value: "```\n" + updatedText + "\n```"},
+			{Name: "翻訳先 (" + targetLang + ")", Value: "```\n" + translatedText + "\n```"},
 		},
 	}
 	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{

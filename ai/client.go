@@ -116,15 +116,16 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string) (string, erro
 	}
 
 	if prediction.Status != replicate.Succeeded {
-		return "", fmt.Errorf("画像生成に失敗しました: %s", *prediction.Error)
+		return "", fmt.Errorf("画像生成に失敗しました: %v", prediction.Error)
 	}
 
-	if len(prediction.Output) == 0 {
+	output, ok := prediction.Output.([]interface{})
+	if !ok || len(output) == 0 {
 		return "", fmt.Errorf("AIから画像が出力されませんでした")
 	}
 
 	// 出力は通常URLのリストですが、今回は最初のものを返します。
-	outputURL, ok := prediction.Output.([]interface{})[0].(string)
+	outputURL, ok := output[0].(string)
 	if !ok {
 		return "", fmt.Errorf("予期しない出力形式です")
 	}
