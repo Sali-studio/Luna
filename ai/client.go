@@ -2,7 +2,6 @@ package ai
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"luna/config"
@@ -52,21 +51,6 @@ func (c *Client) Close() {
 // --- Private Helper ---
 
 func (c *Client) generateGeminiContent(ctx context.Context, modelID string, prompt string, mimeType string, imageData []byte) (string, error) {
-	var parts []*structpb.Value
-	textPart := structpb.NewStringValue(prompt)
-	parts = append(parts, &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{Fields: map[string]*structpb.Value{"text": textPart}}}})
-
-	if imageData != nil {
-		imgBytes := structpb.NewStringValue(base64.StdEncoding.EncodeToString(imageData))
-		mimeTypeVal := structpb.NewStringValue(mimeType)
-		imgPart := &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{Fields: map[string]*structpb.Value{
-			"inline_data": imgBytes,
-			"mime_type":   mimeTypeVal,
-		}}}}
-		parts = append(parts, imgPart)
-	}
-
-	// Manually construct the Content protobuf
 	var contentParts []*aiplatformpb.Part
 	textPart := &aiplatformpb.Part{Data: &aiplatformpb.Part_Text{Text: prompt}}
 	contentParts = append(contentParts, textPart)
