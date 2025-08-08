@@ -74,6 +74,8 @@ func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler 
 		NewHorseRaceCommand(appCtx.Store, appCtx.Log),
 		NewQuizBetCommand(appCtx.Store, appCtx.Log),
 		NewBlackjackCommand(appCtx.Store, appCtx.Log),
+		NewHiLowCommand(appCtx.Store, appCtx.Log),
+		NewFishCommand(appCtx.Store, appCtx.Log),
 		// NewShopCommand(appCtx.Store, appCtx.Log),
 	}
 
