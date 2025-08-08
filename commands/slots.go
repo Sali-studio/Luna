@@ -129,9 +129,9 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 		r3 := reels[2][rand.Intn(len(reels[2]))]
 		animationEmbed.Description = fmt.Sprintf("**[ %s | %s | %s ]**", r1, r2, r3)
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{animationEmbed}}); err != nil {
-			c.Log.Error("Failed to edit animation embed", "error", err)
+			tc.Log.Error("Failed to edit animation embed", "error", err)
 		}
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(150 * time.Millisecond)
 	}
 
 	// 2. Reach animation (stop one by one)
@@ -140,9 +140,9 @@ func (c *SlotsCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 		stoppedReels[reelIndex] = finalResult[reelIndex]
 		animationEmbed.Description = fmt.Sprintf("**[ %s | %s | %s ]**", stoppedReels[0], stoppedReels[1], stoppedReels[2])
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{animationEmbed}}); err != nil {
-			c.Log.Error("Failed to edit reach embed", "error", err)
+			tc.Log.Error("Failed to edit reach embed", "error", err)
 		}
-		time.Sleep(1 * time.Second) // Pause for dramatic effect
+		time.Sleep(500 * time.Millisecond) // Pause for dramatic effect
 	}
 	// --- End Animation ---
 
