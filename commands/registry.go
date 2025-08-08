@@ -17,7 +17,7 @@ type AppContext struct {
 }
 
 // RegisterCommands initializes and returns all command handlers.
-func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Scheduler, player interfaces.MusicPlayer, session *discordgo.Session, startTime time.Time) (map[string]interfaces.CommandHandler, map[string]interfaces.CommandHandler, []*discordgo.ApplicationCommand) {
+func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Scheduler, player interfaces.MusicPlayer, session *discordgo.Session, startTime time.Time) (map[string]interfaces.CommandHandler, map[string]interfaces.CommandHandler, []*discordgo.ApplicationCommand, *StockCommand) {
 	commandHandlers := make(map[string]interfaces.CommandHandler)
 	componentHandlers := make(map[string]interfaces.CommandHandler)
 	registeredCommands := make([]*discordgo.ApplicationCommand, 0)
@@ -29,6 +29,8 @@ func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler 
 		Player:    player,
 		StartTime: startTime,
 	}
+
+	stockCmd := NewStockCommand(appCtx.Store, appCtx.Log)
 
 	// To add a new command, simply add it to this list.
 	commands := []interfaces.CommandHandler{
@@ -77,20 +79,46 @@ func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler 
 		NewHiLowCommand(appCtx.Store, appCtx.Log),
 		NewFishCommand(appCtx.Store, appCtx.Log),
 		NewExchangeCommand(appCtx.Store, appCtx.Log),
-		NewStockCommand(appCtx.Store, appCtx.Log),
+		stockCmd,
 		// NewShopCommand(appCtx.Store, appCtx.Log),
 	}
 
 	for _, cmd := range commands {
-		commandDef := cmd.GetCommandDef()
-		commandHandlers[commandDef.Name] = cmd
+		cmdHandler := cmd // ローカル変数にコピー
+		commandDef := cmdHandler.GetCommandDef()
+		commandHandlers[commandDef.Name] = cmdHandler
 		registeredCommands = append(registeredCommands, commandDef)
 
 		// Register component handlers
-		for _, id := range cmd.GetComponentIDs() {
-			componentHandlers[id] = cmd
+		for _, id := range cmdHandler.GetComponentIDs() {
+			componentHandlers[id] = cmdHandler
 		}
 	}
 
-	return commandHandlers, componentHandlers, registeredCommands
+	// ラッパーハンドラーを作成して、元のハンドラーをラップする
+	for name, handler := range commandHandlers {
+		originalHandler := handler // クロージャのためにコピー
+		wrappedHandler := &CommandUsageWrapper{
+			CommandHandler: originalHandler,
+			Store:          db,
+		}
+		commandHandlers[name] = wrappedHandler
+	}
+
+	return commandHandlers, componentHandlers, registeredCommands, stockCmd
+}
+
+// CommandUsageWrapper は、コマンドの実行をラップして使用状況を記録します。
+type CommandUsageWrapper struct {
+	interfaces.CommandHandler
+	Store interfaces.DataStore
+}
+
+// Handle は、元のハンドラを呼び出す前に使用状況を記録します。
+func (w *CommandUsageWrapper) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	category := w.CommandHandler.GetCategory()
+	if category != "" && category != "管理" { // 管理コマンドは経済に影響を与えない
+		w.Store.IncrementCommandUsage(category)
+	}
+	w.CommandHandler.Handle(s, i)
 }
