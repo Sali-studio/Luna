@@ -45,19 +45,22 @@ func (c *DailyCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	}
 
 	// Grant the daily chips
-	casinoData.Chips += 2000
+		now := time.Now()
+	dailyAmount := int64(100) // Grant 100 PepeCoins
+
+	casinoData.PepeCoinBalance += dailyAmount
 	casinoData.LastDaily.Time = time.Now()
 	casinoData.LastDaily.Valid = true
 
 	if err := c.Store.UpdateCasinoData(casinoData); err != nil {
 		c.Log.Error("Failed to update casino data for daily command", "error", err)
-		sendErrorResponse(s, i, "エラーが発生しました。後でもう一度お試しください。")
+		sendErrorResponse(s, i, "デイリーボーナスの受け取り中にエラーが発生しました。")
 		return
 	}
 
 	embed := &discordgo.MessageEmbed{
-		Title:       "🎉 デイリーチップ！",
-		Description: fmt.Sprintf("**2000** チップを受け取りました！\n現在のあなたのチップ: **%%d**", casinoData.Chips),
+		Title:       "🎉 デイリーボーナス！",
+		Description: fmt.Sprintf("**%d PepeCoin (PPC)** を獲得しました！\n現在のあなたのチップ: **%%d**", dailyAmount, casinoData.PepeCoinBalance),
 		Color:       0xffd700, // Gold
 	}
 	sendEmbedResponse(s, i, embed)

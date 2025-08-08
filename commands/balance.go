@@ -47,7 +47,7 @@ func (c *BalanceCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 
 	embed := &discordgo.MessageEmbed{
 		Title:       fmt.Sprintf("💰 %s のチップ残高", targetUser.Username),
-		Description: fmt.Sprintf("現在のチップ: **%d**", casinoData.Chips),
+		Description: fmt.Sprintf("現在のチップ: **%d**\n🐸 **PepeCoin (PPC)**: `%d`", casinoData.Chips, casinoData.PepeCoinBalance),
 		Color:       0x3498db, // Blue
 		Thumbnail: &discordgo.MessageEmbedThumbnail{
 			URL: targetUser.AvatarURL(""),
