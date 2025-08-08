@@ -3,7 +3,7 @@ package bot
 import (
 	"fmt"
 	"luna/config"
-	"luna/handlers/events"
+	"luna/handlers"
 	"luna/interfaces"
 	"os"
 	"os/signal"
@@ -43,22 +43,28 @@ func (b *Bot) Start(commandHandlers map[string]interfaces.CommandHandler, compon
 	b.session.Identify.Intents = discordgo.IntentsAll
 
 	// イベントハンドラを登録
-	eventHandler := events.NewHandler(b.log, b.db, commandHandlers, componentHandlers)
-	b.session.AddHandler(eventHandler.OnReady(registeredCommands))
-	b.session.AddHandler(eventHandler.OnInteractionCreate)
-	b.session.AddHandler(events.OnMessageCreate(b.db, b.log))
-	b.session.AddHandler(events.OnMessageDelete(b.log))
-	b.session.AddHandler(events.OnGuildMemberAdd(b.db, b.log))
-	b.session.AddHandler(events.OnGuildMemberRemove(b.log))
-	b.session.AddHandler(events.OnVoiceStateUpdate(b.log))
-	b.session.AddHandler(events.OnChannelCreate(b.log))
-	b.session.AddHandler(events.OnChannelDelete(b.log))
-	b.session.AddHandler(events.OnGuildRoleCreate(b.log))
-	b.session.AddHandler(events.OnGuildRoleDelete(b.log))
+	h := handlers.NewEventHandler(b.log, b.db, commandHandlers, componentHandlers)
+	b.session.AddHandler(h.OnReady)
+	b.session.AddHandler(h.OnInteractionCreate)
+	b.session.AddHandler(h.OnMessageCreate)
+	b.session.AddHandler(h.OnMessageDelete)
+	b.session.AddHandler(h.OnGuildMemberAdd)
+	b.session.AddHandler(h.OnGuildMemberRemove)
+	b.session.AddHandler(h.OnVoiceStateUpdate)
+	b.session.AddHandler(h.OnChannelCreate)
+	b.session.AddHandler(h.OnChannelDelete)
+	b.session.AddHandler(h.OnGuildRoleCreate)
+	b.session.AddHandler(h.OnGuildRoleDelete)
 
 	if err := b.session.Open(); err != nil {
 		return fmt.Errorf("Discordへの接続に失敗しました: %w", err)
 	}
+
+	// グローバルコマンドの登録
+	// _, err := b.session.ApplicationCommandBulkOverwrite(b.session.State.User.ID, "", registeredCommands)
+	// if err != nil {
+	// 	b.log.Fatal("コマンドの登録に失敗しました", "error", err)
+	// }
 
 	b.log.Info("Botが正常に起動しました。Ctrl+Cで終了します。")
 	sc := make(chan os.Signal, 1)

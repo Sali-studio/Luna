@@ -47,7 +47,7 @@ func (h *MessageHandler) Register(s *discordgo.Session) {
 	s.AddHandler(h.onMessageDelete)
 }
 
-func (h *MessageHandler) onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+func (h *MessageHandler) OnMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
@@ -141,7 +141,7 @@ func (h *MessageHandler) onMessageCreate(s *discordgo.Session, m *discordgo.Mess
 	}
 }
 
-func (h *MessageHandler) onMessageUpdate(s *discordgo.Session, e *discordgo.MessageUpdate) {
+func (h *MessageHandler) OnMessageUpdate(s *discordgo.Session, e *discordgo.MessageUpdate) {
 	if e.Author == nil || e.Author.Bot {
 		return
 	}
@@ -180,7 +180,7 @@ func (h *MessageHandler) onMessageUpdate(s *discordgo.Session, e *discordgo.Mess
 	h.sendLog(s, e.GuildID, embed)
 }
 
-func (h *MessageHandler) onMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
+func (h *MessageHandler) OnMessageDelete(s *discordgo.Session, e *discordgo.MessageDelete) {
 	cachedMsg, err := h.Store.GetMessageCache(e.ID)
 	if err != nil || cachedMsg == nil {
 		// We don't have info, so just log the ID

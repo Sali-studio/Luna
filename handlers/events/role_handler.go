@@ -22,7 +22,7 @@ func (h *RoleHandler) Register(s *discordgo.Session) {
 	s.AddHandler(h.onRoleUpdate)
 }
 
-func (h *RoleHandler) onRoleCreate(s *discordgo.Session, e *discordgo.GuildRoleCreate) {
+func (h *RoleHandler) OnRoleCreate(s *discordgo.Session, e *discordgo.GuildRoleCreate) {
 	executorID := GetExecutor(s, e.GuildID, e.Role.ID, discordgo.AuditLogActionRoleCreate, h.Log)
 	executorMention := "不明"
 	if executorID != "" {
@@ -40,7 +40,7 @@ func (h *RoleHandler) onRoleCreate(s *discordgo.Session, e *discordgo.GuildRoleC
 	SendLog(s, e.GuildID, h.Store, h.Log, embed)
 }
 
-func (h *RoleHandler) onRoleDelete(s *discordgo.Session, e *discordgo.GuildRoleDelete) {
+func (h *RoleHandler) OnRoleDelete(s *discordgo.Session, e *discordgo.GuildRoleDelete) {
 	executorID := GetExecutor(s, e.GuildID, e.RoleID, discordgo.AuditLogActionRoleDelete, h.Log)
 	executorMention := "不明"
 	if executorID != "" {
@@ -59,7 +59,7 @@ func (h *RoleHandler) onRoleDelete(s *discordgo.Session, e *discordgo.GuildRoleD
 	SendLog(s, e.GuildID, h.Store, h.Log, embed)
 }
 
-func (h *RoleHandler) onRoleUpdate(s *discordgo.Session, e *discordgo.GuildRoleUpdate) {
+func (h *RoleHandler) OnRoleUpdate(s *discordgo.Session, e *discordgo.GuildRoleUpdate) {
 	before, err := s.State.Role(e.GuildID, e.Role.ID)
 	if err != nil {
 		// If we can't get the before state, we can't compare.

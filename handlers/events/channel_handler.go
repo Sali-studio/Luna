@@ -22,7 +22,7 @@ func (h *ChannelHandler) Register(s *discordgo.Session) {
 	s.AddHandler(h.onChannelUpdate)
 }
 
-func (h *ChannelHandler) onChannelCreate(s *discordgo.Session, e *discordgo.ChannelCreate) {
+func (h *ChannelHandler) OnChannelCreate(s *discordgo.Session, e *discordgo.ChannelCreate) {
 	executorID := GetExecutor(s, e.GuildID, e.ID, discordgo.AuditLogActionChannelCreate, h.Log)
 	executorMention := "不明"
 	if executorID != "" {
@@ -41,7 +41,7 @@ func (h *ChannelHandler) onChannelCreate(s *discordgo.Session, e *discordgo.Chan
 	SendLog(s, e.GuildID, h.Store, h.Log, embed)
 }
 
-func (h *ChannelHandler) onChannelDelete(s *discordgo.Session, e *discordgo.ChannelDelete) {
+func (h *ChannelHandler) OnChannelDelete(s *discordgo.Session, e *discordgo.ChannelDelete) {
 	executorID := GetExecutor(s, e.GuildID, e.ID, discordgo.AuditLogActionChannelDelete, h.Log)
 	executorMention := "不明"
 	if executorID != "" {
@@ -60,7 +60,7 @@ func (h *ChannelHandler) onChannelDelete(s *discordgo.Session, e *discordgo.Chan
 	SendLog(s, e.GuildID, h.Store, h.Log, embed)
 }
 
-func (h *ChannelHandler) onChannelUpdate(s *discordgo.Session, e *discordgo.ChannelUpdate) {
+func (h *ChannelHandler) OnChannelUpdate(s *discordgo.Session, e *discordgo.ChannelUpdate) {
 	if e.BeforeUpdate == nil {
 		return
 	}
