@@ -1,127 +1,97 @@
 package bot
 
 import (
-	"os"
-	"os/signal"
-	"strings"
-	"syscall"
-	"time"
-
+	"fmt"
 	"luna/config"
 	"luna/handlers/events"
 	"luna/interfaces"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-// Bot はDiscordボットのコアな状態とロジックを管理します。
+// Bot は、Discordセッション、ロガー、データストアなど、ボットの主要なコンポーネントを保持します。
 type Bot struct {
-	Session   *discordgo.Session
+	session   *discordgo.Session
 	log       interfaces.Logger
-	dbStore   interfaces.DataStore
+	db        interfaces.DataStore
 	scheduler interfaces.Scheduler
 	startTime time.Time
-	player    interfaces.MusicPlayer
 }
 
-// New は新しいBotインスタンスを作成します。
-func New(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Scheduler, player interfaces.MusicPlayer) (*Bot, error) {
-	token := config.Cfg.Discord.Token
-	if token == "" || token == "YOUR_DISCORD_BOT_TOKEN_HERE" {
-		log.Fatal("DiscordのBotトークンが設定されていません。config.yamlを確認してください。")
-	}
-
-	dg, err := discordgo.New("Bot " + token)
+// New は、新しいBotインスタンスを初期化して返します。
+func New(log interfaces.Logger, db interfaces.DataStore, scheduler interfaces.Scheduler) (*Bot, error) {
+	session, err := discordgo.New("Bot " + config.Cfg.Discord.Token)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("discordgoセッションの作成に失敗しました: %w", err)
 	}
-
-	dg.State = discordgo.NewState()
-	dg.State.MaxMessageCount = 2000
-	dg.Identify.Intents = discordgo.IntentsAll
 
 	return &Bot{
-		Session:   dg,
+		session:   session,
 		log:       log,
-		dbStore:   db,
+		db:        db,
 		scheduler: scheduler,
 		startTime: time.Now(),
-		player:    player,
 	}, nil
 }
 
-// Start はBotを起動し、Discordに接続します。
+// Start は、ボットを起動し、Discordに接続してイベントのリスニングを開始します。
 func (b *Bot) Start(commandHandlers map[string]interfaces.CommandHandler, componentHandlers map[string]interfaces.CommandHandler, registeredCommands []*discordgo.ApplicationCommand) error {
-	b.Session.AddHandlerOnce(func(s *discordgo.Session, r *discordgo.Ready) {
-		b.log.Info("Bot is ready.")
-		b.log.Info("Registering commands globally. This may take up to an hour to reflect on Discord.")
-		if _, err := s.ApplicationCommandBulkOverwrite(s.State.User.ID, "", registeredCommands); err != nil {
-			b.log.Fatal("Failed to register global commands", "error", err)
-		}
-		b.log.Info("Global commands registered successfully.")
-	})
+	b.session.Identify.Intents = discordgo.IntentsAll
 
-	b.Session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		switch i.Type {
-		case discordgo.InteractionApplicationCommand:
-			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-				h.Handle(s, i)
-			}
-		case discordgo.InteractionMessageComponent:
-			for id, h := range componentHandlers {
-				if strings.HasPrefix(i.MessageComponentData().CustomID, id) {
-					h.HandleComponent(s, i)
-					return
-				}
-			}
-		case discordgo.InteractionModalSubmit:
-			for id, h := range componentHandlers {
-				if strings.HasPrefix(i.ModalSubmitData().CustomID, id) {
-					h.HandleModal(s, i)
-					return
-				}
-			}
-		}
-	})
+	// イベントハンドラを登録
+	eventHandler := events.NewHandler(b.log, b.db, commandHandlers, componentHandlers)
+	b.session.AddHandler(eventHandler.OnReady(registeredCommands))
+	b.session.AddHandler(eventHandler.OnInteractionCreate)
+	b.session.AddHandler(events.OnMessageCreate(b.db, b.log))
+	b.session.AddHandler(events.OnMessageDelete(b.log))
+	b.session.AddHandler(events.OnGuildMemberAdd(b.db, b.log))
+	b.session.AddHandler(events.OnGuildMemberRemove(b.log))
+	b.session.AddHandler(events.OnVoiceStateUpdate(b.log))
+	b.session.AddHandler(events.OnChannelCreate(b.log))
+	b.session.AddHandler(events.OnChannelDelete(b.log))
+	b.session.AddHandler(events.OnGuildRoleCreate(b.log))
+	b.session.AddHandler(events.OnGuildRoleDelete(b.log))
 
-	// イベントハンドラの登録
-	events.NewMemberEventHandler(b.dbStore, b.log).RegisterHandlers(b.Session)
-
-	if err := b.Session.Open(); err != nil {
-		return err
+	if err := b.session.Open(); err != nil {
+		return fmt.Errorf("Discordへの接続に失敗しました: %w", err)
 	}
-	defer b.Session.Close()
-	defer b.dbStore.Close()
 
-	b.scheduler.Start()
-	defer b.scheduler.Stop()
-
-	b.log.Info("Botが起動しました。Ctrl+Cで終了します。")
-
+	b.log.Info("Botが正常に起動しました。Ctrl+Cで終了します。")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
-	b.log.Info("Botをシャットダウンします...")
-	return nil
+	return b.Close()
 }
 
+// Close は、ボットのすべてのコンポーネントを正常にシャットダウンします。
+func (b *Bot) Close() error {
+	b.log.Info("Botをシャットダウンしています...")
+	b.scheduler.Stop()
+	b.db.Close()
+	return b.session.Close()
+}
+
+// GetSession は、現在のDiscordセッションを返します。
+func (b *Bot) GetSession() *discordgo.Session {
+	return b.session
+}
+
+// GetDBStore は、現在のデータストアを返します。
 func (b *Bot) GetDBStore() interfaces.DataStore {
-	return b.dbStore
+	return b.db
 }
 
+// GetScheduler は、現在のスケジューラを返します。
 func (b *Bot) GetScheduler() interfaces.Scheduler {
 	return b.scheduler
 }
 
+// GetStartTime は、ボットの起動時刻を返します。
 func (b *Bot) GetStartTime() time.Time {
 	return b.startTime
-}
-
-func (b *Bot) GetSession() *discordgo.Session {
-	return b.Session
-}
-
-func (b *Bot) GetPlayer() interfaces.MusicPlayer {
-	return b.player
 }
