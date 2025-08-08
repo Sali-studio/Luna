@@ -5,8 +5,10 @@ import (
 	"luna/interfaces"
 	"luna/storage"
 	"math/rand"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -28,6 +30,20 @@ var initialCompanies = []Company{
 	{Name: "デイリー・サプライ", Code: "DLY", Description: "日々の生活支援", Price: 95.60},
 	{Name: "Lunaインフラストラクチャ", Code: "LNA", Description: "Bot自身の運営", Price: 500.00},
 }
+
+var ( 
+	// イベントリスト：ポジティブなイベントとネガティブなイベント
+	positiveEvents = []string{
+		"%s社、画期的な新技術を発表！株価は明日への期待を込めて急上昇！",
+		"%s社、今期の業績が市場予想を大幅に上回り、投資家からの買いが殺到！",
+		"世界的なイベントで%s社の製品が特集され、知名度が爆発的に向上！",
+	}
+	negativeEvents = []string{
+		"%s社で大規模なシステム障害が発生。復旧の目処は立たず、市場は失望。",
+		"%s社の新製品に深刻な欠陥が発見され、リコール騒動に発展。",
+		"競合他社が%s社の市場を脅かす強力な新サービスを発表。先行きの不透明感が増す。",
+	}
+)
 
 // StockCommand handles the /stock command.
 type StockCommand struct {
@@ -309,6 +325,53 @@ func (c *StockCommand) UpdateStockPrices() {
 	c.Log.Info("Stock prices updated based on command usage", "usage_data", usage)
 }
 
+// TriggerRandomEvent は、ランダムな市場イベントを発生させ、特定の企業の株価を大きく変動させます。
+func (c *StockCommand) TriggerRandomEvent(s *discordgo.Session, guildID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if len(c.Companies) == 0 {
+		return // 企業がなければ何もしない
+	}
+
+	// ランダムに企業を1つ選択
+	rand.Seed(time.Now().UnixNano())
+	targetCompanyIndex := rand.Intn(len(c.Companies))
+	targetCompany := &c.Companies[targetCompanyIndex]
+
+	var eventMessage string
+	var priceChange float64
+
+	// ポジティブイベントかネガティブイベントかを決定
+	if rand.Intn(2) == 0 { // Positive
+		eventMessage = fmt.Sprintf(positiveEvents[rand.Intn(len(positiveEvents))], targetCompany.Name)
+		priceChange = 1.1 + rand.Float64()*0.4 // +10% to +50%
+	} else { // Negative
+		eventMessage = fmt.Sprintf(negativeEvents[rand.Intn(len(negativeEvents))], targetCompany.Name)
+		priceChange = 0.5 + rand.Float64()*0.4 // -10% to -50%
+	}
+
+	// 株価を更新
+	newPrice := targetCompany.Price * priceChange
+	if newPrice < 1.0 {
+		newPrice = 1.0
+	}
+	targetCompany.Price = newPrice
+
+	// データベースを更新
+	if err := c.Store.UpdateCompanyPrices(map[string]float64{targetCompany.Code: newPrice}); err != nil {
+		c.Log.Error("Failed to update price after event", "error", err)
+		return
+	}
+
+	// イベントをアナウンス
+	// TODO: Find a better way to get a channel to announce in.
+	// For now, we can't send a message without a context.
+	c.Log.Info("Market event triggered", "event", eventMessage, "company", targetCompany.Code, "new_price", newPrice)
+
+	// アナウンス機能は別途実装が必要
+}
+
 func (c *StockCommand) handlePortfolio(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	options := i.ApplicationCommandData().Options[0].Options
 	var targetUser *discordgo.User
@@ -425,9 +488,89 @@ func (c *StockCommand) handleInfo(s *discordgo.Session, i *discordgo.Interaction
 }
 
 func (c *StockCommand) handleLeaderboard(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// This is a complex operation, might be slow on large servers.
-	// For now, we'll just show a placeholder.
-	sendErrorResponse(s, i, "この機能は現在開発中です。")
+	// Let the user know we're working on it
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+
+	userIDs, err := c.Store.GetAllUserIDsInCasino(i.GuildID)
+	if err != nil {
+		c.Log.Error("Failed to get all user IDs for leaderboard", "error", err)
+		sendErrorResponse(s, i, "リーダーボードの生成に失敗しました。")
+		return
+	}
+
+	type UserAsset struct {
+		UserID      string
+		TotalAssets float64
+	}
+
+	var assets []UserAsset
+	for _, userID := range userIDs {
+		portfolio, err := c.Store.GetUserPortfolio(userID)
+		if err != nil {
+			continue // Skip user on error
+		}
+		casinoData, err := c.Store.GetCasinoData(i.GuildID, userID)
+		if err != nil {
+			continue // Skip user on error
+		}
+
+		var totalStockValue float64
+		for code, shares := range portfolio {
+			company, exists := c.findCompanyByCode(code)
+			if !exists {
+				continue
+			}
+			totalStockValue += company.Price * float64(shares)
+		}
+
+		totalAssets := totalStockValue + float64(casinoData.PepeCoinBalance)
+		assets = append(assets, UserAsset{UserID: userID, TotalAssets: totalAssets})
+	}
+
+	// Sort users by total assets in descending order
+	sort.Slice(assets, func(i, j int) bool {
+		return assets[i].TotalAssets > assets[j].TotalAssets
+	})
+
+	embed := &discordgo.MessageEmbed{
+		Title:       "🏆 資産家ランキング",
+		Description: "サーバー内の総資産（PepeCoin + 株式評価額）ランキングです。",
+		Color:       0xffd700, // Gold
+	}
+
+	var leaderboardStr strings.Builder
+	limit := 10
+	if len(assets) < limit {
+		limit = len(assets)
+	}
+
+	for i := 0; i < limit; i++ {
+		asset := assets[i]
+		var medal string
+		switch i {
+		case 0:
+			medal = "🥇"
+		case 1:
+			medal = "🥈"
+		case 2:
+			medal = "🥉"
+		default:
+			medal = fmt.Sprintf("%2d.", i+1)
+		}
+		leaderboardStr.WriteString(fmt.Sprintf("%s <@%s> - **`%.2f` PPC**\n", medal, asset.UserID, asset.TotalAssets))
+	}
+
+	if leaderboardStr.Len() == 0 {
+		embed.Description = "まだ誰も資産を保有していません。"
+	} else {
+		embed.Description = leaderboardStr.String()
+	}
+
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Embeds: &[]*discordgo.MessageEmbed{embed},
+	})
 }
 
 

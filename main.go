@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-
 	"luna/bot"
 	"luna/commands"
 	"luna/config"
@@ -11,6 +9,8 @@ import (
 	"luna/player"
 	"luna/servers"
 	"luna/storage"
+	"math/rand"
+	"os"
 
 	"github.com/robfig/cron/v3"
 )
@@ -68,6 +68,14 @@ func main() {
 
 	// 5分ごとに株価を更新
 	scheduler.AddFunc("@every 5m", stockCmd.UpdateStockPrices)
+	scheduler.AddFunc("@hourly", func() {
+		if rand.Float32() < 0.25 { // 25% chance to trigger an event every hour
+			// Need a guild ID to announce the event. This is a limitation.
+			// We'll need to find a way to get a valid guild ID or handle announcements differently.
+			// For now, the event will trigger but not be announced in a channel.
+			stockCmd.TriggerRandomEvent(b.GetSession(), "") // Passing empty guildID for now
+		}
+	})
 	scheduler.Start()
 
 	// Botを起動

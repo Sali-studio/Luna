@@ -39,6 +39,7 @@ type DataStore interface {
 	GetCasinoData(guildID, userID string) (*storage.CasinoData, error)
 	UpdateCasinoData(data *storage.CasinoData) error
 	GetChipLeaderboard(guildID string, limit int) ([]storage.CasinoData, error)
+	GetAllUserIDsInCasino(guildID string) ([]string, error)
 	GetJackpot(guildID string) (int64, error)
 	UpdateJackpot(guildID string, newJackpot int64) error
 	AddToJackpot(guildID string, amount int64) (int64, error)

@@ -310,6 +310,28 @@ func (s *DBStore) GetChipLeaderboard(guildID string, limit int) ([]CasinoData, e
 	return leaderboard, nil
 }
 
+// GetAllUserIDsInCasino returns all user IDs that have casino data for a specific guild.
+func (s *DBStore) GetAllUserIDsInCasino(guildID string) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	rows, err := s.db.Query("SELECT user_id FROM casino_data WHERE guild_id = ?", guildID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var userIDs []string
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		userIDs = append(userIDs, userID)
+	}
+	return userIDs, nil
+}
+
 // --- Stocks ---
 
 
