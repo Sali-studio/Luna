@@ -143,14 +143,14 @@ func (s *DBStore) initTables() error {
 			word TEXT NOT NULL,
 			PRIMARY KEY (guild_id, word)
 		);`,
-		``CREATE TABLE IF NOT EXISTS casino_data (
-			guild_id TEXT NOT NULL,
-			user_id TEXT NOT NULL,
-			chips INTEGER DEFAULT 1000,
-			pepecoin_balance INTEGER DEFAULT 0,
-			last_daily DATETIME,
-			PRIMARY KEY (guild_id, user_id)
-		);``,
+		`CREATE TABLE IF NOT EXISTS casino_data (
+		guild_id TEXT NOT NULL,
+		user_id TEXT NOT NULL,
+		chips INTEGER DEFAULT 1000,
+		pepecoin_balance INTEGER DEFAULT 0,
+		last_daily DATETIME,
+		PRIMARY KEY (guild_id, user_id)
+		);`,
 	}
 	for _, table := range tables {
 		if _, err := s.db.Exec(table); err != nil {
@@ -433,7 +433,7 @@ func (s *DBStore) GetCountableWords(guildID string) ([]string, error) {
 	return words, nil
 }
 
-// --- Casino --- 
+// --- Casino ---
 
 // GetCasinoData retrieves a user's casino data, creating it if it doesn't exist.
 func (s *DBStore) GetCasinoData(guildID, userID string) (*CasinoData, error) {
@@ -444,10 +444,10 @@ func (s *DBStore) GetCasinoData(guildID, userID string) (*CasinoData, error) {
 	query := "SELECT chips, pepecoin_balance, last_daily FROM casino_data WHERE guild_id = ? AND user_id = ?"
 	err := s.db.QueryRow(query, guildID, userID).Scan(&data.Chips, &data.PepeCoinBalance, &data.LastDaily)
 
-	if (err != nil) {
-		if (err == sql.ErrNoRows) {
+	if err != nil {
+		if err == sql.ErrNoRows {
 			// User doesn't have data yet, create it with default values
-			data.Chips = 1000           // Initial chips
+			data.Chips = 1000        // Initial chips
 			data.PepeCoinBalance = 0 // Initial PepeCoin
 			insertQuery := "INSERT INTO casino_data (guild_id, user_id, chips, pepecoin_balance, last_daily) VALUES (?, ?, ?, ?, NULL)"
 			_, insertErr := s.db.Exec(insertQuery, guildID, userID, data.Chips, data.PepeCoinBalance)
