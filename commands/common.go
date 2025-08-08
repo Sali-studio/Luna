@@ -14,6 +14,21 @@ type TextResponse struct {
 	Error string `json:"error"`
 }
 
+// QuizRequest はAIにクイズ生成をリクエストする際の構造体です。
+type QuizRequest struct {
+	Topic   string   `json:"topic"`
+	History []string `json:"history"` // 過去に出題された問題のリスト
+}
+
+// QuizResponse はAIが生成したクイズの構造体です。
+type QuizResponse struct {
+	Question           string   `json:"question"`
+	Options            []string `json:"options"`
+	CorrectAnswerIndex int      `json:"correct_answer_index"`
+	Explanation        string   `json:"explanation"`
+	Error              string   `json:"error,omitempty"`
+}
+
 // --- Helper Functions for Responses ---
 
 // sendEmbedResponse sends a public embed response.
