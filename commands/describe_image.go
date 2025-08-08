@@ -2,12 +2,10 @@
 package commands
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
+	"luna/ai"
 	"luna/interfaces"
-	"net/http"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -19,6 +17,7 @@ type DescribeImageRequest struct {
 
 type DescribeImageCommand struct {
 	Log interfaces.Logger
+	AI  *ai.Client
 }
 
 func (c *DescribeImageCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -61,35 +60,14 @@ func (c *DescribeImageCommand) Handle(s *discordgo.Session, i *discordgo.Interac
 		return
 	}
 
-	// Pythonサーバーに送信するデータを作成
-	reqData := DescribeImageRequest{ImageURL: imageURL}
-	reqJson, _ := json.Marshal(reqData)
-
-	// Pythonサーバーの画像認識エンドポイントにリクエストを送信
-	resp, err := http.Post("http://localhost:5001/describe-image", "application/json", bytes.NewBuffer(reqJson))
+	// AIに画像の説明を依頼
+	prompt := "この画像を詳細に説明してください。"
+	responseText, err := c.AI.GenerateTextFromImage(context.Background(), prompt, imageURL)
 
 	// エラーハンドリング
 	if err != nil {
-		c.Log.Error("AIサーバーへの接続に失敗", "error", err)
-		content := "エラー: AIサーバーへの接続に失敗しました。"
-		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
-			c.Log.Error("Failed to edit error response", "error", err)
-		}
-		return
-	}
-	defer resp.Body.Close()
-
-	// レスポンスを読み取りJSONをパース (TextResponseを再利用)
-	body, _ := io.ReadAll(resp.Body)
-	var textResp TextResponse
-	if err := json.Unmarshal(body, &textResp); err != nil {
-		c.Log.Error("Failed to unmarshal AI response", "error", err)
-		return
-	}
-
-	if textResp.Error != "" || resp.StatusCode != http.StatusOK {
-		c.Log.Error("Luna Assistantからの応答取得に失敗", "error", textResp.Error, "status_code", resp.StatusCode)
-		content := fmt.Sprintf("エラー: Luna Assistantからの応答取得に失敗しました。\n`%s`", textResp.Error)
+		c.Log.Error("AIからの応答生成に失敗", "error", err)
+		content := "エラー: AIからの応答の取得に失敗しました。"
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
 			c.Log.Error("Failed to edit error response", "error", err)
 		}
@@ -98,7 +76,7 @@ func (c *DescribeImageCommand) Handle(s *discordgo.Session, i *discordgo.Interac
 
 	embed := &discordgo.MessageEmbed{
 		Title:       "🖼️ 画像の説明",
-		Description: textResp.Text,
+		Description: responseText,
 		Color:       0x824ff1, // Gemini Purple
 		Author: &discordgo.MessageEmbedAuthor{
 			Name:    i.Member.User.String(),
