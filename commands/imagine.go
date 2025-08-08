@@ -2,14 +2,10 @@
 package commands
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
+	"luna/ai"
 	"luna/interfaces"
-	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -23,6 +19,7 @@ type ImagineRequest struct {
 
 type ImagineCommand struct {
 	Log interfaces.Logger
+	AI  *ai.Client
 }
 
 func (c *ImagineCommand) GetCommandDef() *discordgo.ApplicationCommand {
@@ -114,66 +111,20 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		c.Log.Error("Failed to edit generating response", "error", err)
 	}
 
-	// 3. Pythonサーバーに送信するデータを作成
-	reqData := ImagineRequest{
-		Prompt:         finalPrompt,
-		NegativePrompt: finalNegativePrompt,
-	}
-	reqJson, _ := json.Marshal(reqData)
-
-	// 4. PythonサーバーにHTTP POSTリクエストを送信
-	resp, err := http.Post("http://localhost:5001/generate-image", "application/json", bytes.NewBuffer(reqJson))
-	if err != nil {
-		c.Log.Error("画像生成サーバーへの接続に失敗", "error", err)
-		content := "エラー: 画像生成サーバーに接続できませんでした。"
-		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
-			c.Log.Error("Failed to edit error response", "error", err)
-		}
-		return
-	}
-	defer resp.Body.Close()
-
-	// 5. Pythonサーバーからの応答を読み取る
-	body, _ := io.ReadAll(resp.Body)
-	var imagineResp struct {
-		ImagePath string `json:"image_path"`
-		Error     string `json:"error"`
-	}
-	if err := json.Unmarshal(body, &imagineResp); err != nil {
-		c.Log.Error("Failed to unmarshal imagine response", "error", err)
-		content := "エラー: サーバーからの応答を解析できませんでした。"
-		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
-			c.Log.Error("Failed to edit error response", "error", err)
-		}
-		return
-	}
+	// AIに画像生成を依頼
+	imageURL, err := c.AI.GenerateImage(context.Background(), finalPrompt)
 
 	// 6. 応答に応じてメッセージを編集
-	if imagineResp.Error != "" || resp.StatusCode != http.StatusOK {
-		c.Log.Error("画像の生成に失敗", "error", imagineResp.Error, "status_code", resp.StatusCode)
-		content := fmt.Sprintf("エラー: 画像の生成に失敗しました。\n`%s`", imagineResp.Error)
-		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
-			c.Log.Error("Failed to edit error response", "error", err)
-		}
-		return
-	}
-
-	// 7. Pythonから教えられたパスの画像ファイルを開く
-	file, err := os.Open(imagineResp.ImagePath)
 	if err != nil {
-		c.Log.Error("生成された画像ファイルを開けませんでした", "error", err, "path", imagineResp.ImagePath)
-		content := "エラー: 生成された画像ファイルを開けませんでした。"
+		c.Log.Error("画像の生成に失敗", "error", err)
+		content := fmt.Sprintf("エラー: 画像の生成に失敗しました。\n`%s`", err.Error())
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
 			c.Log.Error("Failed to edit error response", "error", err)
 		}
 		return
 	}
-	defer file.Close()
 
-	// 8. ファイル名をパスから取得
-	fileName := filepath.Base(imagineResp.ImagePath)
-
-	// 9. 成功した場合、Embedとファイルを一緒に投稿
+	// 7. 成功した場合、Embedを更新
 	description := fmt.Sprintf("**Prompt:**\n```\n%s\n```", prompt)
 	if userNegativePrompt != "" {
 		description += fmt.Sprintf("\n**Negative Prompt:**\n```\n%s\n```", userNegativePrompt)
@@ -181,7 +132,6 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	if noEnhancements {
 		description += "\n*プロンプトの自動補完は無効化されています。*"
 	}
-
 
 	embed := &discordgo.MessageEmbed{
 		Title: "🎨 画像生成が完了しました",
@@ -191,7 +141,7 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 		},
 		Description: description,
 		Image: &discordgo.MessageEmbedImage{
-			URL: fmt.Sprintf("attachment://%s", fileName),
+			URL: imageURL,
 		},
 		Color: 0x824ff1, // Gemini Purple
 		Footer: &discordgo.MessageEmbedFooter{
@@ -201,12 +151,6 @@ func (c *ImagineCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 
 	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Embeds: &[]*discordgo.MessageEmbed{embed},
-		Files: []*discordgo.File{
-			{
-				Name:   fileName,
-				Reader: file,
-			},
-		},
 	}); err != nil {
 		c.Log.Error("Failed to edit final response", "error", err)
 	}
