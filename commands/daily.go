@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"database/sql"
 	"fmt"
 	"luna/interfaces"
 	"time"
@@ -49,8 +50,7 @@ func (c *DailyCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 	dailyAmount := int64(100) // Grant 100 PepeCoins
 
 	casinoData.PepeCoinBalance += dailyAmount
-	casinoData.LastDaily.Time = time.Now()
-	casinoData.LastDaily.Valid = true
+	casinoData.LastDaily = sql.NullTime{Time: now, Valid: true}
 
 	if err := c.Store.UpdateCasinoData(casinoData); err != nil {
 		c.Log.Error("Failed to update casino data for daily command", "error", err)
