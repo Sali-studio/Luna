@@ -30,10 +30,6 @@ type TempVCConfig struct {
 	LobbyID    string `json:"lobby_id"`
 	CategoryID string `json:"category_id"`
 }
-type DashboardConfig struct {
-	ChannelID string `json:"channel_id"`
-	MessageID string `json:"message_id"`
-}
 type BumpConfig struct {
 	ChannelID string `json:"channel_id"`
 	RoleID    string `json:"role_id"`
@@ -110,7 +106,6 @@ func (s *DBStore) initTables() error {
 			ticket_config TEXT DEFAULT '{}',
 			log_config TEXT DEFAULT '{}',
 			temp_vc_config TEXT DEFAULT '{}',
-			dashboard_config TEXT DEFAULT '{}',
 			bump_config TEXT DEFAULT '{}',
 			welcome_config TEXT DEFAULT '{}',
 			autorole_config TEXT DEFAULT '{}',

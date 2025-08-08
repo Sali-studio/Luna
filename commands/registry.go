@@ -33,7 +33,6 @@ func RegisterCommands(log interfaces.Logger, db interfaces.DataStore, scheduler 
 	// To add a new command, simply add it to this list.
 	commands := []interfaces.CommandHandler{
 		&ConfigCommand{Store: appCtx.Store, Log: appCtx.Log},
-		&DashboardCommand{Store: appCtx.Store, Scheduler: appCtx.Scheduler, Log: appCtx.Log},
 		&TicketCommand{Store: appCtx.Store, Log: appCtx.Log},
 		&PingCommand{StartTime: appCtx.StartTime, Store: appCtx.Store},
 		&AskCommand{Log: appCtx.Log},
