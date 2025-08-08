@@ -8,12 +8,14 @@ import (
 	"net/http"
 
 	"github.com/google/generative-ai-go/genai"
+	"github.com/replicate/replicate-go"
 	"google.golang.org/api/option"
 )
 
 // Client はAIサービスとのやり取りを管理します。
 type Client struct {
-	genaiClient *genai.Client
+	genaiClient     *genai.Client
+	replicateClient *replicate.Client
 }
 
 // NewClient は新しいAIクライアントを作成します。
@@ -27,8 +29,14 @@ func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("GenAIクライアントの作成に失敗しました: %w", err)
 	}
 
+	replicateClient, err := replicate.NewClient(replicate.WithToken(cfg.Replicate.APIToken))
+	if err != nil {
+		return nil, fmt.Errorf("Replicateクライアントの作成に失敗しました: %w", err)
+	}
+
 	return &Client{
-		genaiClient: genaiClient,
+		genaiClient:     genaiClient,
+		replicateClient: replicateClient,
 	}, nil
 }
 
@@ -86,4 +94,40 @@ func urlToGenaiPart(url string) (genai.Part, error) {
 	}
 
 	return genai.ImageData(resp.Header.Get("Content-Type"), imageData), nil
+}
+
+// GenerateImage は、与えられたプロンプトに基づいて画像を生成します。
+func (c *Client) GenerateImage(ctx context.Context, prompt string) (string, error) {
+	// See https://replicate.com/stability-ai/sdxl
+	model := "stability-ai/sdxl:c221b2b8ef527988fb59bf24a8b97c4561f1c671f73bd389f866bfb27c061316"
+
+	input := replicate.PredictionInput{
+		"prompt": prompt,
+	}
+
+	prediction, err := c.replicateClient.CreatePrediction(ctx, model, input, nil, false)
+	if err != nil {
+		return "", fmt.Errorf("画像生成の開始に失敗しました: %w", err)
+	}
+
+	err = c.replicateClient.Wait(ctx, prediction)
+	if err != nil {
+		return "", fmt.Errorf("画像生成の待機中にエラーが発生しました: %w", err)
+	}
+
+	if prediction.Status != replicate.Succeeded {
+		return "", fmt.Errorf("画像生成に失敗しました: %s", *prediction.Error)
+	}
+
+	if len(prediction.Output) == 0 {
+		return "", fmt.Errorf("AIから画像が出力されませんでした")
+	}
+
+	// 出力は通常URLのリストですが、今回は最初のものを返します。
+	outputURL, ok := prediction.Output.([]interface{})[0].(string)
+	if !ok {
+		return "", fmt.Errorf("予期しない出力形式です")
+	}
+
+	return outputURL, nil
 }

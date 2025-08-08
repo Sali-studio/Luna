@@ -1,12 +1,11 @@
 package commands
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
+	"luna/ai"
 	"luna/interfaces"
-	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,16 +52,18 @@ type QuizGame struct {
 type QuizCommand struct {
 	Store interfaces.DataStore
 	Log   interfaces.Logger
+	AI    *ai.Client
 	games map[string]*QuizGame // channelID -> game
 	mu    sync.Mutex
 }
 
 // --- Command/Component/Modal Handlers ---
 
-func NewQuizCommand(store interfaces.DataStore, log interfaces.Logger) *QuizCommand {
+func NewQuizCommand(store interfaces.DataStore, log interfaces.Logger, aiClient *ai.Client) *QuizCommand {
 	return &QuizCommand{
 		Store: store,
 		Log:   log,
+		AI:    aiClient,
 		games: make(map[string]*QuizGame),
 	}
 }
@@ -281,23 +282,21 @@ func (c *QuizCommand) getQuizFromAI(topic string) (*QuizResponse, error) {
 		history = []string{}
 	}
 
-	reqData := QuizRequest{Topic: topic, History: history}
-	reqJson, _ := json.Marshal(reqData)
+	// AIに渡すプロンプトを作成
+	prompt := fmt.Sprintf("あなたはクイズマスターです。以下のルールに従って、JSON形式でユニークなクイズを1問だけ作成してください。\n\n### ルール\n- トピック: %s\n- 形式: JSONオブジェクト\n- JSONのキー: `question` (string), `options` (string配列, 4択), `correct_answer_index` (number, 0-3), `explanation` (string, 200字以内の簡潔な解説)\n- `options`には正解の選択肢を必ず含めてください。\n- 過去に出題された問題は避けてください。過去問リスト: %v\n\n上記ルールに厳密に従い、JSONオブジェクトのみを返してください。前置きや後書きは不要です。", topic, history)
 
-	resp, err := http.Post("http://localhost:5001/generate-quiz", "application/json", bytes.NewBuffer(reqJson))
+	// AIにリクエストを送信
+	responseText, err := c.AI.GenerateText(context.Background(), prompt)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+	// レスポンスからJSON部分を抽出
+	jsonString := extractJSON(responseText)
 
 	var quizResp QuizResponse
-	if err := json.Unmarshal(body, &quizResp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal quiz response: %w, body: %s", err, string(body))
+	if err := json.Unmarshal([]byte(jsonString), &quizResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal quiz response: %w, body: %s", err, responseText)
 	}
 
 	if quizResp.Error != "" {
@@ -307,6 +306,16 @@ func (c *QuizCommand) getQuizFromAI(topic string) (*QuizResponse, error) {
 	c.Store.SaveQuizQuestion("global", topic, quizResp.Question)
 
 	return &quizResp, nil
+}
+
+// extractJSON は文字列から最初の有効なJSONオブジェクトを抽出します。
+func extractJSON(s string) string {
+	start := strings.Index(s, "{")
+	last := strings.LastIndex(s, "}")
+	if start == -1 || last == -1 || last < start {
+		return ""
+	}
+	return s[start : last+1]
 }
 
 func (c *QuizCommand) buildBettingEmbed(game *QuizGame) *discordgo.MessageEmbed {

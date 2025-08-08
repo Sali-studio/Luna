@@ -21,6 +21,9 @@ type Config struct {
 		RedirectURI   string `mapstructure:"redirect_uri"`
 		SessionSecret string `mapstructure:"session_secret"`
 	}
+	Replicate struct {
+		APIToken string `mapstructure:"api_token"`
+	}
 }
 
 var Cfg *Config
