@@ -11,6 +11,7 @@ type Config struct {
 		Token string `mapstructure:"token"`
 	}
 	Google struct {
+		APIKey          string `mapstructure:"api_key"`
 		ProjectID       string `mapstructure:"project_id"`
 		CredentialsPath string `mapstructure:"credentials_path"`
 	}
