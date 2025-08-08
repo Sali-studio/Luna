@@ -47,32 +47,16 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-	prompt := fmt.Sprintf("以下のテキストを「%s」に翻訳してください。翻訳結果のテキストだけを返してください。\n\n[翻訳元テキスト]\n%s", targetLang, text)
+	prompt := fmt.Sprintf("以下のテキストを「%s」に翻訳してください。翻訳結果のテキストだけを返してください。
 
-	reqData := TextRequest{Prompt: prompt}
-	reqJson, _ := json.Marshal(reqData)
+[翻訳元テキスト]
+%s", targetLang, text)
 
-	resp, err := http.Post("http://localhost:5001/generate-text", "application/json", bytes.NewBuffer(reqJson))
+	tupdatedText, err := c.AI.GenerateText(context.Background(), prompt)
 	if err != nil {
-		c.Log.Error("Luna Assistantサーバーへの接続に失敗", "error", err)
-		content := "エラー: Luna Assistantサーバーへの接続に失敗しました。"
-		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
-			c.Log.Error("Failed to edit error response", "error", err)
-		}
-		return
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	var textResp TextResponse
-	if err := json.Unmarshal(body, &textResp); err != nil {
-		c.Log.Error("Failed to unmarshal AI response", "error", err)
-		return
-	}
-
-	if textResp.Error != "" || resp.StatusCode != http.StatusOK {
-		c.Log.Error("翻訳に失敗", "error", textResp.Error, "status_code", resp.StatusCode)
-		content := fmt.Sprintf("エラー: 翻訳に失敗しました。\n`%s`", textResp.Error)
+		c.Log.Error("翻訳に失敗", "error", err)
+		content := fmt.Sprintf("エラー: 翻訳に失敗しました。
+`%s`", err.Error())
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content}); err != nil {
 			c.Log.Error("Failed to edit error response", "error", err)
 		}
@@ -84,7 +68,7 @@ func (c *TranslateCommand) Handle(s *discordgo.Session, i *discordgo.Interaction
 		Color: 0x4CAF50,
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "翻訳元", Value: "```\n" + text + "\n```"},
-			{Name: "翻訳先 (" + targetLang + ")", Value: "```\n" + textResp.Text + "\n```"},
+			{Name: "翻訳先 (" + targetLang + ")", Value: "```\n" + updatedText + "\n```"},
 		},
 	}
 	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
