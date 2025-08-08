@@ -71,10 +71,11 @@ type WordCount struct {
 
 // CasinoData holds a user's casino-related information.
 type CasinoData struct {
-	GuildID   string
-	UserID    string
-	Chips     int64
-	LastDaily sql.NullTime // Use sql.NullTime to handle cases where it's not set
+	GuildID         string
+	UserID          string
+	Chips           int64
+	PepeCoinBalance int64
+	LastDaily       sql.NullTime // Use sql.NullTime to handle cases where it's not set
 }
 
 type DBStore struct {
@@ -142,13 +143,14 @@ func (s *DBStore) initTables() error {
 			word TEXT NOT NULL,
 			PRIMARY KEY (guild_id, word)
 		);`,
-		`CREATE TABLE IF NOT EXISTS casino_data (
+		``CREATE TABLE IF NOT EXISTS casino_data (
 			guild_id TEXT NOT NULL,
 			user_id TEXT NOT NULL,
-			chips INTEGER DEFAULT 0,
+			chips INTEGER DEFAULT 1000,
+			pepecoin_balance INTEGER DEFAULT 0,
 			last_daily DATETIME,
 			PRIMARY KEY (guild_id, user_id)
-		);`,
+		);``,
 	}
 	for _, table := range tables {
 		if _, err := s.db.Exec(table); err != nil {
@@ -439,15 +441,16 @@ func (s *DBStore) GetCasinoData(guildID, userID string) (*CasinoData, error) {
 	defer s.mu.Unlock()
 
 	data := &CasinoData{GuildID: guildID, UserID: userID}
-	query := "SELECT chips, last_daily FROM casino_data WHERE guild_id = ? AND user_id = ?"
-	err := s.db.QueryRow(query, guildID, userID).Scan(&data.Chips, &data.LastDaily)
+	query := "SELECT chips, pepecoin_balance, last_daily FROM casino_data WHERE guild_id = ? AND user_id = ?"
+	err := s.db.QueryRow(query, guildID, userID).Scan(&data.Chips, &data.PepeCoinBalance, &data.LastDaily)
 
 	if (err != nil) {
 		if (err == sql.ErrNoRows) {
-			// User doesn't have data yet, create it with default values (2000 chips)
-			data.Chips = 2000 // Initial chips
-			insertQuery := "INSERT INTO casino_data (guild_id, user_id, chips, last_daily) VALUES (?, ?, ?, NULL)"
-			_, insertErr := s.db.Exec(insertQuery, guildID, userID, data.Chips)
+			// User doesn't have data yet, create it with default values
+			data.Chips = 1000           // Initial chips
+			data.PepeCoinBalance = 0 // Initial PepeCoin
+			insertQuery := "INSERT INTO casino_data (guild_id, user_id, chips, pepecoin_balance, last_daily) VALUES (?, ?, ?, ?, NULL)"
+			_, insertErr := s.db.Exec(insertQuery, guildID, userID, data.Chips, data.PepeCoinBalance)
 			if insertErr != nil {
 				return nil, insertErr
 			}
@@ -464,8 +467,8 @@ func (s *DBStore) UpdateCasinoData(data *CasinoData) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	query := "UPDATE casino_data SET chips = ?, last_daily = ? WHERE guild_id = ? AND user_id = ?"
-	_, err := s.db.Exec(query, data.Chips, data.LastDaily, data.GuildID, data.UserID)
+	query := "UPDATE casino_data SET chips = ?, pepecoin_balance = ?, last_daily = ? WHERE guild_id = ? AND user_id = ?"
+	_, err := s.db.Exec(query, data.Chips, data.PepeCoinBalance, data.LastDaily, data.GuildID, data.UserID)
 	return err
 }
 
